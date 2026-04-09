@@ -23,6 +23,7 @@ import AdminInventory from "./pages/AdminInventory";
 import AdminCustomers from "./pages/AdminCustomers";
 import AdminCategories from "./pages/AdminCategories";
 import AdminReviews from "./pages/AdminReviews";
+import AdminLogin from "./pages/AdminLogin";
 
 
 function Router() {
@@ -42,6 +43,7 @@ function Router() {
       <Route path={"/profile"} component={DealerProfile} />
       
       {/* Admin Pages */}
+      <Route path={"/admin/login"} component={AdminLogin} />
       <Route path={"/admin"} component={AdminDashboard} />
       <Route path={"/admin/products"} component={AdminProducts} />
       <Route path={"/admin/orders"} component={AdminOrders} />

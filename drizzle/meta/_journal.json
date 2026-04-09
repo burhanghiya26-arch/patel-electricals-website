@@ -155,6 +155,13 @@
       "when": 1774672608482,
       "tag": "0021_flippant_harry_osborn",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "5",
+      "when": 1775762543426,
+      "tag": "0022_good_tattoo",
+      "breakpoints": true
     }
   ]
 }

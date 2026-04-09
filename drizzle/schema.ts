@@ -43,6 +43,24 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
 /**
+ * Admin Credentials (Email/Password Authentication)
+ */
+export const adminCredentials = mysqlTable("admin_credentials", {
+  id: int("id").autoincrement().primaryKey(),
+  email: varchar("email", { length: 320 }).notNull().unique(),
+  passwordHash: text("passwordHash").notNull(), // bcrypt hashed password
+  isActive: boolean("isActive").default(true).notNull(),
+  lastLoginAt: timestamp("lastLoginAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  emailIdx: index("admin_email_idx").on(table.email),
+}));
+
+export type AdminCredential = typeof adminCredentials.$inferSelect;
+export type InsertAdminCredential = typeof adminCredentials.$inferInsert;
+
+/**
  * Product Categories
  */
 export const categories = mysqlTable("categories", {

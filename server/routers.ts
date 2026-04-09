@@ -10,6 +10,7 @@ import { nanoid } from "nanoid";
 import { sendOrderConfirmationWhatsApp, sendOrderTrackingWhatsApp } from "./_core/whatsappNotification";
 import { generateInvoicePDF } from "./_core/invoiceGenerator";
 import { generateShippingLabel } from "./_core/shippingLabelGenerator";
+import { authenticateAdmin, createAdminAccount, verifyAdminToken } from "./_core/adminAuth";
 
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (ctx.user.role !== 'admin') {
@@ -28,6 +29,40 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
+  }),
+
+  admin: router({
+    login: publicProcedure
+      .input(z.object({ email: z.string().email(), password: z.string().min(1) }))
+      .mutation(async ({ input, ctx }) => {
+        const result = await authenticateAdmin(input.email, input.password);
+        if (!result.success) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: result.error || 'Authentication failed' });
+        }
+        
+        // Set admin session cookie
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, result.token, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
+        
+        return { success: true, token: result.token };
+      }),
+
+    logout: publicProcedure.mutation(({ ctx }) => {
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+      return { success: true };
+    }),
+
+    setupAdmin: publicProcedure
+      .input(z.object({ email: z.string().email(), password: z.string().min(6) }))
+      .mutation(async ({ input }) => {
+        // This should only work if no admin exists yet (first time setup)
+        const result = await createAdminAccount(input.email, input.password);
+        if (!result.success) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: result.error || 'Failed to create admin account' });
+        }
+        return { success: true };
+      }),
   }),
 
   products: router({
@@ -523,7 +558,7 @@ export const appRouter = router({
       }),
   }),
 
-  admin: router({
+  adminDashboard: router({
     stats: adminProcedure.query(async () => db.getDashboardStats()),
 
     revenueChart: adminProcedure
