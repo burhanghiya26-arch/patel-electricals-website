@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,7 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
 
   const loginMutation = trpc.admin.login.useMutation();
   const setupMutation = trpc.admin.setupAdmin.useMutation();
@@ -24,7 +24,7 @@ export default function AdminLogin() {
     try {
       const result = await loginMutation.mutateAsync({ email, password });
       if (result.success) {
-        navigate("/admin");
+        setLocation("/admin");
       }
     } catch (err: any) {
       const errorMessage = err?.message || "Login failed";
