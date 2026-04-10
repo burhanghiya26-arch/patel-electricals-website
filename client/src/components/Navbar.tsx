@@ -1,7 +1,5 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { getLoginUrl } from "@/const";
 import { Zap, ShoppingCart, Phone, Mail, MapPin, Menu, X, MessageCircle } from "lucide-react";
 import { useState } from "react";
 
@@ -9,7 +7,6 @@ const WHATSAPP_NUMBER = "918780657095";
 const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=Hi%20Patel%20Electricals%2C%20I%20need%20help%20with%20spare%20parts`;
 
 export default function Navbar() {
-  const { user, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -51,34 +48,12 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-1">
             <Button variant="ghost" className="font-medium" onClick={() => setLocation("/")}>Home</Button>
             <Button variant="ghost" className="font-medium" onClick={() => setLocation("/products")}>Products</Button>
-            {isAuthenticated && (
-              <>
-                <Button variant="ghost" className="font-medium relative" onClick={() => setLocation("/cart")}>
-                  <ShoppingCart className="h-4 w-4 mr-1.5" /> Cart
-                </Button>
-                <Button variant="ghost" className="font-medium" onClick={() => setLocation("/profile")}>My Orders</Button>
-                {user?.role === "admin" && (
-                  <Button variant="ghost" className="font-medium text-[oklch(0.65_0.15_85)]" onClick={() => setLocation("/admin")}>
-                    Admin Panel
-                  </Button>
-                )}
-              </>
-            )}
+            <Button variant="ghost" className="font-medium relative" onClick={() => setLocation("/cart")}>
+              <ShoppingCart className="h-4 w-4 mr-1.5" /> Cart
+            </Button>
           </div>
 
           <div className="flex items-center gap-2">
-            {isAuthenticated ? (
-              <div className="hidden md:flex items-center gap-3">
-                <span className="text-sm text-muted-foreground">
-                  Hi, <span className="font-semibold text-foreground">{user?.name || "Dealer"}</span>
-                </span>
-                <Button variant="outline" size="sm" onClick={() => setLocation("/profile")}>Profile</Button>
-              </div>
-            ) : (
-              <Button size="sm" className="hidden md:inline-flex" onClick={() => window.location.href = getLoginUrl()}>
-                Login / Register
-              </Button>
-            )}
 
             {/* Mobile Menu Button */}
             <Button variant="ghost" size="sm" className="md:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
@@ -92,20 +67,9 @@ export default function Navbar() {
           <div className="md:hidden border-t border-border bg-background p-4 space-y-2">
             <Button variant="ghost" className="w-full justify-start font-medium" onClick={() => { setLocation("/"); setMobileMenuOpen(false); }}>Home</Button>
             <Button variant="ghost" className="w-full justify-start font-medium" onClick={() => { setLocation("/products"); setMobileMenuOpen(false); }}>Products</Button>
-            {isAuthenticated ? (
-              <>
-                <Button variant="ghost" className="w-full justify-start font-medium" onClick={() => { setLocation("/cart"); setMobileMenuOpen(false); }}>
-                  <ShoppingCart className="h-4 w-4 mr-2" /> Cart
-                </Button>
-                <Button variant="ghost" className="w-full justify-start font-medium" onClick={() => { setLocation("/profile"); setMobileMenuOpen(false); }}>My Orders</Button>
-                {user?.role === "admin" && (
-                  <Button variant="ghost" className="w-full justify-start font-medium text-[oklch(0.65_0.15_85)]" onClick={() => { setLocation("/admin"); setMobileMenuOpen(false); }}>Admin Panel</Button>
-                )}
-                <Button variant="outline" className="w-full" onClick={() => { setLocation("/profile"); setMobileMenuOpen(false); }}>Profile</Button>
-              </>
-            ) : (
-              <Button className="w-full" onClick={() => window.location.href = getLoginUrl()}>Login / Register</Button>
-            )}
+            <Button variant="ghost" className="w-full justify-start font-medium" onClick={() => { setLocation("/cart"); setMobileMenuOpen(false); }}>
+              <ShoppingCart className="h-4 w-4 mr-2" /> Cart
+            </Button>
             <Button variant="outline" className="w-full justify-start" onClick={() => window.open(WHATSAPP_URL, "_blank")}>
               <MessageCircle className="h-4 w-4 mr-2" /> WhatsApp Support
             </Button>
