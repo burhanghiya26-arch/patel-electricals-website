@@ -75,14 +75,14 @@ export async function transcribeAudio(
 ): Promise<TranscriptionResponse | TranscriptionError> {
   try {
     // Step 1: Validate environment configuration
-    if (!ENV.forgeApiUrl) {
+    if (!ENV.forgeApiUrl || ENV.forgeApiUrl === "https://api.manus.im") {
       return {
         error: "Voice transcription service is not configured",
         code: "SERVICE_ERROR",
         details: "BUILT_IN_FORGE_API_URL is not set"
       };
     }
-    if (!ENV.forgeApiKey) {
+    if (!ENV.forgeApiKey || ENV.forgeApiKey === "default-key") {
       return {
         error: "Voice transcription service authentication is missing",
         code: "SERVICE_ERROR",
