@@ -1,5 +1,3 @@
-import { notifyOwner } from "./notification";
-
 const WHATSAPP_NUMBER = "918780657095";
 
 interface OrderNotificationData {
@@ -59,10 +57,11 @@ Wholesale Spare Parts
     console.log(`[WhatsApp Notification] Order confirmation sent to ${data.customerPhone}:\n${message}`);
 
     // Notify owner about the order
-    await notifyOwner({
-      title: `New Order #${data.orderNumber}`,
-      content: `${data.customerName} placed an order for ₹${data.totalAmount.toFixed(2)}. Order ID: ${data.orderId}`,
-    });
+    // Disabled: Manus notification service
+    // await notifyOwner({
+    //   title: `New Order #${data.orderNumber}`,
+    //   content: `${data.customerName} placed an order for ₹${data.totalAmount.toFixed(2)}. Order ID: ${data.orderId}`,
+    // });
 
     return true;
   } catch (error) {
