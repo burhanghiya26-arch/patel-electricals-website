@@ -7,16 +7,15 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, MapPin, Package, ShoppingBag, Loader2, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
-import { getLoginUrl } from "@/const";
+
+
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { toast } from "sonner";
 
 export default function Checkout() {
-  const { user, isAuthenticated, loading } = useAuth();
   const [, setLocation] = useLocation();
-  const { data: cartItems } = trpc.cart.list.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: cartItems } = trpc.cart.list.useQuery();
 
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
@@ -71,27 +70,7 @@ export default function Checkout() {
     });
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
 
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-background"><Navbar />
-        <div className="container py-20 text-center">
-          <ShoppingBag className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Login Required</h2>
-          <p className="text-muted-foreground mb-6">Please login to checkout</p>
-          <a href={getLoginUrl()}><Button>Login Now</Button></a>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
 
   if (!cartItems || cartItems.length === 0) {
     return (
@@ -214,12 +193,7 @@ export default function Checkout() {
                   <input type="radio" name="payment" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} />
                   <div><p className="font-medium">Cash on Delivery (COD)</p><p className="text-xs text-muted-foreground">Pay when order arrives</p></div>
                 </label>
-                {user?.creditApproved && user?.creditLimit && Number(user.creditLimit) > 0 && (
-                  <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted" onClick={() => setPaymentMethod('credit')}>
-                    <input type="radio" name="payment" checked={paymentMethod === 'credit'} onChange={() => setPaymentMethod('credit')} />
-                    <div><p className="font-medium">Dealer Credit</p><p className="text-xs text-muted-foreground">Available: ₹{Number(user.creditLimit).toLocaleString()}</p></div>
-                  </label>
-                )}
+
               </CardContent>
             </Card>
 
