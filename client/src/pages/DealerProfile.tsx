@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,38 +11,22 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { User, ShoppingCart, FileText, CreditCard, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
-import { getLoginUrl } from "@/const";
 
 export default function DealerProfile() {
-  const { user, isAuthenticated, loading } = useAuth();
   const [, setLocation] = useLocation();
   const [editMode, setEditMode] = useState(false);
   const [profileData, setProfileData] = useState({
     name: "", businessName: "", businessPhone: "", businessAddress: "",
   });
 
-  const { data: orders } = trpc.orders.list.useQuery(undefined, { enabled: isAuthenticated });
-  const { data: quotations } = trpc.quotations.list.useQuery(undefined, { enabled: isAuthenticated });
+  const { data: orders } = trpc.orders.list.useQuery();
+  const { data: quotations } = trpc.quotations.list.useQuery();
   const updateMutation = trpc.users.updateProfile.useMutation({
     onSuccess: () => { toast.success("Profile updated"); setEditMode(false); },
     onError: (e) => toast.error(e.message),
   });
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="container py-20 text-center">
-          <User className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Login Required</h2>
-          <p className="text-muted-foreground mb-6">Please login to view your profile</p>
-          <a href={getLoginUrl()}><Button>Login Now</Button></a>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
+
 
   const statusColors: Record<string, string> = {
     pending: "bg-yellow-100 text-yellow-800", confirmed: "bg-blue-100 text-blue-800",
@@ -64,13 +47,13 @@ export default function DealerProfile() {
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary text-2xl font-bold">
-                {(user?.name || user?.email || "U").charAt(0).toUpperCase()}
+                D
               </div>
               <div className="flex-1">
-                <h1 className="text-xl font-bold">{user?.name || "User"}</h1>
-                <p className="text-muted-foreground">{user?.email}</p>
+                <h1 className="text-xl font-bold">Guest Dealer</h1>
+                <p className="text-muted-foreground">Browse and shop without account</p>
                 <div className="flex gap-2 mt-1">
-                  <Badge>{user?.role}</Badge>
+                  <Badge>Guest</Badge>
                 </div>
               </div>
             </div>
@@ -132,7 +115,7 @@ export default function DealerProfile() {
               <CardHeader><CardTitle>Business Information</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div><Label>Full Name</Label><Input value={profileData.name || user?.name || ""} onChange={(e) => setProfileData({ ...profileData, name: e.target.value })} className="mt-1" /></div>
+                  <div><Label>Full Name</Label><Input value={profileData.name || ""} onChange={(e) => setProfileData({ ...profileData, name: e.target.value })} className="mt-1" /></div>
                   <div><Label>Business Name</Label><Input value={profileData.businessName} onChange={(e) => setProfileData({ ...profileData, businessName: e.target.value })} className="mt-1" /></div>
                   <div><Label>Phone Number</Label><Input value={profileData.businessPhone} onChange={(e) => setProfileData({ ...profileData, businessPhone: e.target.value })} className="mt-1" /></div>
 

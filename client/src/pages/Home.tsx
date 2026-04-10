@@ -3,10 +3,8 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
-import { getLoginUrl } from "@/const";
 import { Zap, ShoppingCart, Search, Package, Truck, Shield, Phone, Mail, MapPin, ArrowRight, TrendingUp, Clock, MessageCircle, Loader2, Filter, Sliders } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { WhatsAppButton, WhatsAppFloatingButton } from "@/components/WhatsAppButton";
@@ -16,21 +14,18 @@ const WHATSAPP_NUMBER = "918780657095";
 const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=Hi%20Patel%20Electricals%2C%20I%20need%20help%20with%20spare%20parts`;
 
 export default function Home() {
-  const { user, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = React.useState("");
-  const { data: stats, isLoading: statsLoading } = trpc.admin.stats.useQuery(undefined, { enabled: isAuthenticated && user?.role === 'admin' });
   const { data: categories, isLoading: catsLoading } = trpc.products.getCategories.useQuery();
   const { data: generalProducts, isLoading: generalLoading } = trpc.products.getCategories.useQuery();
   const generalCategoryId = React.useMemo(() => categories?.find((c: any) => c.name === "General")?.id, [categories]);
   const { data: generalCategoryProducts } = trpc.products.getByCategory.useQuery(generalCategoryId || 0, { enabled: !!generalCategoryId });
 
-
   // Fallback stats
   const displayStats = [
-    { label: "Products", value: stats?.totalProducts ? `${stats.totalProducts}+` : "Loading...", icon: Package },
-    { label: "Dealers", value: stats?.totalUsers ? `${stats.totalUsers}+` : "Loading...", icon: Truck },
-    { label: "Orders", value: stats?.totalOrders ? `${stats.totalOrders}+` : "Loading...", icon: ShoppingCart },
+    { label: "Products", value: "5000+", icon: Package },
+    { label: "Dealers", value: "500+", icon: Truck },
+    { label: "Orders", value: "10000+", icon: ShoppingCart },
     { label: "Years", value: "15+", icon: Clock },
   ];
 
@@ -67,25 +62,10 @@ export default function Home() {
           <div className="hidden md:flex items-center gap-1">
             <button className="px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors" onClick={() => setLocation("/")}>Home</button>
             <button className="px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors" onClick={() => setLocation("/products")}>Products</button>
-            {isAuthenticated && (
-              <>
-                <button className="px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors flex items-center gap-1.5" onClick={() => setLocation("/cart")}><ShoppingCart className="h-4 w-4" />Cart</button>
-                <button className="px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors" onClick={() => setLocation("/profile")}>My Orders</button>
-                {user?.role === "admin" && <button className="px-3 py-2 text-sm font-medium text-[oklch(0.65_0.15_85)] hover:bg-accent rounded-md transition-colors" onClick={() => setLocation("/admin")}>Admin Panel</button>}
-              </>
-            )}
+            <button className="px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors flex items-center gap-1.5" onClick={() => setLocation("/cart")}><ShoppingCart className="h-4 w-4" />Cart</button>
           </div>
 
-            <div className="flex items-center gap-2">
-            {isAuthenticated ? (
-              <div className="flex items-center gap-3">
-                <span className="hidden sm:inline text-sm text-muted-foreground">Hi, <span className="font-semibold text-foreground">{user?.name || "Dealer"}</span></span>
-                <button className="inline-flex items-center justify-center px-3 py-1.5 rounded-md border border-input hover:bg-accent text-sm font-medium transition-colors" onClick={() => setLocation("/profile")}>Profile</button>
-              </div>
-            ) : (
-              <button className="inline-flex items-center justify-center px-3 py-1.5 rounded-md bg-[oklch(0.65_0.15_85)] text-[oklch(0.22_0.05_260)] text-sm font-medium hover:bg-[oklch(0.65_0.15_85)]/90 transition-colors" onClick={() => window.location.href = getLoginUrl()}>Login / Register</button>
-            )}
-          </div>
+          <div className="flex items-center gap-2"></div>
         </div>
       </nav>
 

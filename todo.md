@@ -782,3 +782,15 @@
 - [x] Updated ProductCatalog filter logic to handle string comparison
 - [x] Tested: Cooler category now shows only 2 Bajaj products ✅
 - [x] All 23 vitest tests still passing ✅
+
+## Phase 100: Remove Manus OAuth & Implement Guest Checkout
+- [ ] Remove Manus OAuth from server SDK (sdk.ts)
+- [ ] Remove OAuth context from client main.tsx
+- [ ] Update client pages to remove useAuth hooks
+- [ ] Remove getLoginUrl from client const.ts
+- [ ] Implement guest checkout (no login required for customers)
+- [ ] Keep admin email/password login only
+- [ ] Fix TLS certificate issue on patelspares.com
+- [ ] Test guest browsing and checkout
+- [ ] Test admin login at /admin/login
+- [ ] Push to GitHub and verify Railway deployment
