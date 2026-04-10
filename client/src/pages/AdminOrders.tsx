@@ -21,6 +21,10 @@ const statusColors: Record<string, string> = {
 
 export default function AdminOrders() {
   const { user, isAuthenticated } = useAuth();
+  
+  if (user && user.role !== "admin") {
+    return <div className="p-4">Access denied. Admin only.</div>;
+  }
 
   
   const { data: orders, isLoading, refetch } = trpc.orders.getAllOrders.useQuery(

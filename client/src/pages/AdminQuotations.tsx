@@ -17,6 +17,10 @@ const statusColors: Record<string, string> = {
 
 export default function AdminQuotations() {
   const { user, isAuthenticated } = useAuth();
+  
+  if (user && user.role !== "admin") {
+    return <div className="p-4">Access denied. Admin only.</div>;
+  }
   const { data: quotations, isLoading, refetch } = trpc.quotations.getAllQuotations.useQuery(
     { limit: 50, offset: 0 },
     { enabled: isAuthenticated && user?.role === "admin" }

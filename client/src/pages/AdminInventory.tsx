@@ -9,6 +9,10 @@ import { AlertTriangle, Package, TrendingDown, Plus, Minus, RefreshCw } from "lu
 
 export default function AdminInventory() {
   const { user, isAuthenticated } = useAuth();
+  
+  if (user && user.role !== "admin") {
+    return <div className="p-4">Access denied. Admin only.</div>;
+  }
   const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<number | null>(null);

@@ -14,6 +14,12 @@ import { toast } from "sonner";
 function AdminNav({ current }: { current: string }) {
   const [, setLocation] = useLocation();
   const { logout, user } = useAuth();
+  
+  // Redirect if not admin
+  if (user && user.role !== 'admin') {
+    setLocation('/');
+    return null;
+  }
   const navItems = [
     { label: "Dashboard", path: "/admin" },
     { label: "Products", path: "/admin/products" },

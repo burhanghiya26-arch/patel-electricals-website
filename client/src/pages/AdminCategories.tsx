@@ -9,6 +9,10 @@ import { AlertTriangle, Plus, Edit2, Trash2 } from "lucide-react";
 
 export default function AdminCategories() {
   const { user, isAuthenticated } = useAuth();
+  
+  if (user && user.role !== "admin") {
+    return <div className="p-4">Access denied. Admin only.</div>;
+  }
   const [, setLocation] = useLocation();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);

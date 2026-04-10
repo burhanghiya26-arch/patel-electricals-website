@@ -13,6 +13,10 @@ import { toast } from "sonner";
 
 export default function AdminDealers() {
   const { user, isAuthenticated } = useAuth();
+  
+  if (user && user.role !== "admin") {
+    return <div className="p-4">Access denied. Admin only.</div>;
+  }
   const [creditDialog, setCreditDialog] = useState<{ userId: number; name: string } | null>(null);
   const [creditAmount, setCreditAmount] = useState(0);
 

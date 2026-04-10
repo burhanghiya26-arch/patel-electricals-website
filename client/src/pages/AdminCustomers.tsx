@@ -9,6 +9,10 @@ import { AlertTriangle, Mail, Phone, DollarSign, ShoppingCart, MessageSquare, Ta
 
 export default function AdminCustomers() {
   const { user, isAuthenticated } = useAuth();
+  
+  if (user && user.role !== "admin") {
+    return <div className="p-4">Access denied. Admin only.</div>;
+  }
   const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<number | null>(null);

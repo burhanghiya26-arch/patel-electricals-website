@@ -12,6 +12,10 @@ import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function AdminShipping() {
   const { user, isAuthenticated } = useAuth();
+  
+  if (user && user.role !== "admin") {
+    return <div className="p-4">Access denied. Admin only.</div>;
+  }
   const [, setLocation] = useLocation();
   const { data: shippingConfig } = trpc.admin.getShippingConfig.useQuery(
     undefined,

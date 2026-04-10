@@ -13,6 +13,10 @@ import { Plus, Trash2, Edit, Package, AlertCircle, ImageIcon, Upload, X } from "
 
 export default function AdminProducts() {
   const { user, isAuthenticated } = useAuth();
+  
+  if (user && user.role !== "admin") {
+    return <div className="p-4">Access denied. Admin only.</div>;
+  }
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
   const { data: products, isLoading } = trpc.products.adminList.useQuery(
