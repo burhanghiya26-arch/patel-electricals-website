@@ -17,6 +17,12 @@ import { createPatchedFetch } from "./patchedFetch";
  * Creates an OpenAI-compatible provider with patched fetch.
  */
 function createLLMProvider() {
+  // Return null if Manus API not configured
+  if (!ENV.forgeApiUrl || ENV.forgeApiUrl === "https://api.manus.im" || ENV.forgeApiKey === "default-key") {
+    console.log("[Chat] LLM provider not configured");
+    return null as any;
+  }
+
   const baseURL = ENV.forgeApiUrl.endsWith("/v1")
     ? ENV.forgeApiUrl
     : `${ENV.forgeApiUrl}/v1`;
@@ -94,6 +100,12 @@ export function registerChatRoutes(app: Express) {
 
   app.post("/api/chat", async (req, res) => {
     try {
+      // Return error if LLM not configured
+      if (!openai) {
+        res.status(503).json({ error: "Chat service not available" });
+        return;
+      }
+
       const { messages } = req.body;
 
       if (!messages || !Array.isArray(messages)) {
