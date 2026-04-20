@@ -1,0 +1,33 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "pnpm install --frozen-lockfile && pnpm run build"
+  },
+  "deploy": {
+    "numReplicas": 1,
+    "sleepApplication": false,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 5,
+    "startCommand": "pnpm run start"
+  },
+  "env": {
+    "NODE_ENV": "production",
+    "DATABASE_URL": "${{ Postgres.DATABASE_URL }}",
+    "JWT_SECRET": "wholesale-spare-parts-jwt-secret-key-2024",
+    "OAUTH_SERVER_URL": "https://api.manus.im",
+    "VITE_OAUTH_PORTAL_URL": "https://manus.im",
+    "VITE_APP_ID": "wholesale-spare-parts-app",
+    "OWNER_OPEN_ID": "owner-id-wholesale",
+    "OWNER_NAME": "Wholesale Spare Parts",
+    "BUILT_IN_FORGE_API_URL": "https://forge.manus.ai",
+    "BUILT_IN_FORGE_API_KEY": "forge-api-key-placeholder",
+    "VITE_FRONTEND_FORGE_API_URL": "https://forge.manus.ai",
+    "VITE_FRONTEND_FORGE_API_KEY": "frontend-forge-key-placeholder",
+    "VITE_APP_TITLE": "Wholesale Spare Parts Shop",
+    "VITE_APP_LOGO": "",
+    "VITE_ANALYTICS_ENDPOINT": "https://manus-analytics.com",
+    "VITE_ANALYTICS_WEBSITE_ID": "analytics-id-placeholder"
+  }
+}

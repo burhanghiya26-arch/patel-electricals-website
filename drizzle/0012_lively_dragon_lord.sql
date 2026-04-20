@@ -1,0 +1,1 @@
+ALTER TABLE `settings` ADD `codEnabled` boolean DEFAULT false NOT NULL;

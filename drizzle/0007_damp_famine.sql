@@ -1,0 +1,1 @@
+ALTER TABLE `pin_code_zones` ADD `areaName` varchar(100) NOT NULL;

@@ -1,0 +1,1 @@
+ALTER TABLE `orders` MODIFY COLUMN `paymentMethod` enum('upi','bank_transfer','card','cod','razorpay','credit') NOT NULL;

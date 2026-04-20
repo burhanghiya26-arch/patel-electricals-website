@@ -1,0 +1,1 @@
+DROP TABLE `tiered_pricing`;

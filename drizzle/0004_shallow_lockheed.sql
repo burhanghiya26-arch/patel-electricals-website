@@ -1,0 +1,1 @@
+ALTER TABLE `orders` ADD `manualShippingCharge` decimal(12,2);
