@@ -1,4 +1,4 @@
-import { eq, and, like, desc, asc, sql, or, lte, gte } from "drizzle-orm";
+import { eq, and, like, desc, asc, sql, or, lte, gte, getTableColumns } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users, products, inventory, cartItems, orders, orderItems,
@@ -158,7 +158,15 @@ export async function getProductByPartNumber(partNumber: string) {
 export async function getAllProducts(limit = 50, offset = 0) {
   const db = await getDb();
   if (!db) return [];
-  return await db.select().from(products).where(eq(products.isActive, true)).limit(limit).offset(offset);
+  return await db.select({
+    ...getTableColumns(products),
+    quantityInStock: inventory.quantityInStock,
+    minimumOrderQuantity: inventory.minimumOrderQuantity,
+  }).from(products)
+    .leftJoin(inventory, eq(products.id, inventory.productId))
+    .where(eq(products.isActive, true))
+    .limit(limit)
+    .offset(offset);
 }
 
 export async function getAllProductsAdmin(limit = 100, offset = 0) {
