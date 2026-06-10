@@ -94,6 +94,18 @@ export default function Home() {
                   message="Hi Patel Electricals, I need help with spare parts"
                   showText={true}
                 />
+                <button
+                  onClick={() => setLocation("/customer/login")}
+                  className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  Customer Login
+                </button>
+                <button
+                  onClick={() => setLocation("/admin/login")}
+                  className="px-6 py-3 bg-slate-900 text-white font-semibold rounded-lg hover:bg-black transition-colors flex items-center gap-2"
+                >
+                  Admin Login
+                </button>
               </div>
             </div>
 

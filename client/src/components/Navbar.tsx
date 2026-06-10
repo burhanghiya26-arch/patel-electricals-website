@@ -1,10 +1,6 @@
-import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { Zap, ShoppingCart, Phone, Mail, MapPin, Menu, X, MessageCircle, LogIn } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useState } from "react";
-
-const WHATSAPP_NUMBER = "918780657095";
-const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=Hi%20Patel%20Electricals%2C%20I%20need%20help%20with%20spare%20parts`;
 
 export default function Navbar() {
   const [, setLocation] = useLocation();
@@ -12,98 +8,95 @@ export default function Navbar() {
 
   return (
     <>
-      {/* Top Bar */}
-      <div className="bg-[oklch(0.22_0.05_260)] text-white text-sm">
-        <div className="container flex items-center justify-between py-2">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1">
-              <Phone className="h-3 w-3" /> 8780657095
-            </span>
-            <span className="hidden sm:flex items-center gap-1">
-              <Mail className="h-3 w-3" /> burhanghiya26@gmail.com
-            </span>
-          </div>
-          <div className="flex items-center gap-1">
-            <MapPin className="h-3 w-3" />
-            <span className="hidden sm:inline">Udhana, Surat - 394210</span>
-            <span className="sm:hidden">Surat</span>
-          </div>
+      {/* Top Info Bar */}
+      <div className="bg-slate-900 text-white text-xs py-2 px-4">
+        <div className="max-w-6xl mx-auto flex justify-between">
+          <span>📞 8780657095</span>
+          <span>📍 Surat, Gujarat</span>
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-sm">
-        <div className="container flex h-16 items-center justify-between">
+      {/* Main Navbar */}
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center gap-3 cursor-pointer flex-shrink-0" onClick={() => setLocation("/")}>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[oklch(0.22_0.05_260)]">
-              <Zap className="h-5 w-5 text-[oklch(0.65_0.15_85)]" />
-            </div>
-            <div className="hidden sm:block">
-              <span className="text-lg font-bold leading-none">Patel Electricals</span>
-              <span className="block text-[10px] text-muted-foreground font-medium tracking-wider uppercase">Wholesale Spare Parts</span>
-            </div>
+          <div 
+            className="flex items-center gap-2 cursor-pointer font-bold text-lg"
+            onClick={() => setLocation("/")}
+          >
+            <div className="w-8 h-8 bg-slate-900 rounded flex items-center justify-center text-yellow-500 font-bold">⚡</div>
+            <span className="hidden sm:inline">Patel Electricals</span>
           </div>
 
-          {/* Desktop Navigation - Show on md and up */}
-          <div className="hidden md:flex items-center gap-2 flex-wrap justify-center flex-1 px-4">
-            <Button variant="ghost" size="sm" className="font-medium" onClick={() => setLocation("/")}>Home</Button>
-            <Button variant="ghost" size="sm" className="font-medium" onClick={() => setLocation("/products")}>Products</Button>
-            <Button variant="ghost" size="sm" className="font-medium" onClick={() => setLocation("/cart")}>
-              <ShoppingCart className="h-4 w-4 mr-1" /> Cart
-            </Button>
-            <div className="border-l border-border mx-1 h-6" />
-            <Button variant="outline" size="sm" className="font-medium" onClick={() => setLocation("/customer/login")}>
-              <LogIn className="h-4 w-4 mr-1" /> Customer
-            </Button>
-            <Button variant="outline" size="sm" className="font-medium" onClick={() => setLocation("/admin/login")}>
+          {/* Desktop Menu */}
+          <div className="hidden md:flex items-center gap-4">
+            <button onClick={() => setLocation("/")} className="hover:text-blue-600 font-medium">Home</button>
+            <button onClick={() => setLocation("/products")} className="hover:text-blue-600 font-medium">Products</button>
+            <button onClick={() => setLocation("/cart")} className="hover:text-blue-600 font-medium">Cart</button>
+            <div className="border-l border-gray-300 h-6"></div>
+            <button onClick={() => setLocation("/customer/login")} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-medium">
+              Customer Login
+            </button>
+            <button onClick={() => setLocation("/admin/login")} className="bg-slate-900 text-white px-4 py-2 rounded hover:bg-black font-medium">
               Admin
-            </Button>
+            </button>
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="flex items-center gap-2 md:hidden">
-            <Button variant="ghost" size="sm" onClick={() => setLocation("/cart")}>
-              <ShoppingCart className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </Button>
-          </div>
+          <button 
+            className="md:hidden p-2"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
         </div>
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-border bg-background p-4 space-y-2 max-h-96 overflow-y-auto">
-            <Button variant="ghost" className="w-full justify-start font-medium" onClick={() => { setLocation("/"); setMobileMenuOpen(false); }}>Home</Button>
-            <Button variant="ghost" className="w-full justify-start font-medium" onClick={() => { setLocation("/products"); setMobileMenuOpen(false); }}>Products</Button>
-            <Button variant="ghost" className="w-full justify-start font-medium" onClick={() => { setLocation("/cart"); setMobileMenuOpen(false); }}>
-              <ShoppingCart className="h-4 w-4 mr-2" /> Cart
-            </Button>
-            <div className="border-t border-border my-2" />
-            <Button variant="outline" className="w-full justify-start" onClick={() => window.open(WHATSAPP_URL, "_blank")}>
-              <MessageCircle className="h-4 w-4 mr-2" /> WhatsApp Support
-            </Button>
-            <div className="border-t border-border my-2" />
-            <Button variant="outline" className="w-full justify-start font-medium" onClick={() => { setLocation("/customer/login"); setMobileMenuOpen(false); }}>
-              <LogIn className="h-4 w-4 mr-2" /> Customer Login
-            </Button>
-            <Button variant="outline" className="w-full justify-start font-medium" onClick={() => { setLocation("/admin/login"); setMobileMenuOpen(false); }}>
+          <div className="md:hidden bg-gray-50 border-t border-gray-200 p-4 space-y-2">
+            <button 
+              onClick={() => { setLocation("/"); setMobileMenuOpen(false); }}
+              className="block w-full text-left py-2 px-3 hover:bg-gray-200 rounded font-medium"
+            >
+              Home
+            </button>
+            <button 
+              onClick={() => { setLocation("/products"); setMobileMenuOpen(false); }}
+              className="block w-full text-left py-2 px-3 hover:bg-gray-200 rounded font-medium"
+            >
+              Products
+            </button>
+            <button 
+              onClick={() => { setLocation("/cart"); setMobileMenuOpen(false); }}
+              className="block w-full text-left py-2 px-3 hover:bg-gray-200 rounded font-medium"
+            >
+              Cart
+            </button>
+            <div className="border-t border-gray-300 my-2"></div>
+            <button 
+              onClick={() => { setLocation("/customer/login"); setMobileMenuOpen(false); }}
+              className="block w-full text-left py-2 px-3 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium"
+            >
+              Customer Login
+            </button>
+            <button 
+              onClick={() => { setLocation("/admin/login"); setMobileMenuOpen(false); }}
+              className="block w-full text-left py-2 px-3 bg-slate-900 text-white rounded hover:bg-black font-medium"
+            >
               Admin Login
-            </Button>
+            </button>
           </div>
         )}
       </nav>
 
-      {/* WhatsApp Floating Button */}
+      {/* WhatsApp Button */}
       <a
-        href={WHATSAPP_URL}
+        href="https://wa.me/918780657095"
         target="_blank"
         rel="noopener noreferrer"
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-green-500 text-white shadow-lg hover:bg-green-600 transition-all hover:scale-110"
-        title="Chat on WhatsApp"
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-green-500 text-white rounded-full flex items-center justify-center text-2xl hover:bg-green-600 shadow-lg"
       >
-        <MessageCircle className="h-7 w-7" />
+        💬
       </a>
     </>
   );
