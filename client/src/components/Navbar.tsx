@@ -45,18 +45,20 @@ export default function Navbar() {
           </div>
 
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-1">
+          <div className="hidden lg:flex items-center gap-1">
             <Button variant="ghost" className="font-medium" onClick={() => setLocation("/")}>Home</Button>
             <Button variant="ghost" className="font-medium" onClick={() => setLocation("/products")}>Products</Button>
             <Button variant="ghost" className="font-medium relative" onClick={() => setLocation("/cart")}>
               <ShoppingCart className="h-4 w-4 mr-1.5" /> Cart
             </Button>
+            <div className="border-l border-border mx-2" />
+            <Button variant="outline" className="font-medium" onClick={() => setLocation("/customer/login")}>Customer Login</Button>
+            <Button variant="outline" className="font-medium" onClick={() => setLocation("/admin/login")}>Admin</Button>
           </div>
 
           <div className="flex items-center gap-2">
-
             {/* Mobile Menu Button */}
-            <Button variant="ghost" size="sm" className="md:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            <Button variant="ghost" size="sm" className="lg:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
           </div>
@@ -64,7 +66,7 @@ export default function Navbar() {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-border bg-background p-4 space-y-2">
+          <div className="lg:hidden border-t border-border bg-background p-4 space-y-2">
             <Button variant="ghost" className="w-full justify-start font-medium" onClick={() => { setLocation("/"); setMobileMenuOpen(false); }}>Home</Button>
             <Button variant="ghost" className="w-full justify-start font-medium" onClick={() => { setLocation("/products"); setMobileMenuOpen(false); }}>Products</Button>
             <Button variant="ghost" className="w-full justify-start font-medium" onClick={() => { setLocation("/cart"); setMobileMenuOpen(false); }}>
@@ -73,6 +75,9 @@ export default function Navbar() {
             <Button variant="outline" className="w-full justify-start" onClick={() => window.open(WHATSAPP_URL, "_blank")}>
               <MessageCircle className="h-4 w-4 mr-2" /> WhatsApp Support
             </Button>
+            <div className="border-t border-border my-2" />
+            <Button variant="outline" className="w-full justify-start" onClick={() => { setLocation("/customer/login"); setMobileMenuOpen(false); }}>Customer Login</Button>
+            <Button variant="outline" className="w-full justify-start" onClick={() => { setLocation("/admin/login"); setMobileMenuOpen(false); }}>Admin Login</Button>
           </div>
         )}
       </nav>
