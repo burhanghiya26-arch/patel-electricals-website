@@ -1414,3 +1414,48 @@ export async function getOrderTimeline(orderId: number) {
     .orderBy(asc(orderTracking.createdAt));
 }
 
+
+
+// ========================
+// CUSTOMER FUNCTIONS (Simple Email/Password Auth)
+// ========================
+
+export async function getCustomerByEmail(email: string): Promise<any> {
+  try {
+    const result = await executeRaw(`SELECT * FROM customer_users WHERE email = '${email}'`);
+    if (Array.isArray(result) && result.length > 0) {
+      return result[0];
+    }
+    return null;
+  } catch (error) {
+    console.error("Error getting customer by email:", error);
+    return null;
+  }
+}
+
+export async function createCustomer(data: { email: string; password_hash: string; phone?: string; name?: string }): Promise<any> {
+  try {
+    const phone = data.phone ? `'${data.phone}'` : 'NULL';
+    const name = data.name ? `'${data.name}'` : 'NULL';
+    const result = await executeRaw(
+      `INSERT INTO customer_users (email, password_hash, phone, name) VALUES ('${data.email}', '${data.password_hash}', ${phone}, ${name})`
+    );
+    return { id: (result as any).insertId, ...data };
+  } catch (error) {
+    console.error("Error creating customer:", error);
+    throw error;
+  }
+}
+
+export async function getCustomerById(id: number): Promise<any> {
+  try {
+    const result = await executeRaw(`SELECT * FROM customer_users WHERE id = ${id}`);
+    if (Array.isArray(result) && result.length > 0) {
+      return result[0];
+    }
+    return null;
+  } catch (error) {
+    console.error("Error getting customer by id:", error);
+    return null;
+  }
+}

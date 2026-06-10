@@ -65,6 +65,61 @@ export const appRouter = router({
       }),
   }),
 
+  customer: router({
+    login: publicProcedure
+      .input(z.object({ email: z.string().email(), password: z.string().min(1) }))
+      .mutation(async ({ input, ctx }) => {
+        const customer = await db.getCustomerByEmail(input.email);
+        if (!customer) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Customer not found' });
+        }
+        
+        const bcrypt = require('bcryptjs');
+        const isPasswordValid = await bcrypt.compare(input.password, customer.password_hash);
+        if (!isPasswordValid) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Invalid password' });
+        }
+        
+        const jwt = require('jsonwebtoken');
+        const token = jwt.sign(
+          { id: customer.id, email: customer.email, type: 'customer' },
+          process.env.JWT_SECRET || 'secret',
+          { expiresIn: '7d' }
+        );
+        
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie('customer_token', token, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
+        
+        return { success: true, token, customerId: customer.id };
+      }),
+
+    register: publicProcedure
+      .input(z.object({ email: z.string().email(), password: z.string().min(6), phone: z.string().optional(), name: z.string().optional() }))
+      .mutation(async ({ input }) => {
+        const existing = await db.getCustomerByEmail(input.email);
+        if (existing) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Email already registered' });
+        }
+        
+        const bcrypt = require('bcryptjs');
+        const password_hash = await bcrypt.hash(input.password, 10);
+        
+        const result = await db.createCustomer({
+          email: input.email,
+          password_hash,
+          phone: input.phone,
+          name: input.name
+        });
+        
+        return { success: true, customerId: result.id };
+      }),
+
+    logout: publicProcedure.mutation(({ ctx }) => {
+      ctx.res.clearCookie('customer_token');
+      return { success: true };
+    }),
+  }),
+
   products: router({
     list: publicProcedure
       .input(z.object({ limit: z.number().min(1).max(100).default(20), offset: z.number().min(0).default(0) }))

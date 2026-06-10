@@ -24,6 +24,7 @@ import AdminCustomers from "./pages/AdminCustomers";
 import AdminCategories from "./pages/AdminCategories";
 import AdminReviews from "./pages/AdminReviews";
 import AdminLogin from "./pages/AdminLogin";
+import SimpleCustomerLogin from "./pages/SimpleCustomerLogin";
 
 
 function Router() {
@@ -41,6 +42,9 @@ function Router() {
       <Route path={"/shipment-tracking"} component={ShipmentTracking} />
       <Route path={"/search"} component={AdvancedSearch} />
       <Route path={"/profile"} component={DealerProfile} />
+      
+      {/* Customer Pages */}
+      <Route path={"/customer/login"} component={SimpleCustomerLogin} />
       
       {/* Admin Pages */}
       <Route path={"/admin/login"} component={AdminLogin} />
