@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { Zap, ShoppingCart, Phone, Mail, MapPin, Menu, X, MessageCircle } from "lucide-react";
+import { Zap, ShoppingCart, Phone, Mail, MapPin, Menu, X, MessageCircle, LogIn } from "lucide-react";
 import { useState } from "react";
 
 const WHATSAPP_NUMBER = "918780657095";
@@ -34,31 +34,39 @@ export default function Navbar() {
       {/* Navigation */}
       <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-sm">
         <div className="container flex h-16 items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setLocation("/")}>
+          {/* Logo */}
+          <div className="flex items-center gap-3 cursor-pointer flex-shrink-0" onClick={() => setLocation("/")}>
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[oklch(0.22_0.05_260)]">
               <Zap className="h-5 w-5 text-[oklch(0.65_0.15_85)]" />
             </div>
-            <div>
+            <div className="hidden sm:block">
               <span className="text-lg font-bold leading-none">Patel Electricals</span>
               <span className="block text-[10px] text-muted-foreground font-medium tracking-wider uppercase">Wholesale Spare Parts</span>
             </div>
           </div>
 
-          {/* Desktop Nav */}
-          <div className="hidden lg:flex items-center gap-1">
-            <Button variant="ghost" className="font-medium" onClick={() => setLocation("/")}>Home</Button>
-            <Button variant="ghost" className="font-medium" onClick={() => setLocation("/products")}>Products</Button>
-            <Button variant="ghost" className="font-medium relative" onClick={() => setLocation("/cart")}>
-              <ShoppingCart className="h-4 w-4 mr-1.5" /> Cart
+          {/* Desktop Navigation - Show on md and up */}
+          <div className="hidden md:flex items-center gap-2 flex-wrap justify-center flex-1 px-4">
+            <Button variant="ghost" size="sm" className="font-medium" onClick={() => setLocation("/")}>Home</Button>
+            <Button variant="ghost" size="sm" className="font-medium" onClick={() => setLocation("/products")}>Products</Button>
+            <Button variant="ghost" size="sm" className="font-medium" onClick={() => setLocation("/cart")}>
+              <ShoppingCart className="h-4 w-4 mr-1" /> Cart
             </Button>
-            <div className="border-l border-border mx-2" />
-            <Button variant="outline" className="font-medium" onClick={() => setLocation("/customer/login")}>Customer Login</Button>
-            <Button variant="outline" className="font-medium" onClick={() => setLocation("/admin/login")}>Admin</Button>
+            <div className="border-l border-border mx-1 h-6" />
+            <Button variant="outline" size="sm" className="font-medium" onClick={() => setLocation("/customer/login")}>
+              <LogIn className="h-4 w-4 mr-1" /> Customer
+            </Button>
+            <Button variant="outline" size="sm" className="font-medium" onClick={() => setLocation("/admin/login")}>
+              Admin
+            </Button>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Mobile Menu Button */}
-            <Button variant="ghost" size="sm" className="lg:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+          {/* Mobile Menu Button */}
+          <div className="flex items-center gap-2 md:hidden">
+            <Button variant="ghost" size="sm" onClick={() => setLocation("/cart")}>
+              <ShoppingCart className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
           </div>
@@ -66,18 +74,23 @@ export default function Navbar() {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-border bg-background p-4 space-y-2">
+          <div className="md:hidden border-t border-border bg-background p-4 space-y-2 max-h-96 overflow-y-auto">
             <Button variant="ghost" className="w-full justify-start font-medium" onClick={() => { setLocation("/"); setMobileMenuOpen(false); }}>Home</Button>
             <Button variant="ghost" className="w-full justify-start font-medium" onClick={() => { setLocation("/products"); setMobileMenuOpen(false); }}>Products</Button>
             <Button variant="ghost" className="w-full justify-start font-medium" onClick={() => { setLocation("/cart"); setMobileMenuOpen(false); }}>
               <ShoppingCart className="h-4 w-4 mr-2" /> Cart
             </Button>
+            <div className="border-t border-border my-2" />
             <Button variant="outline" className="w-full justify-start" onClick={() => window.open(WHATSAPP_URL, "_blank")}>
               <MessageCircle className="h-4 w-4 mr-2" /> WhatsApp Support
             </Button>
             <div className="border-t border-border my-2" />
-            <Button variant="outline" className="w-full justify-start" onClick={() => { setLocation("/customer/login"); setMobileMenuOpen(false); }}>Customer Login</Button>
-            <Button variant="outline" className="w-full justify-start" onClick={() => { setLocation("/admin/login"); setMobileMenuOpen(false); }}>Admin Login</Button>
+            <Button variant="outline" className="w-full justify-start font-medium" onClick={() => { setLocation("/customer/login"); setMobileMenuOpen(false); }}>
+              <LogIn className="h-4 w-4 mr-2" /> Customer Login
+            </Button>
+            <Button variant="outline" className="w-full justify-start font-medium" onClick={() => { setLocation("/admin/login"); setMobileMenuOpen(false); }}>
+              Admin Login
+            </Button>
           </div>
         )}
       </nav>
