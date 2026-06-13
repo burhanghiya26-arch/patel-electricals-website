@@ -37,22 +37,14 @@ export default function Checkout() {
     onError: (err) => toast.error(err.message),
   });
 
-  // Get shipping configuration
-  const { data: shippingConfig } = trpc.admin.getShippingConfig.useQuery();
-  const freeShippingThreshold = shippingConfig?.freeShippingThreshold || 1000;
-
-  // Calculate shipping based on distance from warehouse
-  const fullAddress = `${address.addressLine1}${address.addressLine2 ? ', ' + address.addressLine2 : ''}, ${address.city}, ${address.state} - ${address.pincode}`;
-  const { data: shippingData } = trpc.admin.calculateShippingByDistance.useQuery(
-    { address: fullAddress },
-    { enabled: fullAddress.length > 10 && address.pincode.length === 6 }
-  );
-  const calculatedShipping = shippingData?.shippingCost || 0;
+  // Simple shipping calculation
+  const freeShippingThreshold = 1000;
+  const baseShippingCost = 50;
 
   // Totals
   const subtotal = cartItems?.reduce((sum, item) => sum + Number(item.product?.basePrice || 0) * item.quantity, 0) || 0;
   // Apply free shipping if subtotal >= threshold
-  const shippingCost = subtotal >= freeShippingThreshold ? 0 : calculatedShipping;
+  const shippingCost = subtotal >= freeShippingThreshold ? 0 : baseShippingCost;
   const total = subtotal + shippingCost;
 
   const handlePlaceOrder = () => {

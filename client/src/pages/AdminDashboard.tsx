@@ -210,12 +210,12 @@ export default function AdminDashboard() {
               <h2 className="text-lg font-semibold mb-4">Payment Methods</h2>
               {paymentBreakdown && Object.keys(paymentBreakdown).length > 0 ? (
                 <div className="space-y-3">
-                  {Object.entries(paymentBreakdown).map(([method, data]) => (
+                  {Object.entries(paymentBreakdown).map(([method, data]: [string, any]) => (
                     <div key={method} className="flex justify-between items-center p-3 bg-muted rounded">
                       <span className="capitalize font-medium">{method}</span>
                       <div className="text-right">
-                        <p className="text-sm text-muted-foreground">{data.count} orders</p>
-                        <p className="font-semibold">₹{Number(data.revenue).toLocaleString()}</p>
+                        <p className="text-sm text-muted-foreground">{(data as any).count} orders</p>
+                        <p className="font-semibold">₹{Number((data as any).revenue).toLocaleString()}</p>
                       </div>
                     </div>
                   ))}

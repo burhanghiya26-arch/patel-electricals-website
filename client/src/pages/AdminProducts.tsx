@@ -502,7 +502,7 @@ export default function AdminProducts() {
                         <span>MOQ: {product.inventory?.minimumOrderQuantity ?? 1}</span>
                         <Badge variant="secondary" className="text-xs">{product.categoryName}</Badge>
                         {product.productImages && Array.isArray(product.productImages) && product.productImages.length > 0 && (
-                          <Badge variant="outline" className="text-xs bg-blue-50">📸 {product.productImages.length} gallery images</Badge>
+                          <Badge variant="outline" className="text-xs bg-blue-50">📸 {(product.productImages as any).length} gallery images</Badge>
                         )}
                       </div>
                     </div>
