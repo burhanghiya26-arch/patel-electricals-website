@@ -89,20 +89,20 @@ export default function Home() {
                 />
               </div>
 
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-start sm:items-center">
                 <WhatsAppButton
                   message="Hi Patel Electricals, I need help with spare parts"
                   showText={true}
                 />
                 <button
                   onClick={() => setLocation("/customer/login")}
-                  className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2 whitespace-nowrap"
                 >
                   Customer Login
                 </button>
                 <button
                   onClick={() => setLocation("/admin/login")}
-                  className="px-6 py-3 bg-slate-900 text-white font-semibold rounded-lg hover:bg-black transition-colors flex items-center gap-2"
+                  className="px-6 py-3 bg-slate-900 text-white font-semibold rounded-lg hover:bg-black transition-colors inline-flex items-center gap-2 whitespace-nowrap"
                 >
                   Admin Login
                 </button>
