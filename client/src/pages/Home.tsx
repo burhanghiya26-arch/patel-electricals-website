@@ -64,20 +64,20 @@ export default function Home() {
             <button className="px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors flex items-center gap-1.5" onClick={() => setLocation("/cart")}><ShoppingCart className="h-4 w-4" />Cart</button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <button
               onClick={() => setLocation("/customer/login")}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+              className="inline-flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
             >
               <LogIn className="h-4 w-4" />
-              <span>Customer</span>
+              <span className="hidden sm:inline">Customer</span>
             </button>
             <button
               onClick={() => setLocation("/admin/login")}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
+              className="inline-flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
             >
               <LogIn className="h-4 w-4" />
-              <span>Admin</span>
+              <span className="hidden sm:inline">Admin</span>
             </button>
             <WhatsAppButton
               message="Hi Patel Electricals, I need help with spare parts"
