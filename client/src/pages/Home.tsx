@@ -3,9 +3,8 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
-import { Zap, ShoppingCart, Search, Package, Truck, Shield, Phone, Mail, MapPin, ArrowRight, TrendingUp, Clock, MessageCircle, Loader2, Filter, Sliders } from "lucide-react";
+import { Zap, ShoppingCart, Search, Package, Truck, Shield, Phone, Mail, MapPin, ArrowRight, TrendingUp, Clock, MessageCircle, Loader2, Filter, Sliders, LogIn } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { WhatsAppButton, WhatsAppFloatingButton } from "@/components/WhatsAppButton";
 import SearchSuggestions from "@/components/SearchSuggestions";
@@ -65,7 +64,26 @@ export default function Home() {
             <button className="px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors flex items-center gap-1.5" onClick={() => setLocation("/cart")}><ShoppingCart className="h-4 w-4" />Cart</button>
           </div>
 
-          <div className="flex items-center gap-2"></div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setLocation("/customer/login")}
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+            >
+              <LogIn className="h-4 w-4" />
+              <span>Customer</span>
+            </button>
+            <button
+              onClick={() => setLocation("/admin/login")}
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
+            >
+              <LogIn className="h-4 w-4" />
+              <span>Admin</span>
+            </button>
+            <WhatsAppButton
+              message="Hi Patel Electricals, I need help with spare parts"
+              showText={false}
+            />
+          </div>
         </div>
       </nav>
 
@@ -94,22 +112,8 @@ export default function Home() {
                   message="Hi Patel Electricals, I need help with spare parts"
                   showText={true}
                 />
-                <button
-                  onClick={() => setLocation("/customer/login")}
-                  className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2 whitespace-nowrap"
-                >
-                  Customer Login
-                </button>
-                <button
-                  onClick={() => setLocation("/admin/login")}
-                  className="px-6 py-3 bg-slate-900 text-white font-semibold rounded-lg hover:bg-black transition-colors inline-flex items-center gap-2 whitespace-nowrap"
-                >
-                  Admin Login
-                </button>
               </div>
             </div>
-
-
           </div>
         </div>
       </section>
@@ -189,7 +193,7 @@ export default function Home() {
             <h2 className="text-3xl font-bold mb-3">Why Dealers Choose Us</h2>
             <p className="text-muted-foreground max-w-xl mx-auto">Everything you need for your wholesale electrical parts business</p>
           </div>
-           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {[
               { icon: Search, title: "Smart Part Search", desc: "Find parts by number, model, or brand. Instant live search results." },
               { icon: Shield, title: "100% Genuine Parts", desc: "All products sourced directly from authorized manufacturers and distributors." },
@@ -198,7 +202,7 @@ export default function Home() {
               { icon: Package, title: "Bulk Order Management", desc: "Easy bulk ordering system with quotation requests and order history." },
               { icon: Sliders, title: "Advanced Filters", desc: "Filter by category, price range, and specifications. Clear filters with one click." },
             ].map((feature) => (
-              <Card key={feature.title} className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => feature.title === "Advanced Filters" ? setLocation("/search") : null}>
+              <Card key={feature.title} className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
                 <CardContent className="p-6">
                   <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 mb-4">
                     <feature.icon className="h-6 w-6 text-primary" />
@@ -246,54 +250,8 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-[oklch(0.18_0.04_260)] text-white pt-12 pb-6">
-        <div className="container">
-          <div className="grid gap-8 md:grid-cols-4 mb-10">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[oklch(0.65_0.15_85)]">
-                  <Zap className="h-4 w-4 text-[oklch(0.15_0.04_260)]" />
-                </div>
-                <span className="font-bold">Patel Electricals</span>
-              </div>
-              <p className="text-sm text-white/50 leading-relaxed">Your trusted wholesale partner for electrical spare parts since 2010.</p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4 text-[oklch(0.65_0.15_85)]">Quick Links</h4>
-              <ul className="space-y-2 text-sm text-white/60">
-                <li><a href="/products" className="hover:text-white transition-colors">All Products</a></li>
-                <li><a href="/products" className="hover:text-white transition-colors">New Arrivals</a></li>
-                <li><a href="/products" className="hover:text-white transition-colors">Best Sellers</a></li>
-                <li><a href="/products" className="hover:text-white transition-colors">Bulk Orders</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4 text-[oklch(0.65_0.15_85)]">Support</h4>
-              <ul className="space-y-2 text-sm text-white/60">
-                <li><a href="#" className="hover:text-white transition-colors">Shipping Policy</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Return Policy</a></li>
-
-                <li><a href="#" className="hover:text-white transition-colors">FAQ</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4 text-[oklch(0.65_0.15_85)]">Contact Us</h4>
-              <ul className="space-y-3 text-sm text-white/60">
-                <li className="flex items-start gap-2"><Phone className="h-4 w-4 mt-0.5 flex-shrink-0" /><span>8780657095</span></li>
-                <li className="flex items-start gap-2"><Mail className="h-4 w-4 mt-0.5 flex-shrink-0" /><span>burhanghiya26@gmail.com</span></li>
-                <li className="flex items-start gap-2"><MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" /><span>Udhana Asha Nagar, near Madhi ni Khamni, Surat - 394210</span></li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-white/10 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-xs text-white/40">&copy; 2026 Patel Electricals. All rights reserved.</p>
-
-          </div>
-        </div>
-      </footer>
-
-      {/* WhatsApp Floating Button */}
-      <WhatsAppFloatingButton message="Hi Patel Electricals, I need help with spare parts" />
+      <Footer />
+      <WhatsAppFloatingButton />
     </div>
   );
 }
