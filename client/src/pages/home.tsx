@@ -65,7 +65,7 @@ export default function Home() {
               className="hidden lg:inline-flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
             >
               <LogIn className="h-4 w-4" />
-              <span className="hidden sm:inline">Customer</span>
+              <span className="hidden md:inline">Customer</span>
             </button>
             <button
               onClick={() => setLocation("/admin/login")}
