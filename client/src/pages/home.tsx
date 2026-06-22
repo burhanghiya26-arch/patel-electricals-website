@@ -53,7 +53,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="hidden md:flex items-center gap-1">
+          <div className="hidden lg:flex items-center gap-1">
             <button className="px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors" onClick={() => setLocation("/")}>Home</button>
             <button className="px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors" onClick={() => setLocation("/products")}>Products</button>
             <button className="px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors flex items-center gap-1.5" onClick={() => setLocation("/cart")}><ShoppingCart className="h-4 w-4" />Cart</button>
@@ -62,14 +62,14 @@ export default function Home() {
           <div className="flex items-center gap-1 sm:gap-2">
             <button
               onClick={() => setLocation("/customer/login")}
-              className="hidden sm:inline-flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+              className="hidden lg:inline-flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
             >
               <LogIn className="h-4 w-4" />
               <span className="hidden sm:inline">Customer</span>
             </button>
             <button
               onClick={() => setLocation("/admin/login")}
-              className="hidden sm:inline-flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
+              className="hidden lg:inline-flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
             >
               <LogIn className="h-4 w-4" />
               <span className="hidden sm:inline">Admin</span>
