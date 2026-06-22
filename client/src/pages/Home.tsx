@@ -3,24 +3,18 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
-import { Zap, ShoppingCart, Search, Package, Truck, Shield, Phone, Mail, MapPin, ArrowRight, TrendingUp, Clock, MessageCircle, Loader2, Filter, Sliders, LogIn } from "lucide-react";
+import { Zap, ShoppingCart, Package, Truck, Shield, Phone, Mail, MapPin, ArrowRight, Search, MessageCircle, Loader2, Clock, Sliders, LogIn } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import Footer from "@/components/Footer";
 import { WhatsAppButton, WhatsAppFloatingButton } from "@/components/WhatsAppButton";
 import SearchSuggestions from "@/components/SearchSuggestions";
 
-const WHATSAPP_NUMBER = "918780657095";
-const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=Hi%20Patel%20Electricals%2C%20I%20need%20help%20with%20spare%20parts`;
-
 export default function Home() {
   const [, setLocation] = useLocation();
-  const [searchQuery, setSearchQuery] = React.useState("");
   const { data: categories, isLoading: catsLoading } = trpc.products.getCategories.useQuery();
-  const { data: generalProducts, isLoading: generalLoading } = trpc.products.getCategories.useQuery();
   const generalCategoryId = React.useMemo(() => categories?.find((c: any) => c.name === "General")?.id, [categories]);
   const { data: generalCategoryProducts } = trpc.products.getByCategory.useQuery(generalCategoryId || 0, { enabled: !!generalCategoryId });
 
-  // Fallback stats
   const displayStats = [
     { label: "Products", value: "5000+", icon: Package },
     { label: "Dealers", value: "500+", icon: Truck },
@@ -98,20 +92,23 @@ export default function Home() {
                 Wholesale <span className="text-[oklch(0.65_0.15_85)]">Electrical</span> Spare Parts
               </h1>
 
+              <p className="text-lg text-white/80 mb-8 max-w-md">
+                Quality spare parts for electrical equipment. Fast delivery, competitive prices, and reliable service for dealers across Surat.
+              </p>
+
               <div className="mb-6 max-w-md">
                 <SearchSuggestions
                   placeholder="Search parts..."
-                  onSelect={(productId, productName) => {
+                  onSelect={(productId) => {
                     setLocation(`/products/${productId}`);
                   }}
                 />
               </div>
 
-              <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-start sm:items-center">
-                <WhatsAppButton
-                  message="Hi Patel Electricals, I need help with spare parts"
-                  showText={true}
-                />
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button size="lg" className="bg-[oklch(0.65_0.15_85)] text-[oklch(0.15_0.04_260)] hover:bg-[oklch(0.70_0.15_85)] font-semibold" onClick={() => setLocation("/products")}>
+                  Browse Products <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
               </div>
             </div>
           </div>
@@ -145,7 +142,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Products from General Category */}
+      {/* Featured Products */}
       {generalCategoryProducts && generalCategoryProducts.length > 0 && (
         <section className="py-16 md:py-20 bg-secondary/30">
           <div className="container">
