@@ -13,7 +13,7 @@ import SearchSuggestions from "@/components/SearchSuggestions";
 const WHATSAPP_NUMBER = "918780657095";
 const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=Hi%20Patel%20Electricals%2C%20I%20need%20help%20with%20spare%20parts`;
 
-export default function Home() {
+export default function Home() {const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = React.useState("");
   const { data: categories, isLoading: catsLoading } = trpc.products.getCategories.useQuery();
