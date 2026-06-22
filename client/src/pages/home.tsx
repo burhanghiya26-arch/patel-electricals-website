@@ -17,7 +17,7 @@ export default function Home() {
   const { data: generalCategoryProducts } = trpc.products.getByCategory.useQuery(generalCategoryId || 0, { enabled: !!generalCategoryId });
 
   const displayStats = [
-    { label: "Products", value: "5000+", icon: Package },
+    { label: "Products", value: "50+", icon: Package },
     { label: "Dealers", value: "500+", icon: Truck },
     { label: "Orders", value: "10000+", icon: ShoppingCart },
     { label: "Years", value: "15+", icon: Clock },
