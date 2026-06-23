@@ -25,7 +25,7 @@ export default function ProductDetail() {
   const [selectedModel, setSelectedModel] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
-
+  const [selectedImage, setSelectedImage] = useState("");
   const { data: productData, isLoading } = trpc.products.getById.useQuery(productId, { enabled: productId > 0 });
   const { data: reviews } = trpc.reviews.getProductReviews.useQuery(productId, { enabled: productId > 0 });
   const { data: rating } = trpc.reviews.getProductRating.useQuery(productId, { enabled: productId > 0 });
