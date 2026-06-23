@@ -124,9 +124,13 @@ export default function ProductDetail() {
           {/* Left: Product Image */}
           <div>
             <div className="bg-gradient-to-br from-secondary to-muted rounded-xl h-80 md:h-96 flex items-center justify-center overflow-hidden">
-              {product.imageUrl ? (
-                <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-              ) : (
+   {(product.productImages?.[0] ||          product.imageUrl) ? (
+  <img
+    src={product.productImages?.[0] || product.imageUrl}
+    alt={product.name}
+    className="w-full h-full object-cover"
+  />
+) : (
                 <Package className="h-24 w-24 text-muted-foreground/20" />
               )}
             </div>
