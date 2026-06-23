@@ -22,7 +22,6 @@ export default function Home() {
     { label: "Orders", value: "10000+", icon: ShoppingCart },
     { label: "Years", value: "15+", icon: Clock },
   ];
-
   return (
     <div className="min-h-screen bg-background">
       {/* Top Bar */}
