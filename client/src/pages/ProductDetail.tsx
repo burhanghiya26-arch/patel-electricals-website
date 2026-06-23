@@ -134,7 +134,18 @@ export default function ProductDetail() {
                 <Package className="h-24 w-24 text-muted-foreground/20" />
               )}
             </div>
-
+{product.productImages && product.productImages.length > 1 && (
+  <div className="grid grid-cols-4 gap-2 mt-3">
+    {product.productImages.map((img: string, index: number) => (
+      <img
+        key={index}
+        src={img}
+        alt={`Product ${index + 1}`}
+        className="w-full h-20 object-cover rounded-lg border cursor-pointer"
+      />
+    ))}
+  </div>
+)}
             {/* Exploded View */}
             {product.explodedViewUrl && (
               <Card className="mt-4">
