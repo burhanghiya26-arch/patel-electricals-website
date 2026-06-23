@@ -3,7 +3,7 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
-import { Zap, ShoppingCart, Package, Truck, Shield, Phone, Mail, MapPin, ArrowRight, Search, MessageCircle, Loader2, Clock, Sliders, LogIn, Menu, X } from "lucide-react";
+import { Zap, ShoppingCart, Package,Truck, Shield, Phone, Mail, MapPin, ArrowRight, Search, MessageCircle, Loader2, Clock, Sliders, LogIn, Menu, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import Footer from "@/components/Footer";
 import { WhatsAppButton, WhatsAppFloatingButton } from "@/components/WhatsAppButton";
