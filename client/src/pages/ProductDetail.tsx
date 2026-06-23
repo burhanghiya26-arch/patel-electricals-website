@@ -144,6 +144,7 @@ export default function ProductDetail() {
       <img
         key={index}
         src={img}
+ onClick={() => setSelectedImage(img)}
         alt={`Product ${index + 1}`}
         className="w-full h-20 object-cover rounded-lg border cursor-pointer"
       />
