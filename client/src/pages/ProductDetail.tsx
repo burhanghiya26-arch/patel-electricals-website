@@ -126,7 +126,11 @@ export default function ProductDetail() {
             <div className="bg-gradient-to-br from-secondary to-muted rounded-xl h-80 md:h-96 flex items-center justify-center overflow-hidden">
    {(product.productImages?.[0] ||          product.imageUrl) ? (
   <img
-    src={product.productImages?.[0] || product.imageUrl}
+    src={
+  selectedImage ||
+  product.productImages?.[0] ||
+  product.imageUrl
+}
     alt={product.name}
     className="w-full h-full object-cover"
   />
