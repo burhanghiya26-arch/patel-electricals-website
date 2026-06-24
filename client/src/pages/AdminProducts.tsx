@@ -12,8 +12,8 @@ import { toast } from "sonner";
 import { Plus, Trash2, Edit, Package, AlertCircle, ImageIcon, Upload, X } from "lucide-react";
 
 export default function AdminProducts() {
-  const { user, isAuthenticated } = useAuth();
-  if (!user) {
+ const { user, isAuthenticated, loading } = useAuth();
+ if (loading) {
   return (
     <div className="min-h-screen flex items-center justify-center">
       Loading...
