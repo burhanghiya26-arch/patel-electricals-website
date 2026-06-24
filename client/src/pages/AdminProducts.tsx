@@ -20,9 +20,6 @@ export default function AdminProducts() {
     </div>
   );
 }
-  if (user && user.role !== "admin") {
-    return <div className="p-4">Access denied. Admin only.</div>;
-  }
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
   const { data: products, isLoading } = trpc.products.adminList.useQuery(
@@ -192,7 +189,13 @@ export default function AdminProducts() {
     setProductImageGallery(galleryImages);
     setShowForm(true);
   };
-
+if (loading) {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      Loading...
+    </div>
+  );
+}
   if (!isAuthenticated || user?.role !== 'admin') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
