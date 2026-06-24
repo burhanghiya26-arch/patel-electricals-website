@@ -13,7 +13,10 @@ import { toast } from "sonner";
 
 function AdminNav({ current }: { current: string }) {
   const [, setLocation] = useLocation();
-  const { logout, user } = useAuth();
+  const { logout, user, loading } = useAuth();
+if (loading) {
+  return null;
+}
   
   // Redirect if not admin
   if (user && user.role !== 'admin') {
