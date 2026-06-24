@@ -154,7 +154,8 @@ export const appRouter = router({
         const { categoryName, stock, moq, productImages, colorOptions, sizeOptions, ...restData } = input.data;
         const updateData: any = { ...restData };
         if (updateData.basePrice) updateData.basePrice = String(updateData.basePrice);
-        if (productImages) updateData.productImages = productImages;
+   updateData.productImages = productImages ?? [];
+updateData.imageUrl = input.data.imageUrl ?? "";
         if (colorOptions) updateData.colorOptions = colorOptions;
         if (sizeOptions) updateData.sizeOptions = sizeOptions;
         if (categoryName) {
