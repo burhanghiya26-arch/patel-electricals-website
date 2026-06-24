@@ -196,7 +196,11 @@ if (loading) {
     </div>
   );
 }
-  if (!isAuthenticated || user?.role !== 'admin') {
+ if (!user) {
+  return null;
+}
+
+if (user.role !== 'admin') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="max-w-md w-full"><CardContent className="pt-6 text-center">
