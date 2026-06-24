@@ -77,7 +77,8 @@ export default function ProductDetail() {
 
   const { product, inventory } = productData;
 
-console.log(product);
+console.log("PRODUCT DATA:", product);
+
   const basePrice = Number(product.basePrice);
   const totalPrice = basePrice * quantity;
   const discountedPrice = totalPrice;
