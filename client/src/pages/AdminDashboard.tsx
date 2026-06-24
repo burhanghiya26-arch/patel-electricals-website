@@ -74,6 +74,7 @@ export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const { data: stats, isLoading } = trpc.admin.stats.useQuery(undefined, { enabled: isAuthenticated && user?.role === 'admin' });
+console.log("STATS DATA:", stats);
   const { data: revenueData } = trpc.admin.revenueChart.useQuery({ days: 30 }, { enabled: isAuthenticated && user?.role === 'admin' });
   const { data: topProducts } = trpc.admin.topProducts.useQuery({ limit: 5 }, { enabled: isAuthenticated && user?.role === 'admin' });
   const { data: orderBreakdown } = trpc.admin.orderStatusBreakdown.useQuery(undefined, { enabled: isAuthenticated && user?.role === 'admin' });
