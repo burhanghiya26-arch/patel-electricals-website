@@ -73,15 +73,15 @@ export default function AdminDashboard() {
   const { user, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const { data: stats, isLoading } = trpc.admin.stats.useQuery(undefined, { enabled: isAuthenticated && user?.role === 'admin' });
+  const { data: stats, isLoading } = trpc.adminDashboard.stats.useQuery (undefined, { enabled: isAuthenticated && user?.role === 'admin' });
 console.log("STATS DATA:", stats);
-  const { data: revenueData } = trpc.admin.revenueChart.useQuery({ days: 30 }, { enabled: isAuthenticated && user?.role === 'admin' });
-  const { data: topProducts } = trpc.admin.topProducts.useQuery({ limit: 5 }, { enabled: isAuthenticated && user?.role === 'admin' });
-  const { data: orderBreakdown } = trpc.admin.orderStatusBreakdown.useQuery(undefined, { enabled: isAuthenticated && user?.role === 'admin' });
-  const { data: paymentBreakdown } = trpc.admin.paymentMethodBreakdown.useQuery(undefined, { enabled: isAuthenticated && user?.role === 'admin' });
-  const { data: lowStock } = trpc.admin.lowStockProducts.useQuery({ threshold: 10 }, { enabled: isAuthenticated && user?.role === 'admin' });
-  const { data: customerMetrics } = trpc.admin.customerMetrics.useQuery(undefined, { enabled: isAuthenticated && user?.role === 'admin' });
-  const resetMutation = trpc.admin.resetStats.useMutation({
+  const { data: revenueData } = trpc.adminDashboard.revenueChart.useQuery({ days: 30 }, { enabled: isAuthenticated && user?.role === 'admin' });
+  const { data: topProducts } = trpc.adminDashboard.topProducts.useQuery({ limit: 5 }, { enabled: isAuthenticated && user?.role === 'admin' });
+  const { data: orderBreakdown } =  trpc.adminDashboard.orderStatusBreakdown.useQuery(undefined, { enabled: isAuthenticated && user?.role === 'admin' });
+  const { data: paymentBreakdown } = trpc.adminDashboard.paymentMethodBreakdown.useQuery(undefined, { enabled: isAuthenticated && user?.role === 'admin' });
+  const { data: lowStock } = trpc.adminDashboard.lowStockProducts.useQuery({ threshold: 10 }, { enabled: isAuthenticated && user?.role === 'admin' });
+  const { data: customerMetrics } = trpc.adminDashboard.customerMetrics.useQuery(undefined, { enabled: isAuthenticated && user?.role === 'admin' });
+  const resetMutation = trpc.adminDashboard.resetStats.useMutation({
     onSuccess: () => {
       toast.success("Stats reset successfully!");
       window.location.reload();
