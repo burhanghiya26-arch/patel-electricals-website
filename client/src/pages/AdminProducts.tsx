@@ -13,7 +13,13 @@ import { Plus, Trash2, Edit, Package, AlertCircle, ImageIcon, Upload, X } from "
 
 export default function AdminProducts() {
   const { user, isAuthenticated } = useAuth();
-  
+  if (!user) {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      Loading...
+    </div>
+  );
+}
   if (user && user.role !== "admin") {
     return <div className="p-4">Access denied. Admin only.</div>;
   }
