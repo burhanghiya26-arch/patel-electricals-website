@@ -183,7 +183,7 @@ console.log("PRODUCT DATA:", product);
             </div>
 
             {/* Rating Display */}
-            {rating && (
+            {false && (
               <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-3">
