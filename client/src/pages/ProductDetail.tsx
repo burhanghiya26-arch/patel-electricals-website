@@ -135,7 +135,7 @@ console.log("PRODUCT DATA:", product);
   product.imageUrl
 }
     alt={product.name}
-    className="w-full h-full object-cover"
+    className="w-full h-full object-contain" 
   />
 ) : (
                 <Package className="h-24 w-24 text-muted-foreground/20" />
