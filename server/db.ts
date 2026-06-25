@@ -492,7 +492,16 @@ export async function getDashboardStats() {
   const [revenueResult] = await db.select({ total: sql<string>`COALESCE(SUM(totalAmount), 0)` }).from(orders).where(eq(orders.paymentStatus, 'completed'));
   const [userCount] = await db.select({ count: sql<number>`count(*)` }).from(users);
   const [pendingOrderCount] = await db.select({ count: sql<number>`count(*)` }).from(orders).where(eq(orders.orderStatus, 'pending'));
-  const [pendingQuoteCount] = await db.select({ count: sql<number>`count(*)` }).from(quotations).where(eq(quotations.status, 'pending'));
+
+  // quotations table may not exist in all deployments - handle gracefully
+  let pendingQuotations = 0;
+  try {
+    const [pendingQuoteCount] = await db.select({ count: sql<number>`count(*)` }).from(quotations).where(eq(quotations.status, 'pending'));
+    pendingQuotations = pendingQuoteCount?.count || 0;
+  } catch (err) {
+    // Table doesn't exist yet, return 0
+    pendingQuotations = 0;
+  }
 
   return {
     totalProducts: productCount?.count || 0,
@@ -500,7 +509,7 @@ export async function getDashboardStats() {
     totalRevenue: Number(revenueResult?.total || 0),
     totalUsers: userCount?.count || 0,
     pendingOrders: pendingOrderCount?.count || 0,
-    pendingQuotations: pendingQuoteCount?.count || 0,
+    pendingQuotations,
   };
 }
 
