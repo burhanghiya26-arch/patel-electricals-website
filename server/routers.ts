@@ -560,7 +560,15 @@ updateData.imageUrl = input.data.imageUrl ?? "";
   }),
 
   adminDashboard: router({
-    stats: adminProcedure.query(async () => db.getDashboardStats()),
+   stats: adminProcedure.query(async () => {
+  console.log("ADMIN STATS CALLED");
+
+  const data = await db.getDashboardStats();
+
+  console.log("ADMIN STATS RESULT:", data);
+
+  return data;
+}),
 
     revenueChart: adminProcedure
       .input(z.object({ days: z.number().default(30) }))
