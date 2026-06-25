@@ -504,7 +504,18 @@ try {
   console.error("ORDER COUNT ERROR:", err);
   throw err;
 }
-  const [revenueResult] = await db.select({ total: sql<string>`COALESCE(SUM(totalAmount), 0)` }).from(orders).where(eq(orders.paymentStatus, 'completed'));
+let revenueResult;
+
+try {
+  [revenueResult] = await db.select({
+    total: sql<string>`COALESCE(SUM(${orders.totalAmount}), 0)`
+  }).from(orders);
+
+  console.log("REVENUE:", revenueResult);
+} catch (err) {
+  console.error("REVENUE ERROR:", err);
+  throw err;
+}                              
   const [userCount] = await db.select({ count: sql<number>`count(*)` }).from(users);
   const [pendingOrderCount] = await db.select({ count: sql<number>`count(*)` }).from(orders).where(eq(orders.orderStatus, 'pending'));
   const [pendingQuoteCount] = await db.select({ count: sql<number>`count(*)` }).from(quotations).where(eq(quotations.status, 'pending'));
