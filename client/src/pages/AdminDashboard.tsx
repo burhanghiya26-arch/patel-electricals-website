@@ -70,12 +70,22 @@ export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   
   // Fetch orders to calculate stats
-  const { data: orders = [] } = trpc.orders.list.useQuery(undefined, { 
+  const { data: orders = [] } = trpc.orders.getAllOrders.useQuery({ limit: 1000, offset: 0 }, { 
     enabled: isAuthenticated && user?.role === 'admin' 
   });
   
   // Fetch products
   const { data: products = [] } = trpc.products.adminList.useQuery({ limit: 1000, offset: 0 }, {
+    enabled: isAuthenticated && user?.role === 'admin'
+  });
+
+  // Fetch quotations
+  const { data: quotations = [] } = trpc.quotations.getAllQuotations.useQuery({ limit: 1000, offset: 0 }, {
+    enabled: isAuthenticated && user?.role === 'admin'
+  });
+
+  // Fetch customers/users
+  const { data: customersData } = trpc.adminDashboard.customers.useQuery({ limit: 1000, offset: 0 }, {
     enabled: isAuthenticated && user?.role === 'admin'
   });
 
@@ -99,17 +109,23 @@ export default function AdminDashboard() {
   const totalOrders = orders.length;
   const totalRevenue = orders.reduce((sum: number, order: any) => sum + Number(order.totalAmount || 0), 0);
   const pendingOrders = orders.filter((o: any) => o.orderStatus === 'pending').length;
+  const totalUsers = customersData?.length || 0;
+  const pendingQuotes = (quotations as any[]).filter((q: any) => q.status === 'pending').length;
 
   const statCards = [
     { label: "Total Products", value: totalProducts, icon: Package, color: "text-blue-600", bg: "bg-blue-50", link: "/admin/products" },
     { label: "Total Orders", value: totalOrders, icon: ShoppingCart, color: "text-green-600", bg: "bg-green-50", link: "/admin/orders" },
     { label: "Total Revenue", value: `₹${totalRevenue.toLocaleString()}`, icon: TrendingUp, color: "text-amber-600", bg: "bg-amber-50", link: "/admin/orders" },
+    { label: "Total Users", value: totalUsers, icon: Users, color: "text-purple-600", bg: "bg-purple-50", link: "/admin/customers" },
     { label: "Pending Orders", value: pendingOrders, icon: AlertTriangle, color: "text-red-600", bg: "bg-red-50", link: "/admin/orders" },
+    { label: "Pending Quotes", value: pendingQuotes, icon: FileText, color: "text-orange-600", bg: "bg-orange-50", link: "/admin/quotations" },
   ];
 
   const quickLinks = [
     { label: "Add New Product", desc: "Add a new spare part to catalog", icon: Package, link: "/admin/products" },
     { label: "Manage Orders", desc: "View and update order statuses", icon: ShoppingCart, link: "/admin/orders" },
+    { label: "Manage Categories", desc: "Add or edit product categories", icon: FileText, link: "/admin/categories" },
+    { label: "View Customers", desc: "See all registered customers", icon: Users, link: "/admin/customers" },
   ];
 
   return (
