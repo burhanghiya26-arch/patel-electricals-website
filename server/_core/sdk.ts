@@ -74,10 +74,10 @@ class SDKServer {
     const cookies = this.parseCookies(req.headers.cookie);
     const sessionCookie = cookies.get(COOKIE_NAME);
 
-    if (!sessionCookie) {
-      // No session cookie - guest user
-      return null;
-    }
+// Admin cookie nahi mili to bhi customer cookie check karne do
+if (!sessionCookie && !cookies.get("customer_session")) {
+  return null;
+}
 
     try {
       // Try to verify as admin token
