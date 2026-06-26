@@ -118,6 +118,54 @@ export const appRouter = router({
       ctx.res.clearCookie('customer_token');
       return { success: true };
     }),
+    // Email+phone login - finds or creates user, sets 30-day session cookie
+    loginByEmailPhone: publicProcedure
+      .input(z.object({ email: z.string().email(), phone: z.string().min(6) }))
+      .mutation(async ({ input, ctx }) => {
+        const jwt = require('jsonwebtoken');
+        let user = await db.getUserByEmail(input.email);
+        if (!user) {
+          const guestOpenId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          await db.upsertUser({
+            openId: guestOpenId,
+            email: input.email,
+            name: input.email.split('@')[0],
+            loginMethod: 'email_phone',
+            businessPhone: input.phone,
+          });
+          user = await db.getUserByEmail(input.email);
+          if (!user) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create user' });
+        }
+        const token = jwt.sign(
+          { id: user.id, email: user.email, type: 'guest' },
+          process.env.JWT_SECRET || 'secret',
+          { expiresIn: '30d' }
+        );
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie('customer_session', token, { ...cookieOptions, maxAge: 30 * 24 * 60 * 60 * 1000 });
+        return { success: true, userId: user.id, email: user.email, name: user.name };
+      }),
+    // Get current customer session data with orders and quotations
+    getMyData: publicProcedure.query(async ({ ctx }) => {
+      const token = ctx.req.cookies?.customer_session;
+      if (!token) return null;
+      try {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { id: number; email: string };
+        const user = await db.getUserById(decoded.id);
+        if (!user) return null;
+        const userOrders = await db.getOrdersByUserId(user.id);
+        let userQuotations: any[] = [];
+        try { userQuotations = await db.getQuotationsByUserId(user.id); } catch {}
+        return { user: { id: user.id, email: user.email, name: user.name, phone: user.businessPhone }, orders: userOrders, quotations: userQuotations };
+      } catch {
+        return null;
+      }
+    }),
+    logoutSession: publicProcedure.mutation(({ ctx }) => {
+      ctx.res.clearCookie('customer_session');
+      return { success: true };
+    }),
   }),
 
   products: router({

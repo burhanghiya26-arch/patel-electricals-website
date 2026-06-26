@@ -25,6 +25,7 @@ import AdminCategories from "./pages/AdminCategories";
 import AdminReviews from "./pages/AdminReviews";
 import AdminLogin from "./pages/AdminLogin";
 import SimpleCustomerLogin from "./pages/SimpleCustomerLogin";
+import CustomerDashboard from "./pages/CustomerDashboard";
 
 
 function Router() {
@@ -45,6 +46,7 @@ function Router() {
       
       {/* Customer Pages */}
       <Route path={"/customer/login"} component={SimpleCustomerLogin} />
+      <Route path={"/customer/dashboard"} component={CustomerDashboard} />
       
       {/* Admin Pages */}
       <Route path={"/admin/login"} component={AdminLogin} />
