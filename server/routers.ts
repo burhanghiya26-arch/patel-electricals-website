@@ -868,6 +868,40 @@ export const appRouter = router({
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to reset stats' });
       }
     }),
+
+    resetSelected: adminProcedure
+      .input(z.object({
+        resetOrders: z.boolean().optional(),
+        resetQuotations: z.boolean().optional(),
+        resetReviews: z.boolean().optional(),
+        resetCartItems: z.boolean().optional(),
+        resetInventory: z.boolean().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        try {
+          if (input.resetOrders) {
+            await db.executeRaw(`DELETE FROM order_items`);
+            await db.executeRaw(`DELETE FROM order_tracking`);
+            await db.executeRaw(`DELETE FROM orders`);
+          }
+          if (input.resetQuotations) {
+            await db.executeRaw(`DELETE FROM quotations`);
+          }
+          if (input.resetReviews) {
+            await db.executeRaw(`DELETE FROM reviews`);
+          }
+          if (input.resetCartItems) {
+            await db.executeRaw(`DELETE FROM cart_items`);
+          }
+          if (input.resetInventory) {
+            await db.executeRaw(`UPDATE inventory SET quantityInStock = 100, reorderLevel = 10`);
+          }
+          return { success: true, message: 'Selected data has been reset' };
+        } catch (error) {
+          console.error('Reset selected error:', error);
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to reset selected data' });
+        }
+      }),
   }),
 
   reviews: router({

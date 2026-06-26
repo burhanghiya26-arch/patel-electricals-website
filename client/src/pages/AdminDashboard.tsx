@@ -5,9 +5,10 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   Package, ShoppingCart, Users, FileText, TrendingUp, AlertCircle,
-  Zap, LogOut, AlertTriangle
+  Zap, LogOut, AlertTriangle, RotateCcw, X
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { toast } from "sonner";
 
 function AdminNav({ current }: { current: string }) {
   const [, setLocation] = useLocation();
@@ -68,9 +69,17 @@ export { AdminNav };
 export default function AdminDashboard() {
   const { user, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
-  
+  const [showResetDialog, setShowResetDialog] = useState(false);
+  const [resetOptions, setResetOptions] = useState({
+    resetOrders: false,
+    resetQuotations: false,
+    resetReviews: false,
+    resetCartItems: false,
+    resetInventory: false,
+  });
+
   // Fetch orders to calculate stats
-  const { data: orders = [] } = trpc.orders.getAllOrders.useQuery({ limit: 1000, offset: 0 }, { 
+  const { data: orders = [], refetch: refetchOrders } = trpc.orders.getAllOrders.useQuery({ limit: 1000, offset: 0 }, { 
     enabled: isAuthenticated && user?.role === 'admin' 
   });
   
@@ -80,13 +89,24 @@ export default function AdminDashboard() {
   });
 
   // Fetch quotations
-  const { data: quotations = [] } = trpc.quotations.getAllQuotations.useQuery({ limit: 1000, offset: 0 }, {
+  const { data: quotations = [], refetch: refetchQuotations } = trpc.quotations.getAllQuotations.useQuery({ limit: 1000, offset: 0 }, {
     enabled: isAuthenticated && user?.role === 'admin'
   });
 
   // Fetch customers/users
   const { data: customersData } = trpc.adminDashboard.customers.useQuery({ limit: 1000, offset: 0 }, {
     enabled: isAuthenticated && user?.role === 'admin'
+  });
+
+  const resetSelectedMutation = trpc.adminDashboard.resetSelected.useMutation({
+    onSuccess: () => {
+      toast.success("Selected data reset successfully");
+      setShowResetDialog(false);
+      setResetOptions({ resetOrders: false, resetQuotations: false, resetReviews: false, resetCartItems: false, resetInventory: false });
+      refetchOrders();
+      refetchQuotations();
+    },
+    onError: () => toast.error("Failed to reset selected data"),
   });
 
   if (!isAuthenticated || user?.role !== 'admin') {
@@ -107,7 +127,10 @@ export default function AdminDashboard() {
   // Calculate stats from fetched data
   const totalProducts = products.length;
   const totalOrders = orders.length;
-  const totalRevenue = orders.reduce((sum: number, order: any) => sum + Number(order.totalAmount || 0), 0);
+  // Only count delivered orders for revenue
+  const totalRevenue = orders
+    .filter((o: any) => o.orderStatus === 'delivered')
+    .reduce((sum: number, order: any) => sum + Number(order.totalAmount || 0), 0);
   const pendingOrders = orders.filter((o: any) => o.orderStatus === 'pending').length;
   const totalUsers = customersData?.length || 0;
   const pendingQuotes = (quotations as any[]).filter((q: any) => q.status === 'pending').length;
@@ -128,6 +151,16 @@ export default function AdminDashboard() {
     { label: "View Customers", desc: "See all registered customers", icon: Users, link: "/admin/customers" },
   ];
 
+  const resetOptionsList = [
+    { key: "resetOrders", label: "Orders", desc: "Delete all orders and order items" },
+    { key: "resetQuotations", label: "Quotations", desc: "Delete all quotation requests" },
+    { key: "resetReviews", label: "Reviews", desc: "Delete all product reviews" },
+    { key: "resetCartItems", label: "Cart Items", desc: "Clear all customer carts" },
+    { key: "resetInventory", label: "Inventory", desc: "Reset stock to 100 units each" },
+  ];
+
+  const anySelected = Object.values(resetOptions).some(Boolean);
+
   return (
     <div className="min-h-screen bg-background">
       <AdminNav current="/admin" />
@@ -135,8 +168,17 @@ export default function AdminDashboard() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold mb-2">Dashboard</h1>
-            <p className="text-muted-foreground">Welcome back, {user?.name || "Admin"}</p>
+            <p className="text-muted-foreground">Welcome back, {user?.name || user?.email || "Admin"}</p>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowResetDialog(true)}
+            className="flex items-center gap-2"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Reset Stats
+          </Button>
         </div>
 
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 mb-8">
@@ -207,6 +249,50 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Reset Stats Dialog */}
+      {showResetDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-lg font-bold">Reset Stats</h2>
+              <Button variant="ghost" size="sm" onClick={() => setShowResetDialog(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-muted-foreground mb-4">Select which data you want to reset. This action cannot be undone.</p>
+              <div className="space-y-3">
+                {resetOptionsList.map((opt) => (
+                  <label key={opt.key} className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border hover:bg-muted/50">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={resetOptions[opt.key as keyof typeof resetOptions]}
+                      onChange={(e) => setResetOptions(prev => ({ ...prev, [opt.key]: e.target.checked }))}
+                    />
+                    <div>
+                      <p className="font-semibold text-sm">{opt.label}</p>
+                      <p className="text-xs text-muted-foreground">{opt.desc}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-3 p-6 border-t">
+              <Button variant="outline" className="flex-1" onClick={() => setShowResetDialog(false)}>Cancel</Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                disabled={!anySelected || resetSelectedMutation.isPending}
+                onClick={() => resetSelectedMutation.mutate(resetOptions)}
+              >
+                {resetSelectedMutation.isPending ? "Resetting..." : "Reset Selected"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
