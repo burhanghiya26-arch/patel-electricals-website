@@ -3,7 +3,7 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
-import { Zap, ShoppingCart, Package, Truck, Shield, Phone, Mail, MapPin, ArrowRight, Search, MessageCircle, Loader2, Clock, Sliders, LogIn } from "lucide-react";
+import { Zap, ShoppingCart, Package, Truck, Shield, Phone, Mail, MapPin, ArrowRight, Search, MessageCircle, Loader2, Clock, Sliders, LogIn, Menu, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import Footer from "@/components/Footer";
 import { WhatsAppButton, WhatsAppFloatingButton } from "@/components/WhatsAppButton";
@@ -11,6 +11,7 @@ import SearchSuggestions from "@/components/SearchSuggestions";
 
 export default function Home() {
   const [, setLocation] = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const { data: categories, isLoading: catsLoading } = trpc.products.getCategories.useQuery();
   const generalCategoryId = React.useMemo(() => categories?.find((c: any) => c.name === "General")?.id, [categories]);
   const { data: generalCategoryProducts } = trpc.products.getByCategory.useQuery(generalCategoryId || 0, { enabled: !!generalCategoryId });
@@ -61,24 +62,43 @@ export default function Home() {
           <div className="flex items-center gap-1 sm:gap-2">
             <button
               onClick={() => setLocation("/customer/login")}
-              className="inline-flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+              className="hidden sm:inline-flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
             >
               <LogIn className="h-4 w-4" />
-              <span className="hidden sm:inline">Customer</span>
+              <span>Customer</span>
             </button>
             <button
               onClick={() => setLocation("/admin/login")}
-              className="inline-flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
+              className="hidden sm:inline-flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
             >
               <LogIn className="h-4 w-4" />
-              <span className="hidden sm:inline">Admin</span>
+              <span>Admin</span>
             </button>
             <WhatsAppButton
               message="Hi Patel Electricals, I need help with spare parts"
               showText={false}
             />
+            {/* Hamburger menu for mobile */}
+            <button
+              className="md:hidden p-2 rounded-md hover:bg-accent transition-colors"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
         </div>
+        {/* Mobile dropdown menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-border bg-background px-4 py-3 space-y-1">
+            <button className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors" onClick={() => { setLocation("/"); setMobileMenuOpen(false); }}>Home</button>
+            <button className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors" onClick={() => { setLocation("/products"); setMobileMenuOpen(false); }}>Products</button>
+            <button className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors flex items-center gap-2" onClick={() => { setLocation("/cart"); setMobileMenuOpen(false); }}><ShoppingCart className="h-4 w-4" />Cart</button>
+            <div className="border-t border-border pt-2 mt-2">
+              <button className="w-full text-left px-3 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 rounded-md transition-colors flex items-center gap-2" onClick={() => { setLocation("/customer/login"); setMobileMenuOpen(false); }}><LogIn className="h-4 w-4" />Customer Login</button>
+              <button className="w-full text-left px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 rounded-md transition-colors flex items-center gap-2" onClick={() => { setLocation("/admin/login"); setMobileMenuOpen(false); }}><LogIn className="h-4 w-4" />Admin Login</button>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Hero Section */}

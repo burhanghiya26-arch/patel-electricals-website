@@ -21,7 +21,14 @@ function AdminNav({ current }: { current: string }) {
   const navItems = [
     { label: "Dashboard", path: "/admin" },
     { label: "Products", path: "/admin/products" },
+    { label: "Categories", path: "/admin/categories" },
+    { label: "Inventory", path: "/admin/inventory" },
     { label: "Orders", path: "/admin/orders" },
+    { label: "Customers", path: "/admin/customers" },
+    { label: "Quotations", path: "/admin/quotations" },
+    { label: "Dealers", path: "/admin/dealers" },
+    { label: "Shipping", path: "/admin/shipping" },
+    { label: "Reviews", path: "/admin/reviews" },
   ];
   
   return (
