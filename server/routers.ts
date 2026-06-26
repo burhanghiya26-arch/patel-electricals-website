@@ -12,6 +12,15 @@ import { generateInvoicePDF } from "./_core/invoiceGenerator";
 import { generateShippingLabel } from "./_core/shippingLabelGenerator";
 import { authenticateAdmin, createAdminAccount, verifyAdminToken } from "./_core/adminAuth";
 import jwt from "jsonwebtoken";
+import { parse as parseCookieHeader } from "cookie";
+
+// Helper to get a specific cookie from request (works without cookie-parser middleware)
+function getCookie(req: any, name: string): string | undefined {
+  const cookieHeader = req.headers?.cookie;
+  if (!cookieHeader) return undefined;
+  const parsed = parseCookieHeader(cookieHeader);
+  return parsed[name];
+}
 
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (ctx.user.role !== 'admin') {
@@ -146,7 +155,7 @@ export const appRouter = router({
       }),
     // Get current customer session data with orders and quotations
     getMyData: publicProcedure.query(async ({ ctx }) => {
-      const token = ctx.req.cookies?.customer_session;
+      const token = getCookie(ctx.req, 'customer_session');
       if (!token) return null;
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { id: number; email: string };
@@ -611,7 +620,7 @@ export const appRouter = router({
         let userId: number | null = null;
         
         // Try customer_session cookie first
-        const customerToken = ctx.req.cookies?.customer_session;
+        const customerToken = getCookie(ctx.req, 'customer_session');
         if (customerToken) {
           try {
             const decoded = jwt.verify(customerToken, process.env.JWT_SECRET || 'secret') as { id: number };
