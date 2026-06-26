@@ -598,12 +598,51 @@ export const appRouter = router({
       return quotation;
     }),
 
-    create: protectedProcedure
+    create: publicProcedure
       .input(z.object({
         items: z.array(z.object({ productId: z.number(), quantity: z.number(), requestedPrice: z.number().optional() })),
         notes: z.string().optional(),
+        customerEmail: z.string().email().optional(),
+        customerPhone: z.string().optional(),
+        customerName: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
+        // Get userId from customer_session cookie OR admin session
+        let userId: number | null = null;
+        
+        // Try customer_session cookie first
+        const customerToken = ctx.req.cookies?.customer_session;
+        if (customerToken) {
+          try {
+            const decoded = jwt.verify(customerToken, process.env.JWT_SECRET || 'secret') as { id: number };
+            userId = decoded.id;
+          } catch {}
+        }
+        
+        // Try admin/protected user
+        if (!userId && ctx.user) {
+          userId = ctx.user.id;
+        }
+        
+        // If still no user, create/find guest user from email
+        if (!userId && input.customerEmail) {
+          let user = await db.getUserByEmail(input.customerEmail);
+          if (!user) {
+            const guestOpenId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            await db.upsertUser({
+              openId: guestOpenId,
+              email: input.customerEmail,
+              name: input.customerName || input.customerEmail.split('@')[0],
+              loginMethod: 'guest',
+              businessPhone: input.customerPhone,
+            });
+            user = await db.getUserByEmail(input.customerEmail);
+          }
+          if (user) userId = user.id;
+        }
+        
+        if (!userId) throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Please login to request a quotation' });
+        
         let totalAmount = 0;
         for (const item of input.items) {
           const product = await db.getProductById(item.productId);
@@ -611,9 +650,9 @@ export const appRouter = router({
         }
         const quotationNumber = `QT-${Date.now()}`;
         await db.createQuotation({
-          quotationNumber, userId: ctx.user.id,
+          quotationNumber, userId,
           items: JSON.stringify(input.items), totalAmount: String(totalAmount),
-          status: 'pending', expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          status: 'pending',
           adminNotes: input.notes || null,
         });
         return { quotationNumber };
