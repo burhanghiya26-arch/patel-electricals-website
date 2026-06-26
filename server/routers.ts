@@ -11,6 +11,7 @@ import { sendOrderConfirmationWhatsApp, sendOrderTrackingWhatsApp } from "./_cor
 import { generateInvoicePDF } from "./_core/invoiceGenerator";
 import { generateShippingLabel } from "./_core/shippingLabelGenerator";
 import { authenticateAdmin, createAdminAccount, verifyAdminToken } from "./_core/adminAuth";
+import jwt from "jsonwebtoken";
 
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (ctx.user.role !== 'admin') {
@@ -74,13 +75,12 @@ export const appRouter = router({
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Customer not found' });
         }
         
-        const bcrypt = require('bcryptjs');
+        const bcrypt = await import('bcryptjs').then(m => m.default || m);
         const isPasswordValid = await bcrypt.compare(input.password, customer.password_hash);
         if (!isPasswordValid) {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Invalid password' });
         }
         
-        const jwt = require('jsonwebtoken');
         const token = jwt.sign(
           { id: customer.id, email: customer.email, type: 'customer' },
           process.env.JWT_SECRET || 'secret',
@@ -101,7 +101,7 @@ export const appRouter = router({
           throw new TRPCError({ code: 'BAD_REQUEST', message: 'Email already registered' });
         }
         
-        const bcrypt = require('bcryptjs');
+        const bcrypt = await import('bcryptjs').then(m => m.default || m);
         const password_hash = await bcrypt.hash(input.password, 10);
         
         const result = await db.createCustomer({
@@ -122,7 +122,6 @@ export const appRouter = router({
     loginByEmailPhone: publicProcedure
       .input(z.object({ email: z.string().email(), phone: z.string().min(6) }))
       .mutation(async ({ input, ctx }) => {
-        const jwt = require('jsonwebtoken');
         let user = await db.getUserByEmail(input.email);
         if (!user) {
           const guestOpenId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -150,7 +149,6 @@ export const appRouter = router({
       const token = ctx.req.cookies?.customer_session;
       if (!token) return null;
       try {
-        const jwt = require('jsonwebtoken');
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { id: number; email: string };
         const user = await db.getUserById(decoded.id);
         if (!user) return null;
