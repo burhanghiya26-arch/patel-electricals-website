@@ -82,6 +82,19 @@ export async function getUserByEmail(email: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function insertNewUser(data: { openId: string; email: string; name?: string; loginMethod?: string; businessPhone?: string; role?: 'user' | 'dealer' | 'sales_rep' | 'admin' }): Promise<void> {
+  const dbConn = await getDb();
+  if (!dbConn) throw new Error('Database not available');
+  await dbConn.insert(users).values({
+    openId: data.openId,
+    email: data.email,
+    name: data.name ?? null,
+    loginMethod: data.loginMethod ?? 'email_phone',
+    businessPhone: data.businessPhone ?? null,
+    role: (data.role as any) ?? 'user',
+    lastSignedIn: new Date(),
+  } as any);
+}
 export async function getAllUsers(limit = 50, offset = 0) {
   const db = await getDb();
   if (!db) return [];

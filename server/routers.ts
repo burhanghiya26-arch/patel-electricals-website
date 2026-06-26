@@ -133,16 +133,27 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         let user = await db.getUserByEmail(input.email);
         if (!user) {
+          // Create new user with direct insert (more reliable than upsert)
           const guestOpenId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          await db.upsertUser({
-            openId: guestOpenId,
-            email: input.email,
-            name: input.email.split('@')[0],
-            loginMethod: 'email_phone',
-            businessPhone: input.phone,
-          });
+          try {
+            await db.insertNewUser({
+              openId: guestOpenId,
+              email: input.email,
+              name: input.email.split('@')[0],
+              loginMethod: 'email_phone',
+              businessPhone: input.phone,
+              role: 'user',
+            });
+          } catch (insertErr: any) {
+            // If insert fails due to duplicate email, try to get existing user
+            console.warn('[CustomerLogin] Insert failed, trying to fetch existing user:', insertErr.message);
+          }
           user = await db.getUserByEmail(input.email);
-          if (!user) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create user' });
+          if (!user) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create user account. Please try again.' });
+        }
+        // Update phone if provided
+        if (input.phone && !user.businessPhone) {
+          await db.updateUserProfile(user.id, { businessPhone: input.phone });
         }
         const token = jwt.sign(
           { id: user.id, email: user.email, type: 'guest' },
