@@ -382,6 +382,9 @@ export const appRouter = router({
         customerPhone: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
+
+console.log("ORDER USER =>", ctx.user);
+
         const cartItemsList = await db.getCartItems(ctx.user.id);
         if (cartItemsList.length === 0) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Cart is empty' });
 
