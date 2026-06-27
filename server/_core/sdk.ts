@@ -123,10 +123,12 @@ if (!sessionCookie && !cookies.get("customer_session")) {
     if (customerSessionCookie) {
       try {
         const decoded = jwt.verify(customerSessionCookie, process.env.JWT_SECRET || 'secret') as any;
-        if (decoded && decoded.id && decoded.type === 'guest') {
+        if (decoded && decoded.id) {
           // Get user from database
           const user = await db.getUserById(decoded.id);
-          if (user) return user;
+          if (user) {
+console.log("[AUTH] Customer Logged In:", decoded.id, decoded.email); return user;
+}
           // If not in DB yet (race condition), return synthetic user
           const syntheticCustomer: User = {
             id: decoded.id,
