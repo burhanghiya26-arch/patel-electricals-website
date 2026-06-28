@@ -156,7 +156,7 @@ export const appRouter = router({
           await db.updateUserProfile(user.id, { businessPhone: input.phone });
         }
         const token = jwt.sign(
-          { id: user.id, email: user.email, type: 'guest' },
+          { id: user.id, email: user.email, type: 'customer' },
           process.env.JWT_SECRET || 'secret',
           { expiresIn: '30d' }
         );
