@@ -126,6 +126,7 @@ if (!sessionCookie && !cookies.get("customer_session")) {
         if (decoded && decoded.id) {
           // Get user from database
           const user = await db.getUserById(decoded.id);
+          console.log("[AUTH DEBUG]",decoded.id, decoded.email, user);
           if (user) {
 console.log("[AUTH] Customer Logged In:", decoded.id, decoded.email); return user;
 }
