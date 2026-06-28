@@ -9,8 +9,8 @@ function isIpAddress(host: string) {
 }
 
 function isSecureRequest(req: Request) {
-  if (req.protocol === "https") return true;
-
+   return false;
+}
   const forwardedProto = req.headers["x-forwarded-proto"];
   if (!forwardedProto) return false;
 
@@ -42,7 +42,7 @@ export function getSessionCookieOptions(
   return {
     httpOnly: true,
     path: "/",
-    sameSite: "none",
-    secure: isSecureRequest(req),
+    sameSite: "lax",
+    secure: false,
   };
 }
