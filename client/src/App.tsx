@@ -1,3 +1,4 @@
+import { CustomerProvider } from "./contexts/CustomerContext";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
@@ -71,14 +72,16 @@ function Router() {
 
 function App() {
   return (
-    <ErrorBoundary>
-      <ThemeProvider defaultTheme="light">
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
-      </ThemeProvider>
-    </ErrorBoundary>
+      <ErrorBoundary>
+  <ThemeProvider defaultTheme="light">
+    <CustomerProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Router />
+      </TooltipProvider>
+    </CustomerProvider>
+  </ThemeProvider>
+</ErrorBoundary>;
   );
 }
 
