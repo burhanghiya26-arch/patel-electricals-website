@@ -28,43 +28,32 @@ import AdminLogin from "./pages/AdminLogin";
 import SimpleCustomerLogin from "./pages/SimpleCustomerLogin";
 import CustomerDashboard from "./pages/CustomerDashboard";
 
-
 function Router() {
   return (
     <Switch>
-      {/* Public Pages */}
-      <Route path={"/"} component={Home} />
-      <Route path={"/products"} component={ProductCatalog} />
-      <Route path={"/products/:id"} component={ProductDetail} />
-      
-      {/* Dealer/Customer Pages */}
-      <Route path={"/cart"} component={ShoppingCart} />
-      <Route path={"/checkout"} component={Checkout} />
-      <Route path={"/orders/:id"} component={OrderTracking} />
-      <Route path={"/shipment-tracking"} component={ShipmentTracking} />
-      <Route path={"/search"} component={AdvancedSearch} />
-      <Route path={"/profile"} component={DealerProfile} />
-      
-      {/* Customer Pages */}
-      <Route path={"/customer/login"} component={SimpleCustomerLogin} />
-      <Route path={"/customer/dashboard"} component={CustomerDashboard} />
-      
-      {/* Admin Pages */}
-      <Route path={"/admin/login"} component={AdminLogin} />
-      <Route path={"/admin"} component={AdminDashboard} />
-      <Route path={"/admin/products"} component={AdminProducts} />
-      <Route path={"/admin/orders"} component={AdminOrders} />
-      <Route path={"/admin/quotations"} component={AdminQuotations} />
-      <Route path={"/admin/dealers"} component={AdminDealers} />
-      <Route path={"/admin/shipping"} component={AdminShipping} />
+      <Route path="/" component={Home} />
+      <Route path="/products" component={ProductCatalog} />
+      <Route path="/products/:id" component={ProductDetail} />
+      <Route path="/cart" component={ShoppingCart} />
+      <Route path="/checkout" component={Checkout} />
+      <Route path="/orders/:id" component={OrderTracking} />
+      <Route path="/shipment-tracking" component={ShipmentTracking} />
+      <Route path="/search" component={AdvancedSearch} />
+      <Route path="/profile" component={DealerProfile} />
+      <Route path="/customer/login" component={SimpleCustomerLogin} />
+      <Route path="/customer/dashboard" component={CustomerDashboard} />
+      <Route path="/admin/login" component={AdminLogin} />
+      <Route path="/admin" component={AdminDashboard} />
+      <Route path="/admin/products" component={AdminProducts} />
+      <Route path="/admin/orders" component={AdminOrders} />
+      <Route path="/admin/quotations" component={AdminQuotations} />
+      <Route path="/admin/dealers" component={AdminDealers} />
+      <Route path="/admin/shipping" component={AdminShipping} />
       <Route path="/admin/inventory" component={AdminInventory} />
       <Route path="/admin/customers" component={AdminCustomers} />
       <Route path="/admin/categories" component={AdminCategories} />
       <Route path="/admin/reviews" component={AdminReviews} />
-
-      
-      {/* 404 */}
-      <Route path={"/404"} component={NotFound} />
+      <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -72,16 +61,16 @@ function Router() {
 
 function App() {
   return (
-      <ErrorBoundary>
-  <ThemeProvider defaultTheme="light">
-    <CustomerProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
-    </CustomerProvider>
-  </ThemeProvider>
-</ErrorBoundary>;
+    <ErrorBoundary>
+      <ThemeProvider defaultTheme="light">
+        <CustomerProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </CustomerProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 
