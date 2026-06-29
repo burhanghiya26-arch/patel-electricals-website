@@ -5,7 +5,7 @@ import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
-import { customerprovider }  from "./contexts/customercontext";
+import { CustomerProvider }  from "./contexts/CustomerContext";
 import "./index.css";
 
 const queryClient = new QueryClient();
