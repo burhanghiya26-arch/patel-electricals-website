@@ -1,10 +1,20 @@
 import { useLocation } from "wouter";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
+import { useCustomer } from "@/contexts/CustomerContext";
+import { trpc } from "@/lib/trpc";
 
 export default function Navbar() {
   const [, setLocation] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+const { user, isLoggedIn, refresh } = useCustomer();
+
+const logoutMutation = trpc.customer.logoutSession.useMutation({
+  onSuccess: () => {
+    refresh();
+    setLocation("/");
+  },
+});
 
   return (
     <>
@@ -34,9 +44,30 @@ export default function Navbar() {
             <button onClick={() => setLocation("/products")} className="hover:text-blue-600 font-medium">Products</button>
             <button onClick={() => setLocation("/cart")} className="hover:text-blue-600 font-medium">Cart</button>
             <div className="border-l border-gray-300 h-6"></div>
-            <button onClick={() => setLocation("/customer/login")} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-medium">
-              Customer Login
-            </button>
+            {isLoggedIn ? (
+  <>
+    <button
+      onClick={() => setLocation("/customer/dashboard")}
+      className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-medium"
+    >
+      My Account
+    </button>
+
+    <button
+      onClick={() => logoutMutation.mutate()}
+      className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 font-medium"
+    >
+      Logout
+    </button>
+  </>
+) : (
+  <button
+    onClick={() => setLocation("/customer/login")}
+    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 font-medium"
+  >
+    Customer Login
+  </button>
+)}
             <button onClick={() => setLocation("/admin/login")} className="bg-slate-900 text-white px-4 py-2 rounded hover:bg-black font-medium">
               Admin
             </button>
@@ -73,12 +104,39 @@ export default function Navbar() {
               Cart
             </button>
             <div className="border-t border-gray-300 my-2"></div>
-            <button 
-              onClick={() => { setLocation("/customer/login"); setMobileMenuOpen(false); }}
-              className="block w-full text-left py-2 px-3 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium"
-            >
-              Customer Login
-            </button>
+            {isLoggedIn ? (
+  <>
+    <button
+      onClick={() => {
+        setLocation("/customer/dashboard");
+        setMobileMenuOpen(false);
+      }}
+      className="block w-full text-left py-2 px-3 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium"
+    >
+      My Account
+    </button>
+
+    <button
+      onClick={() => {
+        logoutMutation.mutate();
+        setMobileMenuOpen(false);
+      }}
+      className="block w-full text-left py-2 px-3 bg-red-600 text-white rounded hover:bg-red-700 font-medium"
+    >
+      Logout
+    </button>
+  </>
+) : (
+  <button
+    onClick={() => {
+      setLocation("/customer/login");
+      setMobileMenuOpen(false);
+    }}
+    className="block w-full text-left py-2 px-3 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium"
+  >
+    Customer Login
+  </button>
+)}
             <button 
               onClick={() => { setLocation("/admin/login"); setMobileMenuOpen(false); }}
               className="block w-full text-left py-2 px-3 bg-slate-900 text-white rounded hover:bg-black font-medium"
