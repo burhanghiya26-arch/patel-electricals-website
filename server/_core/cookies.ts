@@ -9,8 +9,8 @@ function isIpAddress(host: string) {
 }
 
 function isSecureRequest(req: Request) {
-   return false;
-}
+  if (req.protocol === "https") return true;
+
   const forwardedProto = req.headers["x-forwarded-proto"];
   if (!forwardedProto) return false;
 
@@ -18,7 +18,9 @@ function isSecureRequest(req: Request) {
     ? forwardedProto
     : forwardedProto.split(",");
 
-  return protoList.some(proto => proto.trim().toLowerCase() === "https");
+  return protoList.some(
+    (proto) => proto.trim().toLowerCase() === "https"
+  );
 }
 
 export function getSessionCookieOptions(
@@ -39,10 +41,9 @@ export function getSessionCookieOptions(
   //       ? hostname
   //       : undefined;
 
-  return {
-    httpOnly: true,
-    path: "/",
-    sameSite: "lax",
-    secure: false,
-  };
-}
+ return {
+  httpOnly: true,
+  path: "/",
+  sameSite: isSecureRequest(req) ? "none" : "lax",
+  secure: isSecureRequest(req),
+};
