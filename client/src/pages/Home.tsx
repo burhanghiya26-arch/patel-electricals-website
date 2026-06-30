@@ -1,3 +1,4 @@
+import { useCustomer } from "@/contexts/CustomerContext";
 import { Button } from "@/components/ui/button";
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +12,7 @@ import SearchSuggestions from "@/components/SearchSuggestions";
 
 export default function Home() {
   const [, setLocation] = useLocation();
+const { isLoggedIn } = useCustomer();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const { data: categories, isLoading: catsLoading } = trpc.products.getCategories.useQuery();
   const generalCategoryId = React.useMemo(() => categories?.find((c: any) => c.name === "General")?.id, [categories]);
@@ -60,13 +62,22 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
-            <button
-              onClick={() => setLocation("/customer/login")}
-              className="hidden sm:inline-flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-            >
-              <LogIn className="h-4 w-4" />
-              <span>Customer</span>
-            </button>
+            {isLoggedIn ? (
+  <button
+    onClick={() => setLocation("/customer/account")}
+    className="hidden sm:inline-flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+  >
+    My Account
+  </button>
+) : (
+  <button
+    onClick={() => setLocation("/customer/login")}
+    className="hidden sm:inline-flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+  >
+    <LogIn className="h-4 w-4" />
+    <span>Customer</span>
+  </button>
+)}
             <button
               onClick={() => setLocation("/admin/login")}
               className="hidden sm:inline-flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
@@ -94,7 +105,28 @@ export default function Home() {
             <button className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors" onClick={() => { setLocation("/products"); setMobileMenuOpen(false); }}>Products</button>
             <button className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors flex items-center gap-2" onClick={() => { setLocation("/cart"); setMobileMenuOpen(false); }}><ShoppingCart className="h-4 w-4" />Cart</button>
             <div className="border-t border-border pt-2 mt-2">
-              <button className="w-full text-left px-3 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 rounded-md transition-colors flex items-center gap-2" onClick={() => { setLocation("/customer/login"); setMobileMenuOpen(false); }}><LogIn className="h-4 w-4" />Customer Login</button>
+              {isLoggedIn ? (
+  <button
+    className="w-full text-left px-3 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+    onClick={() => {
+      setLocation("/customer/account");
+      setMobileMenuOpen(false);
+    }}
+  >
+    My Account
+  </button>
+) : (
+  <button
+    className="w-full text-left px-3 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 rounded-md transition-colors flex items-center gap-2"
+    onClick={() => {
+      setLocation("/customer/login");
+      setMobileMenuOpen(false);
+    }}
+  >
+    <LogIn className="h-4 w-4" />
+    Customer Login
+  </button>
+)}
               <button className="w-full text-left px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 rounded-md transition-colors flex items-center gap-2" onClick={() => { setLocation("/admin/login"); setMobileMenuOpen(false); }}><LogIn className="h-4 w-4" />Admin Login</button>
             </div>
           </div>
