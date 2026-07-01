@@ -64,7 +64,7 @@ const { isLoggedIn } = useCustomer();
           <div className="flex items-center gap-1 sm:gap-2">
             {isLoggedIn ? (
   <button
-    onClick={() => setLocation("/customer/account")}
+    onClick={() => setLocation("/customer/dashboard")}
     className="hidden sm:inline-flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
   >
     My Account
@@ -109,7 +109,7 @@ const { isLoggedIn } = useCustomer();
   <button
     className="w-full text-left px-3 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
     onClick={() => {
-      setLocation("/customer/account");
+      setLocation("/customer/dashboard");
       setMobileMenuOpen(false);
     }}
   >
