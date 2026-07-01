@@ -160,6 +160,10 @@ export const appRouter = router({
           process.env.JWT_SECRET || 'secret',
           { expiresIn: '30d' }
         );
+
+console.log("[LOGIN USER]", user);
+console.log("[LOGIN TOKEN]", token);
+
         const cookieOptions = getSessionCookieOptions(ctx.req);
         ctx.res.cookie('customer_session', token, { ...cookieOptions, maxAge: 30 * 24 * 60 * 60 * 1000 });
         return { success: true, userId: user.id, email: user.email, name: user.name };
