@@ -19,8 +19,10 @@ export default function DealerProfile() {
     name: "", businessName: "", businessPhone: "", businessAddress: "",
   });
 
-  const { data: orders } = trpc.orders.list.useQuery();
-  const { data: quotations } = trpc.quotations.list.useQuery();
+  const { data: customerData } = trpc.customer.getMyData.useQuery();
+
+const orders = customerData?.orders ?? [];
+const quotations = customerData?.quotations ?? [];
 const { data: customerData } = trpc.customer.getMyData.useQuery();
   const updateMutation = trpc.users.updateProfile.useMutation({
     onSuccess: () => { toast.success("Profile updated"); setEditMode(false); },
