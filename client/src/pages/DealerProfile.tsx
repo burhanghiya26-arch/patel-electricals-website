@@ -21,6 +21,7 @@ export default function DealerProfile() {
 
   const { data: orders } = trpc.orders.list.useQuery();
   const { data: quotations } = trpc.quotations.list.useQuery();
+const { data: customerData } = trpc.customer.getMyData.useQuery();
   const updateMutation = trpc.users.updateProfile.useMutation({
     onSuccess: () => { toast.success("Profile updated"); setEditMode(false); },
     onError: (e) => toast.error(e.message),
@@ -50,10 +51,16 @@ export default function DealerProfile() {
                 D
               </div>
               <div className="flex-1">
-                <h1 className="text-xl font-bold">Guest Dealer</h1>
-                <p className="text-muted-foreground">Browse and shop without account</p>
+                <h1 className="text-xl font-bold">
+  {customerData?.user?.name || "Guest Dealer"}
+</h1>
+               <p className="text-muted-foreground">
+  {customerData?.user?.email || "Browse and shop without account"}
+</p>
                 <div className="flex gap-2 mt-1">
-                  <Badge>Guest</Badge>
+                  <Badge>
+  {customerData?.user ? "Customer" : "Guest"}
+</Badge>
                 </div>
               </div>
             </div>
