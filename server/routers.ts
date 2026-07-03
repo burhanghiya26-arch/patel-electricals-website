@@ -417,6 +417,9 @@ console.log("ORDER USER =>", ctx.user);
         const orderNumber = `ORD-${Date.now()}`;
 
         // Create order with PENDING status - admin must confirm
+console.log("ORDER USER =>", ctx.user);
+console.log("USER ID =>", ctx.user.id);
+console.log("EMAIL =>", ctx.user.email);
         const orderId = await db.createOrder({
           orderNumber, userId: ctx.user.id,
           totalAmount: String(totalAmount + input.shippingCost), gstAmount: String(0),
