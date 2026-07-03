@@ -23,7 +23,6 @@ export default function DealerProfile() {
 
 const orders = customerData?.orders ?? [];
 const quotations = customerData?.quotations ?? [];
-const { data: customerData } = trpc.customer.getMyData.useQuery();
   const updateMutation = trpc.users.updateProfile.useMutation({
     onSuccess: () => { toast.success("Profile updated"); setEditMode(false); },
     onError: (e) => toast.error(e.message),
