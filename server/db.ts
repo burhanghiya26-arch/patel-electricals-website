@@ -337,7 +337,9 @@ export async function clearCart(userId: number) {
 export async function createOrder(orderData: any): Promise<number | undefined> {
   const db = await getDb();
   if (!db) return undefined;
+console.log("CREATE ORDER DATA =>", orderData);
   const result = await db.insert(orders).values(orderData);
+console.log("CREATE ORDER RESULT =>", result);
   // MySQL returns insertId in the result
   return (result as any)[0]?.insertId || (result as any).insertId || undefined;
 }
