@@ -353,8 +353,19 @@ export async function getOrderById(id: number) {
 
 export async function getOrdersByUserId(userId: number) {
   const db = await getDb();
-  if (!db) return [];
-  return await db.select().from(orders).where(eq(orders.userId, userId)).orderBy(desc(orders.createdAt));
+if (!db) return [];
+
+console.log("GET ORDERS USER ID =>", userId);
+
+const result = await db
+  .select()
+  .from(orders)
+  .where(eq(orders.userId, userId))
+  .orderBy(desc(orders.createdAt));
+
+console.log("FOUND ORDERS =>", result);
+
+return result;
 }
 
 export async function getAllOrders(limit = 50, offset = 0) {
