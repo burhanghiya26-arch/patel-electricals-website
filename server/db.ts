@@ -1480,14 +1480,15 @@ export async function createCustomer(data: {
   const openId = `customer_${Date.now()}`;
 
   await db.insert(users).values({
-    openId,
-    email: data.email,
-    name: data.name ?? null,
-    businessPhone: data.phone ?? null,
-    loginMethod: "email_password",
-    role: "user",
-    lastSignedIn: new Date(),
-  });
+  openId,
+  email: data.email,
+  name: data.name ?? null,
+  businessPhone: data.phone ?? null,
+  passwordHash: data.password_hash,
+  loginMethod: "email_password",
+  role: "user",
+  lastSignedIn: new Date(),
+});
 
   const user = await getUserByEmail(data.email);
   return user;
