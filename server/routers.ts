@@ -85,7 +85,7 @@ export const appRouter = router({
         }
         
         const bcrypt = await import('bcryptjs').then(m => m.default || m);
-        const isPasswordValid = await bcrypt.compare(input.password, customer.password_hash);
+        const isPasswordValid = await bcrypt.compare(input.password, customer.passwordHash);
         if (!isPasswordValid) {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Invalid password' });
         }
@@ -111,11 +111,11 @@ export const appRouter = router({
         }
         
         const bcrypt = await import('bcryptjs').then(m => m.default || m);
-        const password_hash = await bcrypt.hash(input.password, 10);
+        const passwordHash = await bcrypt.hash(input.password, 10);
         
         const result = await db.createCustomer({
           email: input.email,
-          password_hash,
+          passwordHash,
           phone: input.phone,
           name: input.name
         });
