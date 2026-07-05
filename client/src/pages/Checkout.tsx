@@ -91,7 +91,9 @@ export default function Checkout() {
           <p className="text-muted-foreground mb-2">Order Number: <span className="font-mono font-bold text-foreground">{orderNumber}</span></p>
           <p className="text-muted-foreground mb-6">Your order has been created. Admin will review and confirm it soon.</p>
           <div className="flex gap-3 justify-center">
-            <Button onClick={() => setLocation("/profile")}>View My Orders</Button>
+            <Button onClick={() => setLocation("/customer/dashboard")}>
+  View My Orders
+</Button>
             <Button variant="outline" onClick={() => setLocation("/products")}>Continue Shopping</Button>
           </div>
         </div>
