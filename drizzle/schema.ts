@@ -10,6 +10,9 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }).unique(),
   loginMethod: varchar("loginMethod", { length: 64 }),
+
+passwordHash: text("passwordHash"),
+
   role: mysqlEnum("role", ["user", "dealer", "sales_rep", "admin"]).default("user").notNull(),
   
   // Dealer-specific fields
