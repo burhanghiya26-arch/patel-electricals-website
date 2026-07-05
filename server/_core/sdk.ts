@@ -70,40 +70,35 @@ class SDKServer {
   }
 
   async authenticateRequest(req: Request): Promise<User | null> {
-    // Try to authenticate using admin JWT token
     const cookies = this.parseCookies(req.headers.cookie);
     const sessionCookie = cookies.get(COOKIE_NAME);
 
-// Admin cookie nahi mili to bhi customer cookie check karne do
-if (!sessionCookie && !cookies.get("customer_session")) {
-  return null;
-}
+    if (!sessionCookie && !cookies.get("customer_session")) {
+      return null;
+    }
 
     try {
-      // Try to verify as admin token
       const adminToken = verifyAdminToken(sessionCookie);
       if (adminToken) {
-        // Try to get admin user from database first
         const admin = await db.getUserByEmail(adminToken.email);
         if (admin && admin.role === "admin") {
           return admin;
         }
-        // If not in users table yet, return a synthetic admin user
-        // This handles the case where users table is empty but admin credentials exist
+
         const syntheticAdmin: User = {
           id: adminToken.adminId,
           openId: `admin_${adminToken.adminId}`,
-          name: adminToken.email.split('@')[0],
+          name: adminToken.email.split("@")[0],
           email: adminToken.email,
-          loginMethod: 'admin',
-          role: 'admin',
+          loginMethod: "admin",
+          role: "admin",
           businessName: null,
           gstNumber: null,
           businessAddress: null,
           businessPhone: null,
           businessEmail: null,
-          creditLimit: '0',
-          usedCredit: '0',
+          creditLimit: "0",
+          usedCredit: "0",
           creditApproved: false,
           assignedSalesRepId: null,
           isVerified: true,
@@ -112,55 +107,49 @@ if (!sessionCookie && !cookies.get("customer_session")) {
           updatedAt: new Date(),
           lastSignedIn: new Date(),
         };
+
         return syntheticAdmin;
       }
     } catch (error) {
       console.warn("[Auth] Token verification failed", String(error));
     }
+    const customerSessionCookie = cookies.get("customer_session");
 
-    // Try customer_session cookie as fallback
-    const customerSessionCookie = cookies.get('customer_session');
     if (customerSessionCookie) {
       try {
-        const decoded = jwt.verify(customerSessionCookie, process.env.JWT_SECRET || 'secret') as any;
+        const decoded = jwt.verify(
+          customerSessionCookie,
+          process.env.JWT_SECRET || "secret"
+        ) as any;
+
         if (decoded && decoded.id) {
-          // Get user from database
           const user = await db.getUserById(decoded.id);
+
           console.log("[AUTH USER]", user);
+
           if (user) {
-console.log("[AUTH] Customer Logged In:", decoded.id, decoded.email); return user;
-}
-          // If not in DB yet (race condition), return synthetic user
-          const syntheticCustomer: User = {
-            id: decoded.id,
-            openId: `customer_${decoded.id}`,
-            name: decoded.email?.split('@')[0] ?? null,
-            email: decoded.email ?? null,
-            loginMethod: 'email_phone',
-            role: 'user',
-            businessName: null,
-            gstNumber: null,
-            businessAddress: null,
-            businessPhone: null,
-            businessEmail: null,
-            creditLimit: '0',
-            usedCredit: '0',
-            creditApproved: false,
-            assignedSalesRepId: null,
-            isVerified: false,
-            verificationDocuments: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            lastSignedIn: new Date(),
-          };
-          return syntheticCustomer;
+            console.log(
+              "[AUTH] Customer Logged In:",
+              decoded.id,
+              decoded.email
+            );
+            return user;
+          }
+
+          console.warn(
+            "[AUTH] User not found in database:",
+            decoded.id
+          );
+          return null;
         }
       } catch (err) {
-        console.warn('[Auth] Customer session verification failed', String(err));
+        console.warn(
+          "[Auth] Customer session verification failed",
+          String(err)
+        );
       }
     }
 
-    // No valid authentication
     return null;
   }
 }
