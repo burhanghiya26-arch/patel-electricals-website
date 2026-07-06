@@ -97,7 +97,7 @@ export const appRouter = router({
         );
         
         const cookieOptions = getSessionCookieOptions(ctx.req);
-        ctx.res.cookie('customer_token', token, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
+        ctx.res.cookie('customer_session', token, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
         
         return { success: true, token, customerId: customer.id };
       }),
@@ -124,7 +124,7 @@ export const appRouter = router({
       }),
 
     logout: publicProcedure.mutation(({ ctx }) => {
-      ctx.res.clearCookie('customer_token');
+      ctx.res.clearCookie('customer_session');
       return { success: true };
     }),
     // Email+phone login - finds or creates user, sets 30-day session cookie
