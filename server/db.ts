@@ -1470,7 +1470,7 @@ export async function getCustomerByEmail(email: string) {
 
 export async function createCustomer(data: {
   email: string;
-  password_hash: string;
+  passwordHash: string;
   phone?: string;
   name?: string;
 }): Promise<any> {
@@ -1484,7 +1484,7 @@ export async function createCustomer(data: {
   email: data.email,
   name: data.name ?? null,
   businessPhone: data.phone ?? null,
-  passwordHash: data.password_hash,
+  passwordHash: data.passwordHash,
   loginMethod: "email_password",
   role: "user",
   lastSignedIn: new Date(),
