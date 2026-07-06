@@ -438,7 +438,7 @@ console.log("EMAIL =>", ctx.user.email);
         // Add order items
         if (orderId) {
           await db.addOrderItems(orderId, orderItemsData);
-          console.log("ORDER CREATED=>", orderid);
+          console.log("ORDER CREATED=>", orderId);
         }
 
         await db.clearCart(ctx.user.id);
