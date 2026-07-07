@@ -83,7 +83,10 @@ export const appRouter = router({
         if (!customer) {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Customer not found' });
         }
-        
+
+ console.log("LOGIN CUSTOMER =>", customer);
+console.log("LOGIN CUSTOMER ID =>", customer.id);    
+
         const bcrypt = await import('bcryptjs').then(m => m.default || m);
         const isPasswordValid = await bcrypt.compare(input.password, customer.passwordHash);
         if (!isPasswordValid) {
