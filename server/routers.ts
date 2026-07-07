@@ -178,6 +178,8 @@ console.log("[LOGIN TOKEN]", token);
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { id: number; email: string };
         const user = await db.getUserById(decoded.id);
+        console.log("TOKEN ID =",decoded.id);
+        console.log("USER =", user);
         if (!user) return null;
         const userOrders = await db.getOrdersByUserId(user.id);
         let userQuotations: any[] = [];
