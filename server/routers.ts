@@ -363,7 +363,12 @@ console.log("[LOGIN TOKEN]", token);
   }),
 
   orders: router({
-    list: protectedProcedure.query(async ({ ctx }) => db.getOrdersByUserId(ctx.user.id)),
+    list: protectedProcedure.query(async ({ ctx }) => {
+  console.log("CTX USER =>", ctx.user);
+  console.log("CTX USER ID =>", ctx.user.id);
+
+  return db.getOrdersByUserId(ctx.user.id);
+}),
 
     getById: protectedProcedure.input(z.number()).query(async ({ ctx, input }) => {
       const order = await db.getOrderById(input);
