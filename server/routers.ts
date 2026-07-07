@@ -182,6 +182,8 @@ console.log("[LOGIN TOKEN]", token);
         console.log("USER =", user);
         if (!user) return null;
         const userOrders = await db.getOrdersByUserId(user.id);
+        console.log("USER ID =", user.id);
+        console.log("ORDERS =", userOrders);
         let userQuotations: any[] = [];
         try { userQuotations = await db.getQuotationsByUserId(user.id); } catch {}
         return { user: { id: user.id, email: user.email, name: user.name, phone: user.businessPhone }, orders: userOrders, quotations: userQuotations };
@@ -432,6 +434,7 @@ console.log("USER ID =>", ctx.user.id);
 console.log("EMAIL =>", ctx.user.email);
         console.log("CTX USER ID=>", ctx.user.id);
         console.log("CTX USER EMAIL=>", ctx.user.email);
+        console.log("ORDER USER ID=", ctx.user.id);
         const orderId = await db.createOrder({
           orderNumber, userId: ctx.user.id,
           totalAmount: String(totalAmount + input.shippingCost), gstAmount: String(0),
