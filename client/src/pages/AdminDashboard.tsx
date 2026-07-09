@@ -79,7 +79,17 @@ export default function AdminDashboard() {
   });
 
   // Fetch orders to calculate stats
-  const {
+const {
+  data: orders = [],
+  refetch: refetchOrders,
+} = trpc.orders.getAllOrders.useQuery(
+  { limit: 1000, offset: 0 },
+  {
+    enabled: isAuthenticated && user?.role === "admin",
+  }
+);
+// Fetch products
+const {
   data: products = [],
   refetch: refetchProducts,
 } = trpc.products.adminList.useQuery(
@@ -88,7 +98,6 @@ export default function AdminDashboard() {
     enabled: isAuthenticated && user?.role === "admin",
   }
 );
-
   // Fetch quotations
   const { data: quotations = [], refetch: refetchQuotations } = trpc.quotations.getAllQuotations.useQuery({ limit: 1000, offset: 0 }, {
     enabled: isAuthenticated && user?.role === 'admin'
