@@ -79,14 +79,15 @@ export default function AdminDashboard() {
   });
 
   // Fetch orders to calculate stats
-  const { data: orders = [], refetch: refetchOrders } = trpc.orders.getAllOrders.useQuery({ limit: 1000, offset: 0 }, { 
-    enabled: isAuthenticated && user?.role === 'admin' 
-  });
-  
-  // Fetch products
-  const { data: products = [] } = trpc.products.adminList.useQuery({ limit: 1000, offset: 0 }, {
-    enabled: isAuthenticated && user?.role === 'admin'
-  });
+  const {
+  data: products = [],
+  refetch: refetchProducts,
+} = trpc.products.adminList.useQuery(
+  { limit: 1000, offset: 0 },
+  {
+    enabled: isAuthenticated && user?.role === "admin",
+  }
+);
 
   // Fetch quotations
   const { data: quotations = [], refetch: refetchQuotations } = trpc.quotations.getAllQuotations.useQuery({ limit: 1000, offset: 0 }, {
@@ -104,6 +105,7 @@ export default function AdminDashboard() {
       setShowResetDialog(false);
       setResetOptions({ resetOrders: false, resetQuotations: false, resetReviews: false, resetCartItems: false, resetInventory: false });
       refetchOrders();
+      refetchProducts();
       refetchQuotations();
     },
     onError: () => toast.error("Failed to reset selected data"),
