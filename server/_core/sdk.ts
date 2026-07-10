@@ -121,10 +121,10 @@ console.log("ADMIN COOKIE =", cookies.get(COOKIE_NAME));
 
     if (customerSessionCookie) {
       try {
-        const decoded = jwt.verify(
-          customerSessionCookie,
-          process.env.JWT_SECRET || "secret"
-        ) as any;
+const decoded = jwt.verify(
+  customerSessionCookie,
+  ENV.JWT_SECRET
+) as any;
 
         if (decoded && decoded.id) {
           const user = await db.getUserById(decoded.id);
