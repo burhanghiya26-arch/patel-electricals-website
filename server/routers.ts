@@ -1009,6 +1009,9 @@ console.log("EMAIL =>", ctx.user.email);
         resetInventory: z.boolean().optional(),
       }))
       .mutation(async ({ input }) => {
+
+console.log("RESET INPUT =", input);
+
         try {
           if (input.resetOrders) {
             await db.executeRaw(`DELETE FROM order_items`);
