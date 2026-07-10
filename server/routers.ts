@@ -1018,12 +1018,20 @@ console.log("RESET INPUT =", input);
             await db.executeRaw(`DELETE FROM order_tracking`);
             await db.executeRaw(`DELETE FROM orders`);
           }
-          if (input.resetQuotations) {
-            await db.executeRaw(`DELETE FROM quotations`);
-          }
-          if (input.resetReviews) {
-            await db.executeRaw(`DELETE FROM reviews`);
-          }
+         if (input.resetQuotations) {
+  try {
+    await db.executeRaw(`DELETE FROM quotations`);
+  } catch (e) {
+    console.log("quotations table not found");
+  }
+}
+         if (input.resetReviews) {
+  try {
+    await db.executeRaw(`DELETE FROM reviews`);
+  } catch (e) {
+    console.log("reviews table not found");
+  }
+}
           if (input.resetCartItems) {
             await db.executeRaw(`DELETE FROM cart_items`);
           }
