@@ -341,7 +341,7 @@ export async function createOrder(orderData: any): Promise<number | undefined> {
 console.log("CREATE ORDER DATA =>", orderData);
   const result = await db.insert(orders).values(orderData);
 console.log("CREATE ORDER RESULT =>", result);
-
+console.log("INSERT ID =>", (result as any).insertId);
 const allOrders = await db.select().from(orders);
 console.log("ALL ORDERS AFTER INSERT =>", allOrders);
 
