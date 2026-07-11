@@ -335,6 +335,7 @@ export async function clearCart(userId: number) {
 // ========================
 
 export async function createOrder(orderData: any): Promise<number | undefined> {
+ console.log("CREATE ORDER FUNCTION START");
   const db = await getDb();
   if (!db) return undefined;
 console.log("CREATE ORDER DATA =>", orderData);
