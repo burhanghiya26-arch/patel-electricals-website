@@ -343,6 +343,7 @@ console.log("CREATE ORDER DATA =>", orderData);
 console.log("CREATE ORDER RESULT =>", result);
 console.log("INSERT ID =>", (result as any).insertId);
 const allOrders = await db.select().from(orders);
+  console.log("LAST ORDER =>", allOrders[allOrders.length -1]);
 console.log("ALL ORDERS AFTER INSERT =>", allOrders);
 
   // MySQL returns insertId in the result
