@@ -435,7 +435,7 @@ console.log("EMAIL =>", ctx.user.email);
         console.log("CTX USER ID=>", ctx.user.id);
         console.log("CTX USER EMAIL=>", ctx.user.email);
         console.log("ORDER USER ID=", ctx.user.id);
-        console.log ("BEFORE CREATE ORDER");
+        console.log("BEFORE CREATE ORDER");
         const orderId = await db.createOrder({
           orderNumber, userId: ctx.user.id,
           totalAmount: String(totalAmount + input.shippingCost), gstAmount: String(0),
@@ -445,7 +445,7 @@ console.log("EMAIL =>", ctx.user.email);
           orderStatus: 'pending', // Always start as pending
           notes: null,
         });
-
+console.log("CREATED ORDER ID =>", orderId);
         // Update totalAmount in return to include shipping
         const finalTotal = totalAmount + input.shippingCost;
 
