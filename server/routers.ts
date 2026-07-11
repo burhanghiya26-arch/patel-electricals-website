@@ -435,6 +435,7 @@ console.log("EMAIL =>", ctx.user.email);
         console.log("CTX USER ID=>", ctx.user.id);
         console.log("CTX USER EMAIL=>", ctx.user.email);
         console.log("ORDER USER ID=", ctx.user.id);
+        console.log ("BEFORE CREATE ORDER");
         const orderId = await db.createOrder({
           orderNumber, userId: ctx.user.id,
           totalAmount: String(totalAmount + input.shippingCost), gstAmount: String(0),
