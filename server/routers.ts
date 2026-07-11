@@ -446,6 +446,8 @@ console.log("EMAIL =>", ctx.user.email);
           notes: null,
         });
 console.log("CREATED ORDER ID =>", orderId);
+        const orders = await db.getOrdersByUserId(ctx.user.id);
+        console.log("ORDERS AFTER CREATE =>", orders);
         // Update totalAmount in return to include shipping
         const finalTotal = totalAmount + input.shippingCost;
 
