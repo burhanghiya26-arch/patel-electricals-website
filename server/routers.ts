@@ -477,6 +477,10 @@ console.log("EMAIL =>", ctx.user.email);
 
         return { orderNumber, totalAmount: finalTotal, orderId };
       }),
+list: protectedProcedure
+      .query(async ({ ctx }) => {
+        return await db.getOrdersByUserId(ctx.user.id);
+      }),
 
     getAllOrders: adminProcedure
       .input(z.object({ limit: z.number().default(50), offset: z.number().default(0) }))
