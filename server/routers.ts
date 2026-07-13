@@ -435,6 +435,7 @@ console.log("ORDER USER =>", ctx.user);
 console.log("USER ID =>", ctx.user.id);
 console.log("EMAIL =>", ctx.user.email);
         console.log("CTX USER ID=>", ctx.user.id);
+        console.log("CTX USER =>", ctx.user);
         console.log("CTX USER EMAIL=>", ctx.user.email);
         console.log("ORDER USER ID=", ctx.user.id);
         console.log("BEFORE CREATE ORDER");
