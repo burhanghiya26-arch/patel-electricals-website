@@ -100,6 +100,7 @@ console.log("LOGIN CUSTOMER ID =>", customer.id);
         );
         
         const cookieOptions = getSessionCookieOptions(ctx.req);
+        console.log("LOGIN USER ID=>", customer.id);
         ctx.res.cookie('customer_session', token, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
         
         return { success: true, token, customerId: customer.id };
