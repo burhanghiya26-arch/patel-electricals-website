@@ -88,6 +88,7 @@ export const appRouter = router({
         );
         
         const cookieOptions = getSessionCookieOptions(ctx.req);
+        console.log("LOGIN USER ID=>",customer id);
         ctx.res.cookie('customer_token', token, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
         
         return { success: true, token, customerId: customer.id };
