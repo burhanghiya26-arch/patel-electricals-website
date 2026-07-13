@@ -438,16 +438,35 @@ console.log("EMAIL =>", ctx.user.email);
         console.log("CTX USER EMAIL=>", ctx.user.email);
         console.log("ORDER USER ID=", ctx.user.id);
         console.log("BEFORE CREATE ORDER");
-        const orderId = await db.createOrder({
-          orderNumber, userId: ctx.user.id,
-          totalAmount: String(totalAmount + input.shippingCost), gstAmount: String(0),
-          shippingCost: String(input.shippingCost), shippingAddress: input.shippingAddress,
-          paymentMethod: input.paymentMethod,
-          paymentStatus: 'pending',
-          orderStatus: 'pending', // Always start as pending
-          notes: null,
-        });
-console.log("CREATED ORDER ID =>", orderId);
+
+let orderId;
+
+try {
+  console.log("CREATE ORDER DATA =>", {
+    orderNumber,
+    userId: ctx.user.id,
+    totalAmount: String(totalAmount + input.shippingCost),
+    shippingAddress: input.shippingAddress,
+  });
+
+  orderId = await db.createOrder({
+    orderNumber,
+    userId: ctx.user.id,
+    totalAmount: String(totalAmount + input.shippingCost),
+    gstAmount: String(0),
+    shippingCost: String(input.shippingCost),
+    shippingAddress: input.shippingAddress,
+    paymentMethod: input.paymentMethod,
+    paymentStatus: "pending",
+    orderStatus: "pending",
+    notes: null,
+  });
+
+  console.log("CREATED ORDER ID =>", orderId);
+} catch (err) {
+  console.error("CREATE ORDER ERROR =>", err);
+  throw err;
+}
         const orders = await db.getOrdersByUserId(ctx.user.id);
         console.log("ORDERS AFTER CREATE =>", orders);
         // Update totalAmount in return to include shipping
