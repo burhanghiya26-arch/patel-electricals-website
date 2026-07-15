@@ -500,8 +500,9 @@ try {
             shippingAddress: input.shippingAddress,
           }).catch((err) => console.error("Failed to send WhatsApp notification:", err));
         }
-
-        return { orderNumber, totalAmount: finalTotal, orderId };
+     const check = await db.getOrdersByUserId(ctx.user.id);
+        console.log("AFTER CREATE CHECK =", check);
+        return { orderNumber, totalAmount: finalTotal, orderId, orders: check,};
       }),
 
     getAllOrders: adminProcedure
