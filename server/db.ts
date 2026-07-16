@@ -342,7 +342,7 @@ console.log("CREATE ORDER DATA =>", orderData);
 console.log("ORDER USER ID=>", orderData.userId);
   const result = await db.insert(orders).values(orderData);
   const check = await db.select().from(orders);
-  console.log(ALL ORDERS =",check);
+  console.log("ALL ORDERS =",check);
 console.log("CREATE ORDER RESULT =>", result);
 console.log("INSERT ID =>", (result as any).insertId);
 const allOrders = await db.select().from(orders);
@@ -372,7 +372,7 @@ console.log("GET ORDERS USER ID =>", userId);
 const result = await db.select().from(orders);
   console.log("ALL ORDERS =",
               result);
-  console.log("SEARCH USER ID =", uderId);
+  console.log("SEARCH USER ID =", userId);
   return result;
 }
 
