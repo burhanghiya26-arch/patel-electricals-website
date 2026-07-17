@@ -1,4 +1,4 @@
-import { eq, and, like, desc, asc, sql, or, lte, gte, getTableColumns } from "drizzle-orm";
+22aimport { eq, and, like, desc, asc, sql, or, lte, gte, getTableColumns } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users, products, inventory, cartItems, orders, orderItems,
@@ -369,7 +369,8 @@ if (!db) return [];
 
 console.log("GET ORDERS USER ID =>", userId);
 
-const result = await db.select().from(orders);
+const result = await db.select().from(orders).where(eq(orders.userId,userId))
+  .orderBy(desc"(orders.createdAt));
   console.log("ALL ORDERS =",
               result);
   console.log("SEARCH USER ID =", userId);
