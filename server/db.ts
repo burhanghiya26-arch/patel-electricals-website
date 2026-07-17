@@ -370,7 +370,7 @@ if (!db) return [];
 console.log("GET ORDERS USER ID =>", userId);
 
 const result = await db.select().from(orders).where(eq(orders.userId,userId))
-  .orderBy(desc"(orders.createdAt));
+  .orderBy(desc(orders.createdAt));
   console.log("ALL ORDERS =",
               result);
   console.log("SEARCH USER ID =", userId);
