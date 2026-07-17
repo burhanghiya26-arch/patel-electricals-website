@@ -1,4 +1,4 @@
-22aimport { eq, and, like, desc, asc, sql, or, lte, gte, getTableColumns } from "drizzle-orm";
+import { eq, and, like, desc, asc, sql, or, lte, gte, getTableColumns } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users, products, inventory, cartItems, orders, orderItems,
