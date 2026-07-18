@@ -76,6 +76,7 @@ export const appRouter = router({
   }),
 
   customer: router({
+// OLD LOGIN - Will be removed after migration
     login: publicProcedure
       .input(z.object({ email: z.string().email(), password: z.string().min(1) }))
       .mutation(async ({ input, ctx }) => {
