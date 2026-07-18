@@ -349,8 +349,8 @@ try {
   console.error("INSERT FAILED =>", err);
   throw err;
 }
-  const check = await db.execute(sql`SELECT id, userId, orderNumber FROM orders`);
-console.log("ALL ORDERS RAW =>", check);
+  const check = await db.execute(sql`SELECT COUNT(*) as total FROM orders`);
+console.log("TOTAL ORDERS =>", check);
 console.log("CREATE ORDER RESULT =>", result);
 console.log("INSERT ID =>", (result as any).insertId);
 const allOrders = await db.select().from(orders);
