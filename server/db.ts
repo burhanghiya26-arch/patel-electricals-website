@@ -1476,7 +1476,7 @@ export async function getCustomerByEmail(email: string) {
 
   return result.length > 0 ? result[0] : null;
 }
-
+// OLD EMAIL+PASSWORD SYSTEM - Will be removed after migration
 export async function createCustomer(data: {
   email: string;
   passwordHash: string;
