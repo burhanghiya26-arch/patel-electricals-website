@@ -1013,12 +1013,6 @@ try {
 
     resetStats: adminProcedure.mutation(async () => {
       try {
-        await db.executeRaw(`DELETE FROM order_items`);
-        await db.executeRaw(`DELETE FROM order_tracking`);
-        await db.executeRaw(`DELETE FROM orders`);
-        await db.executeRaw(`DELETE FROM quotations`);
-        await db.executeRaw(`DELETE FROM cart_items`);
-        await db.executeRaw(`DELETE FROM reviews`);
         await db.executeRaw(`UPDATE inventory SET quantityInStock = 100, reorderLevel = 10`);
         return { success: true, message: "All stats have been reset" };
       } catch (error) {
