@@ -71,9 +71,12 @@ class SDKServer {
 
   async authenticateRequest(req: Request): Promise<User | null> {
     const cookies = this.parseCookies(req.headers.cookie);
-
+    
+    console.log("=================================");
+console.log("URL =", req.originalUrl);
 console.log("CUSTOMER COOKIE =", cookies.get("customer_session"));
 console.log("ADMIN COOKIE =", cookies.get(COOKIE_NAME));
+console.log("=================================");
 
     const sessionCookie = cookies.get(COOKIE_NAME);
 
