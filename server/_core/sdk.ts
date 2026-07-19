@@ -85,6 +85,7 @@ console.log("=================================");
     }
 
     try {
+     console.log("CHECKING ADMIN TOKEN..."); 
       const adminToken = verifyAdminToken(sessionCookie);
       if (adminToken) {
         const admin = await db.getUserByEmail(adminToken.email);
@@ -123,6 +124,8 @@ console.log("=================================");
     const customerSessionCookie = cookies.get("customer_session");
 
     if (customerSessionCookie) {
+      console.log("CHECKING CUSTOMER TOKEN...");
+      
       try {
 const decoded = jwt.verify(
   customerSessionCookie,
