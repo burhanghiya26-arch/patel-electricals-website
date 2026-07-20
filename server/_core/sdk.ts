@@ -78,15 +78,37 @@ console.log("CUSTOMER COOKIE =", cookies.get("customer_session"));
 console.log("ADMIN COOKIE =", cookies.get(COOKIE_NAME));
 console.log("=================================");
 
-    const sessionCookie = cookies.get(COOKIE_NAME);
+    const customerSessionCookie = cookies.get("customer_session");
 
-    if (!sessionCookie && !cookies.get("customer_session")) {
-      return null;
+// Customer login ko hamesha priority do
+if (customerSessionCookie) {
+  console.log("CHECKING CUSTOMER TOKEN...");
+
+  try {
+    const decoded = jwt.verify(
+      customerSessionCookie,
+      ENV.JWT_SECRET
+    ) as any;
+
+    if (decoded?.id) {
+      const user = await db.getUserById(decoded.id);
+      if (user) return user;
     }
+  } catch (err) {
+    console.warn("[Auth] Customer session verification failed", String(err));
+  }
+}
 
-    try {
-     console.log("CHECKING ADMIN TOKEN..."); 
-      const adminToken = verifyAdminToken(sessionCookie);
+// Sirf customer login na ho tab admin check karo
+const sessionCookie = cookies.get(COOKIE_NAME);
+
+if (!sessionCookie) {
+  return null;
+}
+
+try {
+  console.log("CHECKING ADMIN TOKEN...");
+  const adminToken = verifyAdminToken(sessionCookie);
       if (adminToken) {
         const admin = await db.getUserByEmail(adminToken.email);
         if (admin && admin.role === "admin") {
@@ -121,43 +143,7 @@ console.log("=================================");
     } catch (error) {
       console.warn("[Auth] Token verification failed", String(error));
     }
-    const customerSessionCookie = cookies.get("customer_session");
-
-    if (customerSessionCookie) {
-      console.log("CHECKING CUSTOMER TOKEN...");
-      
-      try {
-const decoded = jwt.verify(
-  customerSessionCookie,
-  ENV.JWT_SECRET
-) as any;
-
-        if (decoded && decoded.id) {
-          const user = await db.getUserById(decoded.id);
-
-          console.log("[AUTH USER]", user);
-
-          if (user) {
-            console.log(
-              "[AUTH] Customer Logged In:",
-              decoded.id,
-              decoded.email
-            );
-            return user;
-          }
-
-          console.warn(
-            "[AUTH] User not found in database:",
-            decoded.id
-          );
-          return null;
-        }
-      } catch (err) {
-        console.warn(
-          "[Auth] Customer session verification failed",
-          String(err)
-        );
-      }
+  
     }
 
     return null;
