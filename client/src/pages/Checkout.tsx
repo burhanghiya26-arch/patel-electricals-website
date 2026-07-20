@@ -14,6 +14,8 @@ import Footer from "@/components/Footer";
 import { toast } from "sonner";
 
 export default function Checkout() {
+const utils = trpc.useUtils();  
+  
   const [, setLocation] = useLocation();
   const { data: cartItems } = trpc.cart.list.useQuery();
 
@@ -29,11 +31,16 @@ export default function Checkout() {
   });
 
   const createOrder = trpc.orders.create.useMutation({
-    onSuccess: (data) => {
-      setOrderPlaced(true);
-      setOrderNumber(data.orderNumber);
-      toast.success("Order placed successfully! Check WhatsApp for order details.");
-    },
+  onSuccess: async (data) => {
+  await utils.customer.getMyData.invalidate();
+  await utils.orders.list.invalidate();
+  await utils.cart.list.invalidate();
+
+  setOrderPlaced(true);
+  setOrderNumber(data.orderNumber);
+
+  toast.success("Order placed successfully! Check WhatsApp for order details.");
+},  
     onError: (err) => toast.error(err.message),
   });
 
