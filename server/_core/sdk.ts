@@ -143,8 +143,6 @@ try {
     } catch (error) {
       console.warn("[Auth] Token verification failed", String(error));
     }
-  
-    }
 
     return null;
   }
