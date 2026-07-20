@@ -63,12 +63,10 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
-        <CustomerProvider>
           <TooltipProvider>
             <Toaster />
             <Router />
           </TooltipProvider>
-        </CustomerProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );
