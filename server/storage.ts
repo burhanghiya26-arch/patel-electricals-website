@@ -102,14 +102,13 @@ export async function storagePut(
     }
     const url = (await response.json()).url;
     return { key, url };
-  } catch (error) {
-    console.error("[Storage] Upload error:", error);
-    // Return data URL as fallback
-    return { 
-      key: relKey, 
-      url: `data:${contentType};base64,${Buffer.isBuffer(data) ? data.toString('base64') : Buffer.from(data).toString('base64')}` 
-    };
-  }
+} catch (error) {
+  console.error("========== STORAGE ERROR ==========");
+  console.error(error);
+  console.error("==================================");
+
+  throw error;
+}  
 }
 
 export async function storageGet(relKey: string): Promise<{ key: string; url: string; }> {
