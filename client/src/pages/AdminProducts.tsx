@@ -62,19 +62,28 @@ export default function AdminProducts() {
     },
     onError: (err) => toast.error(err.message),
   });
+const uploadImage = trpc.upload.image.useMutation({
+  onMutate: () => {
+    console.log("UPLOAD MUTATION CALLED");
+  },
 
-  const uploadImage = trpc.upload.image.useMutation({
-    onSuccess: (data) => {
-      setForm(prev => ({ ...prev, imageUrl: data.url }));
-      setImagePreview(data.url);
-      setUploading(false);
-      toast.success("Image uploaded!");
-    },
-    onError: (err) => {
-      setUploading(false);
-      toast.error("Image upload failed: " + err.message);
-    },
-  });
+  onSuccess: (data) => {
+    console.log("UPLOAD SUCCESS", data);
+
+    setForm(prev => ({ ...prev, imageUrl: data.url }));
+    setImagePreview(data.url);
+    setUploading(false);
+    toast.success("Image uploaded!");
+  },
+
+  onError: (err) => {
+    console.error("UPLOAD ERROR", err);
+
+    setUploading(false);
+    toast.error("Image upload failed: " + err.message);
+  },
+});
+  
 
   const uploadGalleryImage = trpc.upload.image.useMutation({
     onSuccess: (data) => {
@@ -98,6 +107,8 @@ export default function AdminProducts() {
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("IMAGE UPLOAD START");
+    
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
