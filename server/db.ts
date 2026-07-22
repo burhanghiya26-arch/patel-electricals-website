@@ -226,7 +226,15 @@ export async function updateProduct(id: number, data: Record<string, unknown>) {
       .update(products)
       .set({ ...data, updatedAt: new Date() } as any)
       .where(eq(products.id, id));
+    
+const check = await db
+  .select()
+  .from(products)
+  .where(eq(products.id, id))
+  .limit(1);
 
+console.log("PRODUCT AFTER UPDATE =", check[0]);
+    
     return true;
   } catch (err) {
     console.error("UPDATE PRODUCT ERROR =", err);
