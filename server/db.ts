@@ -218,8 +218,20 @@ export async function createProduct(data: any) {
 export async function updateProduct(id: number, data: Record<string, unknown>) {
   const db = await getDb();
   if (!db) return false;
-  await db.update(products).set({ ...data, updatedAt: new Date() } as any).where(eq(products.id, id));
-  return true;
+
+  try {
+    console.log("UPDATE PRODUCT DATA =", data);
+
+    await db
+      .update(products)
+      .set({ ...data, updatedAt: new Date() } as any)
+      .where(eq(products.id, id));
+
+    return true;
+  } catch (err) {
+    console.error("UPDATE PRODUCT ERROR =", err);
+    throw err;
+  }
 }
 
 export async function deleteProduct(id: number) {
