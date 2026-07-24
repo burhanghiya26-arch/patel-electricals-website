@@ -980,6 +980,9 @@ try {
       }))
       .mutation(async ({ input }) => {
         const success = await db.updateCategory(input.id, input.name, input.description);
+        
+       console.log("UPDATE CATEGORY RESULT =", success);
+ 
         return { success };
       }),
 
@@ -987,6 +990,9 @@ try {
       .input(z.number())
       .mutation(async ({ input }) => {
         const success = await db.deleteCategory(input);
+
+        console.log("DELETE CATEGORY RESULT =", success);
+        
         return { success };
       }),
 
