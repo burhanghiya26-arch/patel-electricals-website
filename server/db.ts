@@ -196,7 +196,6 @@ export async function getAllProductsAdmin(limit = 100, offset = 0) {
     const data = await db
       .select()
       .from(products)
-      .orderBy(desc(products.createdAt))
       .limit(limit)
       .offset(offset);
 
