@@ -21,6 +21,7 @@ function getCookie(req: any, name: string): string | undefined {
   const parsed = parseCookieHeader(cookieHeader);
   return parsed[name];
 }
+console.log("ROUTES FILE LOADED - CATEGORY VERSION");
 
 export const appRouter = router({
   system: systemRouter,
@@ -987,6 +988,9 @@ try {
       }),
 
      deleteCategory: adminProcedure
+       
+    console.log("DELETE CATEGORY PROCEDURE HIT");
+       
       .input(z.number())
       .mutation(async ({ input }) => {
         const success = await db.deleteCategory(input);
