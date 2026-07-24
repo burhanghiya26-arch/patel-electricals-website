@@ -182,19 +182,31 @@ export async function getAllProducts(limit = 50, offset = 0) {
     .offset(offset);
 }
 export async function getAllProductsAdmin(limit = 100, offset = 0) {
+  console.log("STEP 1");
+
   const db = await getDb();
+
+  console.log("STEP 2 =", !!db);
+
   if (!db) return [];
 
-  const data = await db
-    .select()
-    .from(products)
-    .orderBy(desc(products.createdAt))
-    .limit(limit)
-    .offset(offset);
+  try {
+    console.log("STEP 3");
 
-  console.log("ADMIN PRODUCTS =", data);
+    const data = await db
+      .select()
+      .from(products)
+      .orderBy(desc(products.createdAt))
+      .limit(limit)
+      .offset(offset);
 
-  return data;
+    console.log("STEP 4 =", data.length);
+
+    return data;
+  } catch (err) {
+    console.error("GET ALL PRODUCTS ERROR =", err);
+    throw err;
+  }
 }
 
 export async function createProduct(data: any) {
