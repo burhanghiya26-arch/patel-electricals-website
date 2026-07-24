@@ -22,9 +22,25 @@ export default function AdminCategories() {
     enabled: isAuthenticated && user?.role === 'admin',
   });
 
-  // const createCategoryMutation = trpc.admin.createCategory.useMutation();
-  // const updateCategoryMutation = trpc.admin.updateCategory.useMutation();
-  // const deleteCategoryMutation = trpc.admin.deleteCategory.useMutation();
+  const createCategoryMutation = trpc.admin.createCategory.useMutation({
+  onSuccess: () => {
+    refetch();
+    handleCancel();
+  },
+});
+
+const updateCategoryMutation = trpc.admin.updateCategory.useMutation({
+  onSuccess: () => {
+    refetch();
+    handleCancel();
+  },
+});
+
+const deleteCategoryMutation = trpc.admin.deleteCategory.useMutation({
+  onSuccess: () => {
+    refetch();
+  },
+});
 
   if (!isAuthenticated || user?.role !== 'admin') {
     return (
@@ -40,9 +56,21 @@ export default function AdminCategories() {
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // TODO: Implement category creation/update
-  };
+  e.preventDefault();
+
+  if (editingId) {
+    await updateCategoryMutation.mutateAsync({
+      id: editingId,
+      name: formData.name,
+      description: formData.description,
+    });
+  } else {
+    await createCategoryMutation.mutateAsync({
+      name: formData.name,
+      description: formData.description,
+    });
+  }
+};
 
   const handleEdit = (category: { id: number; name: string; description?: string }) => {
     setFormData({ name: category.name, description: category.description || "" });
@@ -50,9 +78,13 @@ export default function AdminCategories() {
     setShowForm(true);
   };
 
-  const handleDelete = async (id: number) => {
-    // TODO: Implement category deletion
-  };
+const handleDelete = async (id: number) => {
+  if (!confirm("Are you sure you want to delete this category?")) {
+    return;
+  }
+
+  await deleteCategoryMutation.mutateAsync(id);
+};  
 
   const handleCancel = () => {
     setFormData({ name: "", description: "" });
