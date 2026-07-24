@@ -310,7 +310,13 @@ console.log("[LOGIN TOKEN]", token);
     adminList: adminProcedure
       .input(z.object({ limit: z.number().default(100), offset: z.number().default(0) }))
       .query(async ({ input }) => {
+        
+        console.log("ADMINLIST ROUTE CALLED");
+ 
         const prods = await db.getAllProductsAdmin(input.limit, input.offset);
+
+        console.log("PRODUCT COUNT =", prods.length);
+        
         // Attach inventory info to each product
         const result = await Promise.all(prods.map(async (p) => {
           const inv = await db.getInventoryByProductId(p.id);
