@@ -25,6 +25,8 @@ export default function ProductDetail() {
   const [selectedModel, setSelectedModel] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
+  
+  const [selectedImage, setSelectedImage] = useState("");
 
   const { data: productData, isLoading } = trpc.products.getById.useQuery(productId, { enabled: productId > 0 });
   const { data: reviews } = trpc.reviews.getProductReviews.useQuery(productId, { enabled: productId > 0 });
@@ -76,6 +78,30 @@ export default function ProductDetail() {
   }
 
   const { product, inventory } = productData;
+
+  console.log("PRODUCT =", product);
+console.log("PRODUCT IMAGES =", product.productImages);
+  
+let extraImages: string[] = [];
+
+try {
+  if (typeof product.productImages === "string") {
+    extraImages = JSON.parse(product.productImages);
+  } else if (Array.isArray(product.productImages)) {
+    extraImages = product.productImages;
+  }
+} catch {
+  extraImages = [];
+}
+
+const galleryImages = [
+  ...(product.imageUrl ? [product.imageUrl] : []),
+  ...extraImages,
+];
+
+const currentImage =
+  selectedImage || galleryImages[0] || product.imageUrl || "";
+  
   const basePrice = Number(product.basePrice);
   const totalPrice = basePrice * quantity;
   const discountedPrice = totalPrice;
@@ -123,13 +149,37 @@ export default function ProductDetail() {
         <div className="grid gap-8 lg:grid-cols-2">
           {/* Left: Product Image */}
           <div>
-            <div className="bg-gradient-to-br from-secondary to-muted rounded-xl h-80 md:h-96 flex items-center justify-center overflow-hidden">
-              {product.imageUrl ? (
-                <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-              ) : (
-                <Package className="h-24 w-24 text-muted-foreground/20" />
-              )}
-            </div>
+        <div className="space-y-4">
+  <div className="bg-gradient-to-br from-secondary to-muted rounded-xl h-80 md:h-96 flex items-center justify-center overflow-hidden">
+    {currentImage ? (
+      <img
+        src={currentImage}
+        alt={product.name}
+        className="w-full h-full object-cover"
+      />
+    ) : (
+      <Package className="h-24 w-24 text-muted-foreground/20" />
+    )}
+  </div>
+
+  {galleryImages.length > 1 && (
+    <div className="flex flex-wrap gap-2">
+      {galleryImages.map((img, index) => (
+        <img
+          key={index}
+          src={img}
+          alt={`Gallery ${index + 1}`}
+          onClick={() => setSelectedImage(img)}
+          className={`h-20 w-20 rounded-lg object-cover cursor-pointer border ${
+            currentImage === img
+              ? "border-primary border-2"
+              : "border-border"
+          }`}
+        />
+      ))}
+    </div>
+  )}
+</div>
 
             {/* Exploded View */}
             {product.explodedViewUrl && (
