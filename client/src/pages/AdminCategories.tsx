@@ -22,21 +22,21 @@ export default function AdminCategories() {
     enabled: isAuthenticated && user?.role === 'admin',
   });
 
-  const createCategoryMutation = trpc.admin.createCategory.useMutation({
+  const createCategoryMutation = trpc.adminDashboard.createCategory.useMutation({
   onSuccess: () => {
     refetch();
     handleCancel();
   },
 });
 
-const updateCategoryMutation = trpc.admin.updateCategory.useMutation({
+const updateCategoryMutation = trpc.adminDashboard.updateCategory.useMutation({
   onSuccess: () => {
     refetch();
     handleCancel();
   },
 });
 
-const deleteCategoryMutation = trpc.admin.deleteCategory.useMutation({
+const deleteCategoryMutation = trpc.adminDashboard.deleteCategory.useMutation({
   onSuccess: () => {
     refetch();
   },
