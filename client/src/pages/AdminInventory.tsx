@@ -20,14 +20,40 @@ export default function AdminInventory() {
   const [adjustmentQty, setAdjustmentQty] = useState("");
   const [adjustmentReason, setAdjustmentReason] = useState("");
 
-  // Inventory queries disabled
-  const inventory: any[] = [];
-  const isLoading = false;
-  const refetch = () => {};
-  const lowStockSummary: any = { total: 0, critical: 0, low: 0 };
-  const movementHistory: any[] = [];
-  const adjustMutation = { mutate: () => {}, mutateAsync: async (data?: any) => {}, isPending: false };
-  const updateReorderMutation = { mutate: () => {}, mutateAsync: async () => {}, isPending: false };
+const utils = trpc.useUtils();
+
+const {
+  data: inventory = [],
+  isLoading,
+  refetch,
+} = trpc.adminDashboard.inventory.useQuery();
+
+const {
+  data: lowStockSummary,
+} = trpc.adminDashboard.lowStockSummary.useQuery();
+
+const {
+  data: movementHistory = [],
+} = trpc.adminDashboard.inventoryMovementHistory.useQuery(
+  {
+    productId: selectedProduct || undefined,
+    limit: 100,
+  },
+  {
+    enabled: !!selectedProduct,
+  }
+);
+
+const adjustMutation = trpc.adminDashboard.adjustInventory.useMutation({
+  onSuccess: () => {
+    utils.adminDashboard.inventory.invalidate();
+    utils.adminDashboard.lowStockSummary.invalidate();
+    utils.adminDashboard.inventoryMovementHistory.invalidate();
+  },
+});
+
+const updateReorderMutation =
+  trpc.adminDashboard.updateReorderLevel.useMutation();
 
   if (!isAuthenticated || user?.role !== 'admin') {
     return (
