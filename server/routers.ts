@@ -987,12 +987,11 @@ try {
         return { success };
       }),
 
-     deleteCategory: adminProcedure
-       
-    console.log("DELETE CATEGORY PROCEDURE HIT");
-       
+     deleteCategory: adminProcedure   
       .input(z.number())
       .mutation(async ({ input }) => {
+      console.log("DELETE CATEGORY PROCEDURE HIT");
+        
         const success = await db.deleteCategory(input);
 
         console.log("DELETE CATEGORY RESULT =", success);
