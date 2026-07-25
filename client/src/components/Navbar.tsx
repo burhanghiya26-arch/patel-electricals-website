@@ -68,9 +68,6 @@ const logoutMutation = trpc.customer.logoutSession.useMutation({
     Customer Login
   </button>
 )}
-            <button onClick={() => setLocation("/admin/login")} className="bg-slate-900 text-white px-4 py-2 rounded hover:bg-black font-medium">
-              Admin
-            </button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -137,12 +134,6 @@ const logoutMutation = trpc.customer.logoutSession.useMutation({
     Customer Login
   </button>
 )}
-            <button 
-              onClick={() => { setLocation("/admin/login"); setMobileMenuOpen(false); }}
-              className="block w-full text-left py-2 px-3 bg-slate-900 text-white rounded hover:bg-black font-medium"
-            >
-              Admin Login
-            </button>
           </div>
         )}
       </nav>
