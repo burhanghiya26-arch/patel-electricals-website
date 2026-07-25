@@ -194,10 +194,11 @@ export async function getAllProductsAdmin(limit = 100, offset = 0) {
     console.log("STEP 3");
 
     const data = await db
-      .select()
-      .from(products)
-      .limit(limit)
-      .offset(offset);
+  .select()
+  .from(products)
+  .where(eq(products.isActive, true))
+  .limit(limit)
+  .offset(offset);
 
     console.log("STEP 4 =", data.length);
 
