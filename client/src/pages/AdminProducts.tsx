@@ -151,7 +151,7 @@ const uploadImage = trpc.upload.image.useMutation({
           basePrice: price,
           categoryName: form.categoryName || 'General',
           imageUrl: form.imageUrl || undefined,
-          productImages: form.productImages.length > 0 ? form.productImages : undefined,
+          productImages: form.productImages,
           stock: form.stock ? parseInt(form.stock) : undefined,
           moq: form.moq ? parseInt(form.moq) : undefined,
           colorOptions: parseOptions(form.colorOptions),
@@ -168,7 +168,7 @@ const uploadImage = trpc.upload.image.useMutation({
         stock: form.stock ? parseInt(form.stock) : 0,
         moq: form.moq ? parseInt(form.moq) : 1,
         imageUrl: form.imageUrl || undefined,
-        productImages: form.productImages.length > 0 ? form.productImages : undefined,
+        productImages: form.productImages,
         colorOptions: parseOptions(form.colorOptions),
         sizeOptions: parseOptions(form.sizeOptions),
       });
