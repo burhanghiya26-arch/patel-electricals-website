@@ -242,6 +242,8 @@ export async function updateProduct(id: number, data: Record<string, unknown>) {
 
   try {
     console.log("UPDATE PRODUCT DATA =", data);
+    console.log("IMAGE URL =", data.imageUrl);
+console.log("PRODUCT IMAGES =", data.productImages);
 
     await db
       .update(products)
