@@ -78,13 +78,7 @@ const { isLoggedIn } = useCustomer();
     <span>Customer</span>
   </button>
 )}
-            <button
-              onClick={() => setLocation("/admin/login")}
-              className="hidden sm:inline-flex items-center gap-1 px-2 sm:px-3 py-2 text-xs sm:text-sm font-semibold text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
-            >
-              <LogIn className="h-4 w-4" />
-              <span>Admin</span>
-            </button>
+            
             <WhatsAppButton
               message="Hi Patel Electricals, I need help with spare parts"
               showText={false}
@@ -127,7 +121,7 @@ const { isLoggedIn } = useCustomer();
     Customer Login
   </button>
 )}
-              <button className="w-full text-left px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 rounded-md transition-colors flex items-center gap-2" onClick={() => { setLocation("/admin/login"); setMobileMenuOpen(false); }}><LogIn className="h-4 w-4" />Admin Login</button>
+
             </div>
           </div>
         )}
