@@ -220,6 +220,41 @@ const monthlySales = orders
     { label: "Total Revenue", value: `₹${totalRevenue.toLocaleString()}`, icon: TrendingUp, color: "text-amber-600", bg: "bg-amber-50", link: "/admin/orders" },
     { label: "Total Users", value: totalUsers, icon: Users, color: "text-purple-600", bg: "bg-purple-50", link: "/admin/customers" },
     { label: "Pending Orders", value: pendingOrders, icon: AlertTriangle, color: "text-red-600", bg: "bg-red-50", link: "/admin/orders" },
+    {
+  label: "Today's Orders",
+  value: todayOrders,
+  icon: ShoppingCart,
+  color: "text-indigo-600",
+  bg: "bg-indigo-50",
+  link: "/admin/orders"
+},
+
+{
+  label: "Today's Sales",
+  value: `₹${todaySales.toLocaleString()}`,
+  icon: TrendingUp,
+  color: "text-emerald-600",
+  bg: "bg-emerald-50",
+  link: "/admin/orders"
+},
+
+{
+  label: "Monthly Orders",
+  value: monthlyOrders,
+  icon: ShoppingCart,
+  color: "text-cyan-600",
+  bg: "bg-cyan-50",
+  link: "/admin/orders"
+},
+
+{
+  label: "Monthly Sales",
+  value: `₹${monthlySales.toLocaleString()}`,
+  icon: TrendingUp,
+  color: "text-orange-600",
+  bg: "bg-orange-50",
+  link: "/admin/orders"
+},
   ];
 
   const quickLinks = [
@@ -258,7 +293,7 @@ const monthlySales = orders
           </Button>
         </div>
 
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 mb-8">
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-5 mb-8">
           {statCards.map((stat) => (
             <Card key={stat.label} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setLocation(stat.link)}>
               <CardContent className="p-5">
