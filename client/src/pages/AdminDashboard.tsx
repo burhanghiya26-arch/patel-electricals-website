@@ -9,6 +9,15 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from "recharts";
 
 function AdminNav({ current }: { current: string }) {
   const [, setLocation] = useLocation();
@@ -102,9 +111,16 @@ const {
   const { data: quotations = [], refetch: refetchQuotations } = trpc.quotations.getAllQuotations.useQuery({ limit: 1000, offset: 0 }, {
     enabled: isAuthenticated && user?.role === 'admin'
   });
+  const { data: revenueChart = [] } =
+  trpc.adminDashboard.revenueChart.useQuery(
+    { days: 30 },
+    {
+      enabled: isAuthenticated && user?.role === "admin",
+    }
+  );
 
   // Fetch customers/users
-  const { data: customersData } = trpc.adminDashboard.customers.useQuery({ limit: 1000, offset: 0 }, {
+  const { data: customersData } = trpc.adminDashboard.customers.useQuery({ limit: 1000, offset: 0 }, { 
     enabled: isAuthenticated && user?.role === 'admin'
   });
 
@@ -235,6 +251,34 @@ const {
             </CardContent>
           </Card>
         </div>
+      <Card className="mb-8">
+  <CardContent className="p-6">
+    <h3 className="text-lg font-bold mb-4">
+      Revenue Overview (Last 30 Days)
+    </h3>
+
+    <div style={{ width: "100%", height: 300 }}>
+      <ResponsiveContainer>
+        <LineChart data={revenueChart}>
+          <CartesianGrid strokeDasharray="3 3" />
+
+          <XAxis dataKey="date" />
+
+          <YAxis />
+
+          <Tooltip />
+
+          <Line
+            type="monotone"
+            dataKey="revenue"
+            stroke="#2563eb"
+            strokeWidth={3}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  </CardContent>
+</Card>  
 
         <Card>
           <CardContent className="p-6">
