@@ -35,7 +35,6 @@ function AdminNav({ current }: { current: string }) {
     { label: "Inventory", path: "/admin/inventory" },
     { label: "Orders", path: "/admin/orders" },
     { label: "Customers", path: "/admin/customers" },
-    { label: "Quotations", path: "/admin/quotations" },
     { label: "Dealers", path: "/admin/dealers" },
     { label: "Shipping", path: "/admin/shipping" },
     { label: "Reviews", path: "/admin/reviews" },
@@ -81,7 +80,6 @@ export default function AdminDashboard() {
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [resetOptions, setResetOptions] = useState({
     resetOrders: false,
-    resetQuotations: false,
     resetReviews: false,
     resetCartItems: false,
     resetInventory: false,
@@ -107,10 +105,7 @@ const {
     enabled: isAuthenticated && user?.role === "admin",
   }
 );
-  // Fetch quotations
-  const { data: quotations = [], refetch: refetchQuotations } = trpc.quotations.getAllQuotations.useQuery({ limit: 1000, offset: 0 }, {
-    enabled: isAuthenticated && user?.role === 'admin'
-  });
+  
   const { data: revenueChart = [] } =
   trpc.adminDashboard.revenueChart.useQuery(
     { days: 30 },
@@ -135,10 +130,9 @@ const {
     onSuccess: () => {
       toast.success("Selected data reset successfully");
       setShowResetDialog(false);
-      setResetOptions({ resetOrders: false, resetQuotations: false, resetReviews: false, resetCartItems: false, resetInventory: false });
+      setResetOptions({ resetOrders: false, resetReviews: false, resetCartItems: false, resetInventory: false });
       refetchOrders();
       refetchProducts();
-      refetchQuotations();
     },
     onError: () => toast.error("Failed to reset selected data"),
   });
@@ -167,7 +161,6 @@ const {
     .reduce((sum: number, order: any) => sum + Number(order.totalAmount || 0), 0);
   const pendingOrders = orders.filter((o: any) => o.orderStatus === 'pending').length;
   const totalUsers = customersData?.length || 0;
-  const pendingQuotes = (quotations as any[]).filter((q: any) => q.status === 'pending').length;
 
   const statCards = [
     { label: "Total Products", value: totalProducts, icon: Package, color: "text-blue-600", bg: "bg-blue-50", link: "/admin/products" },
@@ -175,7 +168,6 @@ const {
     { label: "Total Revenue", value: `₹${totalRevenue.toLocaleString()}`, icon: TrendingUp, color: "text-amber-600", bg: "bg-amber-50", link: "/admin/orders" },
     { label: "Total Users", value: totalUsers, icon: Users, color: "text-purple-600", bg: "bg-purple-50", link: "/admin/customers" },
     { label: "Pending Orders", value: pendingOrders, icon: AlertTriangle, color: "text-red-600", bg: "bg-red-50", link: "/admin/orders" },
-    { label: "Pending Quotes", value: pendingQuotes, icon: FileText, color: "text-orange-600", bg: "bg-orange-50", link: "/admin/quotations" },
   ];
 
   const quickLinks = [
@@ -187,7 +179,6 @@ const {
 
   const resetOptionsList = [
     { key: "resetOrders", label: "Orders", desc: "Delete all orders and order items" },
-    { key: "resetQuotations", label: "Quotations", desc: "Delete all quotation requests" },
     { key: "resetReviews", label: "Reviews", desc: "Delete all product reviews" },
     { key: "resetCartItems", label: "Cart Items", desc: "Clear all customer carts" },
     { key: "resetInventory", label: "Inventory", desc: "Reset stock to 100 units each" },
