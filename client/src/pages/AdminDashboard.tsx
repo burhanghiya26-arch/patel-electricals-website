@@ -118,6 +118,13 @@ const {
       enabled: isAuthenticated && user?.role === "admin",
     }
   );
+  const { data: topProducts = [] } =
+  trpc.adminDashboard.topProducts.useQuery(
+    { limit: 5 },
+    {
+      enabled: isAuthenticated && user?.role === "admin",
+    }
+  );
 
   // Fetch customers/users
   const { data: customersData } = trpc.adminDashboard.customers.useQuery({ limit: 1000, offset: 0 }, { 
@@ -278,8 +285,45 @@ const {
       </ResponsiveContainer>
     </div>
   </CardContent>
-</Card>  
+</Card> 
+        
+<Card className="mb-8">
+  <CardContent className="p-6">
+    <h3 className="text-lg font-bold mb-4">
+      Top Selling Products
+    </h3>
 
+    {topProducts.length === 0 ? (
+      <p className="text-muted-foreground">
+        No sales yet.
+      </p>
+    ) : (
+      <div className="space-y-3">
+        {topProducts.map((product: any, index: number) => (
+          <div
+            key={product.id}
+            className="flex items-center justify-between border rounded-lg p-3"
+          >
+            <div>
+              <p className="font-semibold">
+                #{index + 1} {product.name}
+              </p>
+
+              <p className="text-sm text-muted-foreground">
+                Sold: {product.totalSold}
+              </p>
+            </div>
+
+            <div className="font-bold text-green-600">
+              ₹{Number(product.revenue || 0).toLocaleString()}
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </CardContent>
+</Card>
+        
         <Card>
           <CardContent className="p-6">
             <h3 className="text-lg font-bold mb-4">Recent Orders</h3>
