@@ -306,7 +306,7 @@ const {
           >
             <div>
               <p className="font-semibold">
-                #{index + 1} {product.name}
+                #{index + 1} {product.productName}
               </p>
 
               <p className="text-sm text-muted-foreground">
