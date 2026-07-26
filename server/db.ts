@@ -861,7 +861,7 @@ export async function getRevenueByDate(days: number = 30) {
     revenue: sql<string>`COALESCE(SUM(totalAmount), 0)`,
     orderCount: sql<number>`COUNT(*)`,
   }).from(orders)
-    .where(sql`createdAt >= ${startDate} AND paymentStatus = 'completed'`)
+    .where(sql`createdAt >= ${startDate} AND orderStatus = 'delivered'`)
     .groupBy(sql`DATE(createdAt)`)
     .orderBy(sql`DATE(createdAt)`);
   
@@ -880,6 +880,8 @@ export async function getTopProducts(limit: number = 10) {
     revenue: sql<string>`SUM(${orderItems.totalPrice})`,
   }).from(orderItems)
     .innerJoin(products, sql`${orderItems.productId} = ${products.id}`)
+    .innerJoin(orders, sql`${orderItems.orderId} = ${orders.id}`)
+  .where(eq(orders.orderStatus, "delivered"))
     .groupBy(orderItems.productId, products.name, products.partNumber)
     .orderBy(sql`SUM(${orderItems.quantity}) DESC`)
     .limit(limit);
