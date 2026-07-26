@@ -17,7 +17,6 @@ import DealerProfile from "./pages/DealerProfile";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminProducts from "./pages/AdminProducts";
 import AdminOrders from "./pages/AdminOrders";
-import AdminQuotations from "./pages/AdminQuotations";
 import AdminDealers from "./pages/AdminDealers";
 import AdminShipping from "./pages/AdminShipping";
 import AdminInventory from "./pages/AdminInventory";
@@ -46,7 +45,6 @@ function Router() {
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/products" component={AdminProducts} />
       <Route path="/admin/orders" component={AdminOrders} />
-      <Route path="/admin/quotations" component={AdminQuotations} />
       <Route path="/admin/dealers" component={AdminDealers} />
       <Route path="/admin/shipping" component={AdminShipping} />
       <Route path="/admin/inventory" component={AdminInventory} />
