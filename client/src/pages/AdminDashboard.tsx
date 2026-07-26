@@ -162,6 +162,58 @@ const {
   const pendingOrders = orders.filter((o: any) => o.orderStatus === 'pending').length;
   const totalUsers = customersData?.length || 0;
 
+const today = new Date();
+
+const todayOrders = orders.filter((o: any) => {
+  const d = new Date(o.createdAt);
+
+  return (
+    d.getDate() === today.getDate() &&
+    d.getMonth() === today.getMonth() &&
+    d.getFullYear() === today.getFullYear()
+  );
+}).length;
+
+const todaySales = orders
+  .filter((o: any) => {
+    const d = new Date(o.createdAt);
+
+    return (
+      o.orderStatus === "delivered" &&
+      d.getDate() === today.getDate() &&
+      d.getMonth() === today.getMonth() &&
+      d.getFullYear() === today.getFullYear()
+    );
+  })
+  .reduce(
+    (sum: number, o: any) => sum + Number(o.totalAmount || 0),
+    0
+  );
+
+const monthlyOrders = orders.filter((o: any) => {
+  const d = new Date(o.createdAt);
+
+  return (
+    d.getMonth() === today.getMonth() &&
+    d.getFullYear() === today.getFullYear()
+  );
+}).length;
+
+const monthlySales = orders
+  .filter((o: any) => {
+    const d = new Date(o.createdAt);
+
+    return (
+      o.orderStatus === "delivered" &&
+      d.getMonth() === today.getMonth() &&
+      d.getFullYear() === today.getFullYear()
+    );
+  })
+  .reduce(
+    (sum: number, o: any) => sum + Number(o.totalAmount || 0),
+    0
+  );  
+
   const statCards = [
     { label: "Total Products", value: totalProducts, icon: Package, color: "text-blue-600", bg: "bg-blue-50", link: "/admin/products" },
     { label: "Total Orders", value: totalOrders, icon: ShoppingCart, color: "text-green-600", bg: "bg-green-50", link: "/admin/orders" },
