@@ -18,6 +18,10 @@ const { isLoggedIn } = useCustomer();
   const generalCategoryId = React.useMemo(() => categories?.find((c: any) => c.name === "General")?.id, [categories]);
   const { data: generalCategoryProducts } = trpc.products.getByCategory.useQuery(generalCategoryId || 0, { enabled: !!generalCategoryId });
 
+React.useEffect(() => {
+  document.title = "Patel Electricals | Wholesale Electrical Spare Parts in Surat";
+}, []);
+  
   const displayStats = [
     { label: "Products", value: "5000+", icon: Package },
     { label: "Dealers", value: "500+", icon: Truck },
