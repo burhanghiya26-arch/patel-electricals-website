@@ -14,7 +14,7 @@ export default function Home() {
   const [, setLocation] = useLocation();
 const { isLoggedIn } = useCustomer();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
-  const { data: categories, isLoading: catsLoading } = trpc.products.getCategories.useQuery();
+  const { data: dashboardStats } = trpc.adminDashboard.stats.useQuery();
   const generalCategoryId = React.useMemo(() => categories?.find((c: any) => c.name === "General")?.id, [categories]);
   const { data: generalCategoryProducts } = trpc.products.getByCategory.useQuery(generalCategoryId || 0, { enabled: !!generalCategoryId });
 
@@ -22,12 +22,30 @@ React.useEffect(() => {
   document.title = "Patel Electricals | Wholesale Electrical Spare Parts in Surat";
 }, []);
   
-  const displayStats = [
-    { label: "Products", value: "5000+", icon: Package },
-    { label: "Dealers", value: "500+", icon: Truck },
-    { label: "Orders", value: "10000+", icon: ShoppingCart },
-    { label: "Years", value: "15+", icon: Clock },
-  ];
+const establishedYear = 2021; // 👈 Apni shop ka starting year likho
+
+const displayStats = [
+  {
+    label: "Products",
+    value: dashboardStats?.totalProducts ?? 0,
+    icon: Package,
+  },
+  {
+    label: "Dealers",
+    value: dashboardStats?.totalUsers ?? 0,
+    icon: Truck,
+  },
+  {
+    label: "Orders",
+    value: dashboardStats?.totalOrders ?? 0,
+    icon: ShoppingCart,
+  },
+  {
+    label: "Years",
+    value: `${new Date().getFullYear() - establishedYear}+`,
+    icon: Clock,
+  },
+];
 
   return (
     <div className="min-h-screen bg-background">
