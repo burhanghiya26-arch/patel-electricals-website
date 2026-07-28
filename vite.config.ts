@@ -37,9 +37,6 @@ export default defineConfig({
         trpc: ["@trpc/client", "@trpc/server", "@trpc/react-query"],
         query: ["@tanstack/react-query"],
       },
-    },
-  },
-}, 
   server: {
     host: true,
     allowedHosts: [
