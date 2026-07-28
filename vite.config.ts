@@ -28,8 +28,9 @@ export default defineConfig({
   cssCodeSplit: true,
   sourcemap: false,
   reportCompressedSize: true,
-  chunkSizeWarningLimit: 1000,
-      },
+  chunkSizeWarningLimit: 1000,       
+ },
+  
   server: {
     host: true,
     allowedHosts: [
