@@ -29,13 +29,6 @@ export default defineConfig({
   sourcemap: false,
   reportCompressedSize: true,
   chunkSizeWarningLimit: 1000,
-
-  rollupOptions: {
-    output: {
-      manualChunks: {
-        react: ["react", "react-dom"],
-        trpc: ["@trpc/client", "@trpc/server", "@trpc/react-query"],
-        query: ["@tanstack/react-query"],
       },
   server: {
     host: true,
