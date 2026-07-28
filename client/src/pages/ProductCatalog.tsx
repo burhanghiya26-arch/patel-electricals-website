@@ -196,7 +196,15 @@ export default function ProductCatalog() {
                 <CardContent className="p-0">
                   <div className="h-40 bg-gradient-to-br from-secondary to-muted flex items-center justify-center relative">
                     {product.imageUrl ? (
-                      <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+              <img
+  src={product.imageUrl}
+  alt={product.name}
+  loading="lazy"
+  decoding="async"
+  width="300"
+  height="300"
+  className="w-full h-full object-cover"
+/>
                     ) : (
                       <Package className="h-12 w-12 text-muted-foreground/30" />
                     )}
@@ -249,7 +257,15 @@ export default function ProductCatalog() {
                 <CardContent className="p-4 flex items-center gap-4">
                   <div className="h-16 w-16 bg-secondary rounded-lg flex items-center justify-center flex-shrink-0">
                     {product.imageUrl ? (
-                      <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover rounded-lg" />
+              <img
+  src={product.imageUrl}
+  alt={product.name}
+  loading="lazy"
+  decoding="async"
+  width="64"
+  height="64"
+  className="w-full h-full object-cover rounded-lg"
+/>
                     ) : (
                       <Package className="h-6 w-6 text-muted-foreground/30" />
                     )}
