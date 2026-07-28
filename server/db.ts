@@ -574,7 +574,10 @@ export async function getDashboardStats() {
   if (!db) return { totalProducts: 0, totalOrders: 0, totalRevenue: 0, totalUsers: 0, pendingOrders: 0, pendingQuotations: 0 };
 
   const [productCount] = await db.select({ count: sql<number>`count(*)` }).from(products).where(eq(products.isActive, true));
-  const [orderCount] = await db.select({ count: sql<number>`count(*)` }).from(orders);
+const [orderCount] = await db
+  .select({ count: sql<number>`count(*)` })
+  .from(orders)
+  .where(eq(orders.orderStatus, "delivered"));  
   const [revenueResult] = await db.select({ total: sql<string>`COALESCE(SUM(totalAmount), 0)` }).from(orders).where(eq(orders.paymentStatus, 'completed'));
   const [userCount] = await db.select({ count: sql<number>`count(*)` }).from(users);
   const [pendingOrderCount] = await db.select({ count: sql<number>`count(*)` }).from(orders).where(eq(orders.orderStatus, 'pending'));
