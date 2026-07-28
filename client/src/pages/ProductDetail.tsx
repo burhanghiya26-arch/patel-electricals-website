@@ -152,11 +152,16 @@ const currentImage =
         <div className="space-y-4">
   <div className="bg-gradient-to-br from-secondary to-muted rounded-xl h-80 md:h-96 flex items-center justify-center overflow-hidden">
     {currentImage ? (
-      <img
-        src={currentImage}
-        alt={product.name}
-        className="w-full h-full object-cover"
-      />
+    <img
+  src={currentImage}
+  alt={product.name}
+  loading="eager"
+  fetchPriority="high"
+  decoding="async"
+  width="600"
+  height="600"
+  className="w-full h-full object-cover"
+/>
     ) : (
       <Package className="h-24 w-24 text-muted-foreground/20" />
     )}
@@ -165,10 +170,14 @@ const currentImage =
   {galleryImages.length > 1 && (
     <div className="flex flex-wrap gap-2">
       {galleryImages.map((img, index) => (
-        <img
-          key={index}
-          src={img}
-          alt={`Gallery ${index + 1}`}
+       <img
+  key={index}
+  src={img}
+  alt={`${product.name} - Image ${index + 1}`}
+  loading="lazy"
+  decoding="async"
+  width="80"
+  height="80" 
           onClick={() => setSelectedImage(img)}
           className={`h-20 w-20 rounded-lg object-cover cursor-pointer border ${
             currentImage === img
@@ -186,7 +195,15 @@ const currentImage =
               <Card className="mt-4">
                 <CardHeader><CardTitle className="text-base">Exploded View Diagram</CardTitle></CardHeader>
                 <CardContent>
-                  <img src={product.explodedViewUrl} alt="Exploded View" className="w-full rounded-lg" />
+              <img
+  src={product.explodedViewUrl}
+  alt={`${product.name} Exploded View`}
+  loading="lazy"
+  decoding="async"
+  width="800"
+  height="600"
+  className="w-full rounded-lg"
+/>
                 </CardContent>
               </Card>
             )}
