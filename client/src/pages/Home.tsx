@@ -206,7 +206,15 @@ React.useEffect(() => {
                   <CardContent className="p-4">
                     {product.image && (
                       <div className="mb-3 h-32 bg-secondary rounded-lg overflow-hidden flex items-center justify-center">
-                        <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
+              <img
+  src={product.image}
+  alt={product.name}
+  loading="lazy"
+  decoding="async"
+  width="300"
+  height="300"
+  className="h-full w-full object-cover"
+/>
                       </div>
                     )}
                     <h3 className="font-semibold text-sm mb-1 line-clamp-2">{product.name}</h3>
