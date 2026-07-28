@@ -14,6 +14,12 @@ export default function Home() {
   const [, setLocation] = useLocation();
 const { isLoggedIn } = useCustomer();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+
+  const {
+  data: categories,
+  isLoading: catsLoading,
+} = trpc.products.getCategories.useQuery();
+  
   const { data: dashboardStats } = trpc.adminDashboard.stats.useQuery();
   const generalCategoryId = React.useMemo(() => categories?.find((c: any) => c.name === "General")?.id, [categories]);
   const { data: generalCategoryProducts } = trpc.products.getByCategory.useQuery(generalCategoryId || 0, { enabled: !!generalCategoryId });
