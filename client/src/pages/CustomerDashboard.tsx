@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Zap, ShoppingCart, FileText, LogOut, Package, Clock, CheckCircle, Truck, XCircle, ArrowLeft } from "lucide-react";
@@ -47,6 +49,14 @@ export default function CustomerDashboard() {
     },
   });
 
+  const createReview = trpc.reviews.create.useMutation({
+  onSuccess: () => {
+    toast.success("Review submitted successfully");
+  },
+  onError: (err) => {
+    toast.error(err.message);
+  },
+});
   useEffect(() => {
     if (!isLoading && !data) {
       setLocation("/customer/login");
@@ -67,6 +77,7 @@ export default function CustomerDashboard() {
   if (!data) return null;
 
   const { user, orders, quotations } = data;
+  console.log("ORDERS WITH ITEMS =", orders);
 
   return (
     <div className="min-h-screen bg-gray-50">
