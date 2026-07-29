@@ -180,21 +180,11 @@ console.log("[LOGIN TOKEN]", token);
         console.log("USER =", user);
         if (!user) return null;
         const userOrders = await db.getOrdersByUserId(user.id);
-        const ordersWithItems = await Promise.all(
-  userOrders.map(async (order) => {
-    const items = await db.getOrderItems(order.id);
-
-    return {
-      ...order,
-      items,
-    };
-  })
-);
         console.log("USER ID =", user.id);
         console.log("ORDERS =", userOrders);
         let userQuotations: any[] = [];
         try { userQuotations = await db.getQuotationsByUserId(user.id); } catch {}
-        return { user: { id: user.id, email: user.email, name: user.name, phone: user.businessPhone },orders: ordersWithItems, quotations: userQuotations };
+        return { user: { id: user.id, email: user.email, name: user.name, phone: user.businessPhone },orders:   orders: userOrders, quotations: userQuotations };
       } catch {
         return null;
       }
