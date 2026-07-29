@@ -184,7 +184,7 @@ console.log("[LOGIN TOKEN]", token);
         console.log("ORDERS =", userOrders);
         let userQuotations: any[] = [];
         try { userQuotations = await db.getQuotationsByUserId(user.id); } catch {}
-        return { user: { id: user.id, email: user.email, name: user.name, phone: user.businessPhone },orders:   orders: userOrders, quotations: userQuotations };
+        return { user: { id: user.id, email: user.email, name: user.name, phone: user.businessPhone },orders: userOrders, quotations: userQuotations };
       } catch {
         return null;
       }
