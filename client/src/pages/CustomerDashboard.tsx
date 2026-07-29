@@ -66,7 +66,6 @@ export default function CustomerDashboard() {
   if (!data) return null;
 
   const { user, orders, quotations } = data;
-  console.log("ORDERS WITH ITEMS =", orders);
 
   return (
     <div className="min-h-screen bg-gray-50">
