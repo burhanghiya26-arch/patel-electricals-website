@@ -52,7 +52,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   yPosition += 5;
   doc.text('Surat, Gujarat - 394210', margin, yPosition);
   yPosition += 5;
-  doc.text('📞 8780657095 | 📧 burhanghiya26@gmail.com', margin, yPosition);
+  doc.text('Phone: 8780657095 | Email: burhanghiya26@gmail.com', margin, yPosition);
   yPosition += 10;
 
   // Divider line
@@ -105,11 +105,11 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
 
   // Items Table with Product Details
   const tableData = data.items.map((item) => [
-    item.name,
-    item.quantity.toString(),
-    `₹${item.price.toFixed(2)}`,
-    `₹${item.total.toFixed(2)}`,
-  ]);
+  item.name,
+  item.quantity.toString(),
+  `Rs. ${item.price.toFixed(2)}`,
+  `Rs. ${item.total.toFixed(2)}`,
+]);
 
   // Create items table
   autoTable(doc, {
@@ -182,10 +182,10 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
       doc.text(`   Quantity: ${item.quantity} unit(s)`, margin + 2, yPosition);
       yPosition += 4;
       
-      doc.text(`   Unit Price: ₹${item.price.toFixed(2)}`, margin + 2, yPosition);
+      doc.text(`   Unit Price: Rs. ${item.price.toFixed(2)}`, margin + 2, yPosition);
       yPosition += 4;
       
-      doc.text(`   Total: ₹${item.total.toFixed(2)}`, margin + 2, yPosition);
+      doc.text(`   Total: Rs. ${item.total.toFixed(2)}`, margin + 2, yPosition);
       yPosition += 4;
       
       if (item.sku) {
@@ -209,12 +209,12 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
 
   // Subtotal
   doc.text('Subtotal:', summaryStartX, yPosition);
-  doc.text(`₹${data.subtotal.toFixed(2)}`, summaryValueX, yPosition, { align: 'right' } as any);
+  doc.text(`Rs. ${data.subtotal.toFixed(2)}`, summaryValueX, yPosition, { align: 'right' } as any);
   yPosition += 6;
 
   // Tax
   doc.text('Tax (GST):', summaryStartX, yPosition);
-  doc.text(`₹${data.tax.toFixed(2)}`, summaryValueX, yPosition, { align: 'right' } as any);
+ doc.text(`Rs. ${data.tax.toFixed(2)}`, summaryValueX, yPosition, { align: 'right' } as any); 
   yPosition += 8;
 
   // Total with background box
@@ -227,7 +227,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   doc.setTextColor(25, 42, 86);
   doc.setFont(undefined as any, 'bold');
   doc.text('Total Amount:', summaryStartX, yPosition + 1);
-  doc.text(`₹${data.total.toFixed(2)}`, summaryValueX, yPosition + 1, { align: 'right' } as any);
+ doc.text(`Rs. ${data.total.toFixed(2)}`, summaryValueX, yPosition + 1, { align: 'right' } as any); 
 
   yPosition += 15;
 
