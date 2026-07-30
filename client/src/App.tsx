@@ -1,3 +1,4 @@
+import CustomerOrderDetails from "@/pages/CustomerOrderDetails";
 import { CustomerProvider } from "./contexts/CustomerContext";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -41,6 +42,7 @@ function Router() {
       <Route path="/profile" component={DealerProfile} />
       <Route path="/customer/login" component={SimpleCustomerLogin} />
       <Route path="/customer/dashboard" component={CustomerDashboard} />
+      <Route path="/customer/orders/:id" component={CustomerOrderDetails} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/products" component={AdminProducts} />
