@@ -174,6 +174,15 @@ export default function CustomerDashboard() {
                       {order.trackingNumber && (
                         <p className="text-xs text-blue-600 mt-1">🚚 Tracking: {order.trackingNumber}</p>
                       )}
+                      
+                      <div className="mt-4">
+  <Button
+    className="w-full bg-slate-900 hover:bg-slate-800"
+    onClick={() => setLocation(`/customer/orders/${order.id}`)}
+  >
+    👁️ View Details
+  </Button>
+</div>
                     </CardContent>
                   </Card>
                 );
