@@ -300,7 +300,7 @@ export default function CustomerOrderDetails() {
             <span>
 
               ₹
-              {Number(order.discountAmount).toLocaleString("en-IN")}
+              {Number(order.discountAmount|| 0).toLocaleString("en-IN")}
 
             </span>
 
