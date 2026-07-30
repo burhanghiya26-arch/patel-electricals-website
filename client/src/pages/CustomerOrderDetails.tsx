@@ -42,6 +42,8 @@ export default function CustomerOrderDetails() {
     enabled: Number.isFinite(orderId) && orderId > 0,
   });
 
+  const generateInvoice = trpc.orders.generateInvoice.useMutation();
+  
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -59,6 +61,31 @@ export default function CustomerOrderDetails() {
   }
 
   const { order, items } = data;
+
+  const handleDownloadInvoice = async () => {
+  try {
+    const result = await generateInvoice.mutateAsync(order.id);
+
+    const invoiceUrl =
+      typeof result === "string"
+        ? result
+        : typeof result === "object" &&
+            result !== null &&
+            "url" in result
+          ? String(result.url)
+          : null;
+
+    if (!invoiceUrl) {
+      throw new Error("Invoice URL server se nahi mila.");
+    }
+
+    window.open(invoiceUrl, "_blank", "noopener,noreferrer");
+  } catch (error) {
+    console.error("Invoice download failed:", error);
+    alert("Invoice download nahi ho saka. Dobara try karein.");
+  }
+};
+  
   const orderStatus = order.orderStatus?.toLowerCase() ?? "pending";
   const StatusIcon = statusIcon[orderStatus] ?? Clock;
 
@@ -270,17 +297,15 @@ export default function CustomerOrderDetails() {
               <h2 className="mb-6 text-xl font-bold">Quick Actions</h2>
 
               <div className="space-y-3">
-                <Button
-                  className="w-full"
-                  onClick={() =>
-                    window.open(
-                      `/api/trpc/orders.generateInvoice?input=${order.id}`,
-                      "_blank"
-                    )
-                  }
-                >
-                  📄 Download Invoice
-                </Button>
+               <Button
+  className="w-full"
+  disabled={generateInvoice.isPending}
+  onClick={handleDownloadInvoice}
+>
+  {generateInvoice.isPending
+    ? "Invoice prepare ho raha hai..."
+    : "📄 Download Invoice"}
+</Button> 
 
                 <Button
                   variant="outline"
