@@ -773,7 +773,7 @@ try {
   }),
 
   adminDashboard: router({
-    stats: adminProcedure.query(async () => db.getDashboardStats()),
+    stats: publicProcedure.query(async () => db.getDashboardStats()),
 
     revenueChart: adminProcedure
       .input(z.object({ days: z.number().default(30) }))
