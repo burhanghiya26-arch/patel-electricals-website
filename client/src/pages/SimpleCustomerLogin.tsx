@@ -96,6 +96,15 @@ export default function SimpleCustomerLogin() {
             </Button>
           </form>
 
+          <Button
+  type="button"
+  variant="outline"
+  className="w-full"
+  onClick={() => setLocation("/")}
+>
+  Back to Home
+</Button>
+
           <div className="text-center text-sm text-muted-foreground border-t pt-4">
             <p className="font-medium">Same email = Same history</p>
             <p className="text-xs mt-1">
