@@ -1086,15 +1086,28 @@ console.log("RESET INPUT =", input);
         content: z.string().min(1),
       }))
       .mutation(async ({ input, ctx }) => {
-        await db.createReview({
-          productId: input.productId,
-          customerId: ctx.user.id,
-          orderId: input.orderId,
-          rating: input.rating,
-          title: input.title,
-          content: input.content,
-        });
-        return { success: true };
+     try {
+  await db.createReview({
+    productId: input.productId,
+    customerId: ctx.user.id,
+    orderId: input.orderId,
+    rating: input.rating,
+    title: input.title,
+    content: input.content,
+  });
+
+  return { success: true };
+} catch (error: any) {
+  console.error("Review database error:", error);
+
+  throw new TRPCError({
+    code: "INTERNAL_SERVER_ERROR",
+    message:
+      error?.cause?.sqlMessage ||
+      error?.cause?.message ||
+      "Review save nahi ho saka.",
+  });
+}   
       }),
 
     getProductReviews: publicProcedure
