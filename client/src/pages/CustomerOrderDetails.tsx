@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useRoute } from "wouter";
 import {
   ArrowLeft,
@@ -6,6 +7,7 @@ import {
   Package,
   Truck,
   XCircle,
+    Star,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,13 +39,28 @@ const formatCurrency = (value: unknown) =>
 export default function CustomerOrderDetails() {
   const [, params] = useRoute("/customer/orders/:id");
   const orderId = Number(params?.id);
+    const [reviewProductId, setReviewProductId] = useState<number | null>(null);
+  const [rating, setRating] = useState(5);
+  const [reviewTitle, setReviewTitle] = useState("");
+  const [reviewContent, setReviewContent] = useState("");
 
   const { data, isLoading } = trpc.orders.getById.useQuery(orderId, {
     enabled: Number.isFinite(orderId) && orderId > 0,
   });
 
   const generateInvoice = trpc.orders.generateInvoice.useMutation();
-  
+    const reviewMutation = trpc.reviews.create.useMutation({
+    onSuccess: () => {
+      alert("Review successfully submitted!");
+      setReviewProductId(null);
+      setRating(5);
+      setReviewTitle("");
+      setReviewContent("");
+    },
+    onError: (error) => {
+      alert(error.message || "Review submit nahi ho saka.");
+    },
+  });
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -85,7 +102,23 @@ export default function CustomerOrderDetails() {
     alert("Invoice download nahi ho saka. Dobara try karein.");
   }
 };
-  
+
+    const handleSubmitReview = () => {
+    if (!reviewProductId) return;
+
+    if (!reviewTitle.trim() || !reviewContent.trim()) {
+      alert("Review title aur review message dono likho.");
+      return;
+    }
+
+    reviewMutation.mutate({
+      productId: reviewProductId,
+      orderId: order.id,
+      rating,
+      title: reviewTitle.trim(),
+      content: reviewContent.trim(),
+    });
+  };
   const orderStatus = order.orderStatus?.toLowerCase() ?? "pending";
   const StatusIcon = statusIcon[orderStatus] ?? Clock;
 
@@ -198,7 +231,22 @@ export default function CustomerOrderDetails() {
                           Price: {formatCurrency(item.unitPrice)}
                         </p>
                       </div>
-
+{orderStatus === "delivered" && item.product && (
+  <Button
+    type="button"
+    variant="outline"
+    size="sm"
+    onClick={() => {
+      setReviewProductId(item.product.id);
+      setRating(5);
+      setReviewTitle("");
+      setReviewContent("");
+    }}
+  >
+    <Star className="mr-2 h-4 w-4" />
+    Write a Review
+  </Button>
+)}
                       <div className="font-bold">
                         {formatCurrency(item.totalPrice)}
                       </div>
@@ -244,7 +292,69 @@ export default function CustomerOrderDetails() {
             </CardContent>
           </Card>
         </div>
+{reviewProductId && (
+  <Card className="mt-8">
+    <CardContent className="p-6">
+      <h2 className="mb-4 text-xl font-bold">Write a Review</h2>
 
+      <p className="mb-2 text-sm font-medium">Your Rating</p>
+
+      <div className="mb-5 flex gap-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            type="button"
+            onClick={() => setRating(star)}
+            className="p-1"
+            aria-label={`${star} star rating`}
+          >
+            <Star
+              className={`h-7 w-7 ${
+                star <= rating
+                  ? "fill-yellow-400 text-yellow-400"
+                  : "text-gray-300"
+              }`}
+            />
+          </button>
+        ))}
+      </div>
+
+      <input
+        type="text"
+        value={reviewTitle}
+        onChange={(event) => setReviewTitle(event.target.value)}
+        placeholder="Review title (example: Very good product)"
+        className="mb-3 w-full rounded-md border px-3 py-2"
+      />
+
+      <textarea
+        value={reviewContent}
+        onChange={(event) => setReviewContent(event.target.value)}
+        placeholder="Apna review likho..."
+        rows={4}
+        className="w-full rounded-md border px-3 py-2"
+      />
+
+      <div className="mt-4 flex gap-3">
+        <Button
+          type="button"
+          onClick={handleSubmitReview}
+          disabled={reviewMutation.isPending}
+        >
+          {reviewMutation.isPending ? "Submitting..." : "Submit Review"}
+        </Button>
+
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setReviewProductId(null)}
+        >
+          Cancel
+        </Button>
+      </div>
+    </CardContent>
+  </Card>
+)}
         <div className="mt-8 grid gap-6 lg:grid-cols-2">
           <Card>
             <CardContent className="p-6">
