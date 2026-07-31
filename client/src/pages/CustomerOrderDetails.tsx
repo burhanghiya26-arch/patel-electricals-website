@@ -103,22 +103,19 @@ export default function CustomerOrderDetails() {
   }
 };
 
-    const handleSubmitReview = () => {
-    if (!reviewProductId) return;
+  const handleSubmitReview = () => {
+  if (!reviewProductId) return;
 
-    if (!reviewTitle.trim() || !reviewContent.trim()) {
-      alert("Review title aur review message dono likho.");
-      return;
-    }
-
-    reviewMutation.mutate({
-      productId: reviewProductId,
-      orderId: order.id,
-      rating,
-      title: reviewTitle.trim(),
-      content: reviewContent.trim(),
-    });
-  };
+  reviewMutation.mutate({
+    productId: reviewProductId,
+    orderId: order.id,
+    rating,
+    title: reviewTitle.trim() || `${rating}-star rating`,
+    content:
+      reviewContent.trim() ||
+      "Rating submitted without a written review.",
+  });
+};
   const orderStatus = order.orderStatus?.toLowerCase() ?? "pending";
   const StatusIcon = statusIcon[orderStatus] ?? Clock;
 
