@@ -51,18 +51,28 @@ export async function generateShippingLabel(data: ShippingLabelData): Promise<Bu
       doc.fontSize(10).font("Helvetica-Bold").text("SHIP TO:", boxX + 12, boxY + 10);
 
       // Address content - clean formatting without duplicates
-      let contentY = boxY + 28;
-      doc.fontSize(10).font("Helvetica-Bold").text(data.customerName, boxX + 12, contentY);
+      const contentY = boxY + 28;
 
-      contentY += 14;
-      doc.fontSize(9).font("Helvetica").text(data.shippingAddress, boxX + 12, contentY);
+doc.fontSize(10).font("Helvetica-Bold").text(
+  data.customerName,
+  boxX + 12,
+  contentY
+);
 
-      contentY += 12;
-      doc.text(data.shippingCity, boxX + 12, contentY);
+const fullAddress = [
+  data.shippingAddress,
+  data.shippingCity,
+  [data.shippingState, data.shippingZip].filter(Boolean).join(" - "),
+]
+  .filter(Boolean)
+  .join("\n");
 
-      contentY += 12;
-      const stateZip = `${data.shippingState} - ${data.shippingZip}`;
-      doc.text(stateZip, boxX + 12, contentY);
+doc.fontSize(9).font("Helvetica").text(
+  fullAddress,
+  boxX + 12,
+  contentY + 14,
+  { width: boxWidth - 24 }
+);
 
       doc.moveTo(boxX, boxY + boxHeight).lineTo(boxX + boxWidth, boxY + boxHeight).stroke();
 
