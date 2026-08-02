@@ -97,7 +97,7 @@ export async function generateShippingLabel(data: ShippingLabelData): Promise<Bu
         doc.text(item.name.substring(0, 30), col1X, itemY);
         doc.text(item.partNumber || "-", col2X, itemY);
         doc.text(item.quantity.toString(), col3X, itemY);
-        doc.text(`₹${item.quantity}`, col4X, itemY); // Placeholder - will be calculated per item
+       doc.text("-", col4X, itemY);  // Placeholder - will be calculated per item
         itemY += 14;
       });
 
@@ -107,7 +107,7 @@ export async function generateShippingLabel(data: ShippingLabelData): Promise<Bu
 
       doc.fontSize(10).font("Helvetica-Bold");
       doc.text("TOTAL:", col1X, itemY);
-      doc.text(`₹${data.totalAmount}`, col4X, itemY, { align: "right" });
+      doc.text(`rs. ${data.totalAmount}`, col4X, itemY, { align: "right" });
 
       doc.moveDown(3);
 
