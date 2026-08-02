@@ -40,15 +40,15 @@ export async function generateShippingLabel(data: ShippingLabelData): Promise<Bu
       doc.moveDown(1);
 
       // Address Box
-      const boxX = 40;
-      const boxY = doc.y + 10;
-      const boxWidth = 515;
-      const boxHeight = 80;
+      const boxX = 45;
+      const boxY = doc.y + 15;
+      const boxWidth = 520;
+      const boxHeight = 120;
 
       doc.rect(boxX, boxY, boxWidth, boxHeight).stroke();
 
       // SHIP TO header
-      doc.fontSize(10).font("Helvetica-Bold").text("SHIP TO:", boxX + 12, boxY + 10);
+      doc.fontSize(12).font("Helvetica-Bold").text("SHIP TO:", boxX + 12, boxY + 10);
 
       // Address content - clean formatting without duplicates
       const contentY = boxY + 28;
