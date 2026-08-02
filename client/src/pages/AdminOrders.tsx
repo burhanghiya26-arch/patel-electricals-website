@@ -37,7 +37,14 @@ export default function AdminOrders() {
     onError: (e) => toast.error(e.message),
   });
 
-
+const shippingLabelMutation = trpc.orders.generateShippingLabel.useMutation({
+  onSuccess: ({ url }) => {
+    window.open(url, "_blank", "noopener,noreferrer");
+  },
+  onError: (error) => {
+    toast.error(error.message || "Delivery slip generate nahi ho saki.");
+  },
+});
 
 
 
@@ -138,6 +145,17 @@ export default function AdminOrders() {
                           <SelectItem value="cancelled">Cancelled</SelectItem>
                         </SelectContent>
                       </Select>
+                   <Button
+  variant="outline"
+  size="sm"
+  className="w-36"
+  disabled={shippingLabelMutation.isPending}
+  onClick={() => shippingLabelMutation.mutate(order.id)}
+>
+  {shippingLabelMutation.isPending
+    ? "Preparing..."
+    : "Print Delivery Slip"}
+</Button>   
 
                     </div>
                   </div>
