@@ -18,7 +18,8 @@ export default function AdminShipping() {
   }
   const [, setLocation] = useLocation();
   // Shipping config queries disabled - using defaults
-  const shippingConfig = null; // trpc.admin.getShippingConfig.useQuery()
+  const shippingConfig = trpc.admin.getShippingConfig.useQuery();
+const utils = trpc.useUtils();
   // const utils = trpc.useUtils();
 
   const [isEditing, setIsEditing] = React.useState(false);
@@ -29,22 +30,34 @@ export default function AdminShipping() {
   });
 
   // Initialize form data when config loads
-  React.useEffect(() => {
-    // Shipping config disabled - using defaults
-  }, []);
+React.useEffect(() => {
+  if (shippingConfig.data) {
+    setFormData({
+      baseCost: Number(shippingConfig.data.baseCost),
+      costPerKm: Number(shippingConfig.data.costPerKm),
+      freeShippingThreshold: Number(shippingConfig.data.freeShippingThreshold),
+    });
+  }
+}, [shippingConfig.data]);
 
-  // Shipping config mutation disabled
-  const updateShippingConfig = {
-    mutate: () => {
-      toast.success("Shipping configuration would be updated");
-      setIsEditing(false);
-    },
-    isLoading: false
-  };
+const updateShippingConfig = trpc.admin.updateShippingConfig.useMutation({
+  onSuccess: () => {
+    toast.success("Shipping configuration updated successfully");
+    shippingConfig.refetch();
+    setIsEditing(false);
+  },
+  onError: () => {
+    toast.error("Failed to update shipping configuration");
+  },
+});  
 
-  const handleSave = () => {
-    updateShippingConfig.mutate();
-  };
+const handleSave = () => {
+  updateShippingConfig.mutate({
+    baseCost: formData.baseCost,
+    costPerKm: formData.costPerKm,
+    freeShippingThreshold: formData.freeShippingThreshold,
+  });
+};  
 
   if (!isAuthenticated || user?.role !== 'admin') {
     return (
