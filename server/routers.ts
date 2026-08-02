@@ -887,26 +887,25 @@ try {
 
     getShippingConfig: adminProcedure.query(async () => db.getShippingConfig()),
 
-    updateShippingConfig: adminProcedure
-      .input(z.object({
-        baseCost: z.number().min(0),
-        costPerKm: z.number().min(0),
-        freeShippingThreshold: z.number().min(0),
-      }))
-     .mutation(async ({ input }) => {
-  try {
+  updateShippingConfig: adminProcedure
+  .input(z.object({
+    baseCost: z.number(),
+    costPerKm: z.number(),
+    freeShippingThreshold: z.number(),
+  }))
+  .mutation(async ({ input }) => {
+    console.log("Shipping Input:", input);
+
     const success = await db.updateShippingConfig(
       input.baseCost,
       input.costPerKm,
       input.freeShippingThreshold
     );
 
+    console.log("Shipping Success:", success);
+
     return { success };
-  } catch (err) {
-    console.error("Shipping Config Error:", err);
-    throw err;
-  }
-}), 
+  }),  
 
     customers: adminProcedure
       .input(z.object({
