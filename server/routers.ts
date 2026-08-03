@@ -893,7 +893,8 @@ try {
     costPerKm: z.number(),
     freeShippingThreshold: z.number(),
   }))
-  .mutation(async ({ input }) => {
+.mutation(async ({ input }) => {
+  try {
     console.log("Shipping Input:", input);
 
     const success = await db.updateShippingConfig(
@@ -905,7 +906,11 @@ try {
     console.log("Shipping Success:", success);
 
     return { success };
-  }),  
+  } catch (err) {
+    console.error("Shipping Error:", err);
+    throw err;
+  }
+}),  
 
     customers: adminProcedure
       .input(z.object({
