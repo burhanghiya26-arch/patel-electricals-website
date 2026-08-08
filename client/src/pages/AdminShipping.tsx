@@ -46,9 +46,10 @@ const updateShippingConfig = trpc.admin.updateShippingConfig.useMutation({
     shippingConfig.refetch();
     setIsEditing(false);
   },
-  onError: () => {
-    toast.error("Failed to update shipping configuration");
-  },
+onError: (error) => {
+  console.error("SHIPPING UPDATE ERROR =", error);
+  toast.error(error.message || "Failed to update shipping configuration");
+},  
 });  
 
 const handleSave = () => {
