@@ -18,7 +18,7 @@ export default function AdminShipping() {
   }
   const [, setLocation] = useLocation();
   // Shipping config queries disabled - using defaults
-  const shippingConfig = trpc.admin.getShippingConfig.useQuery();
+  const shippingConfig = trpc.adminDashboard.getShippingConfig.useQuery();
 const utils = trpc.useUtils();
   // const utils = trpc.useUtils();
 
@@ -40,7 +40,7 @@ React.useEffect(() => {
   }
 }, [shippingConfig.data]);
 
-const updateShippingConfig = trpc.admin.updateShippingConfig.useMutation({
+const updateShippingConfig = trpc.adminDashboard.updateShippingConfig.useMutation({
   onSuccess: () => {
     toast.success("Shipping configuration updated successfully");
     shippingConfig.refetch();
