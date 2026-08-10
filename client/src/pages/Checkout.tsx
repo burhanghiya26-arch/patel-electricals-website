@@ -18,6 +18,7 @@ const utils = trpc.useUtils();
   
   const [, setLocation] = useLocation();
   const { data: cartItems } = trpc.cart.list.useQuery();
+  const subtotal = cartItems?.reduce((sum, item) => sum + Number(item.product?.basePrice || 0) * item.quantity, 0) || 0;
 
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
@@ -29,6 +30,20 @@ const utils = trpc.useUtils();
     fullName: "", phone: "", addressLine1: "", addressLine2: "",
     city: "Surat", state: "Gujarat", pincode: "",
   });
+
+  const hasCompleteDeliveryAddress =
+    address.addressLine1.trim().length > 0 && /^\d{6}$/.test(address.pincode);
+  const deliveryAddress = [
+    address.addressLine1,
+    address.addressLine2,
+    address.city,
+    address.state,
+    address.pincode,
+  ].filter(Boolean).join(", ");
+  const shippingQuote = trpc.adminDashboard.calculateShippingByDistance.useQuery(
+    { address: deliveryAddress, orderAmount: subtotal },
+    { enabled: hasCompleteDeliveryAddress, retry: false },
+  );
 
   const createOrder = trpc.orders.create.useMutation({
   onSuccess: async (data) => {
@@ -44,19 +59,21 @@ const utils = trpc.useUtils();
     onError: (err) => toast.error(err.message),
   });
 
-  // Simple shipping calculation
-  const freeShippingThreshold = 1000;
-  const baseShippingCost = 50;
-
   // Totals
-  const subtotal = cartItems?.reduce((sum, item) => sum + Number(item.product?.basePrice || 0) * item.quantity, 0) || 0;
-  // Apply free shipping if subtotal >= threshold
-  const shippingCost = subtotal >= freeShippingThreshold ? 0 : baseShippingCost;
+  const shippingCost = shippingQuote.data?.shippingCost ?? 0;
   const total = subtotal + shippingCost;
 
   const handlePlaceOrder = () => {
     if (!address.fullName || !address.phone || !address.addressLine1 || !address.city || !address.pincode) {
       toast.error("Please fill all address fields!");
+      return;
+    }
+    if (!/^\d{6}$/.test(address.pincode)) {
+      toast.error("Please enter a valid 6-digit Surat pincode.");
+      return;
+    }
+    if (!shippingQuote.data) {
+      toast.error("Please wait for the delivery charge to be calculated.");
       return;
     }
     const fullAddress = `${address.fullName}, ${address.phone}\n${address.addressLine1}${address.addressLine2 ? ", " + address.addressLine2 : ""}\n${address.city}, ${address.state} - ${address.pincode}`;
@@ -216,7 +233,13 @@ const utils = trpc.useUtils();
                 <div className="space-y-2 border-t pt-3">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground">Shipping</span>
-                    {shippingCost === 0 && subtotal >= freeShippingThreshold ? (
+                    {!hasCompleteDeliveryAddress ? (
+                      <span className="text-muted-foreground">Enter address and pincode</span>
+                    ) : shippingQuote.isFetching ? (
+                      <span className="text-muted-foreground">Calculating...</span>
+                    ) : shippingQuote.isError ? (
+                      <span className="text-destructive">Unable to calculate</span>
+                    ) : shippingQuote.data?.isFreeShipping ? (
                       <Badge className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-1">
                         <Check className="h-3 w-3" />
                         FREE DELIVERY
