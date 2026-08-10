@@ -430,6 +430,20 @@ console.log("ORDER USER =>", ctx.user);
           });
         }
 
+        // Calculate shipping on the server so a browser cannot change the charge.
+        const shippingConfig = await db.getShippingConfig();
+        const freeShippingThreshold = Number(shippingConfig.freeShippingThreshold) || 0;
+        let calculatedShippingCost = 0;
+        if (freeShippingThreshold === 0 || totalAmount < freeShippingThreshold) {
+          calculatedShippingCost = await db.calculateShippingByDistance(input.shippingAddress);
+          if (calculatedShippingCost <= 0) {
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'Unable to calculate delivery charge for this address.',
+            });
+          }
+        }
+
         const orderNumber = `ORD-${Date.now()}`;
 
         // Create order with PENDING status - admin must confirm
@@ -448,16 +462,16 @@ try {
   console.log("CREATE ORDER DATA =>", {
     orderNumber,
     userId: ctx.user.id,
-    totalAmount: String(totalAmount + input.shippingCost),
+    totalAmount: String(totalAmount + calculatedShippingCost),
     shippingAddress: input.shippingAddress,
   });
 
   orderId = await db.createOrder({
     orderNumber,
     userId: ctx.user.id,
-    totalAmount: String(totalAmount + input.shippingCost),
+    totalAmount: String(totalAmount + calculatedShippingCost),
     gstAmount: String(0),
-    shippingCost: String(input.shippingCost),
+    shippingCost: String(calculatedShippingCost),
     shippingAddress: input.shippingAddress,
     paymentMethod: input.paymentMethod,
     paymentStatus: "pending",
@@ -473,7 +487,7 @@ try {
         const orders = await db.getOrdersByUserId(ctx.user.id);
         console.log("ORDERS AFTER CREATE =>", orders);
         // Update totalAmount in return to include shipping
-        const finalTotal = totalAmount + input.shippingCost;
+        const finalTotal = totalAmount + calculatedShippingCost;
 
         // Add order items
         if (orderId) {
@@ -869,10 +883,15 @@ try {
       }),
 
     calculateShippingByDistance: publicProcedure
-      .input(z.object({ address: z.string().min(1) }))
+      .input(z.object({ address: z.string().min(1), orderAmount: z.number().nonnegative() }))
       .query(async ({ input }) => {
+        const config = await db.getShippingConfig();
+        const freeShippingThreshold = Number(config.freeShippingThreshold) || 0;
+        if (freeShippingThreshold > 0 && input.orderAmount >= freeShippingThreshold) {
+          return { shippingCost: 0, isFreeShipping: true };
+        }
         const cost = await db.calculateShippingByDistance(input.address);
-        return { shippingCost: cost };
+        return { shippingCost: cost, isFreeShipping: false };
       }),
 
     setManualShippingCharge: adminProcedure
