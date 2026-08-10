@@ -688,13 +688,13 @@ export async function calculateShippingByDistance(customerAddress: string) {
 
     if (result.status !== "OK" || !result.rows || result.rows.length === 0) {
       console.error("Distance Matrix API error:", result);
-      return 0;
+      throw new Error("Unable to calculate delivery distance");
     }
 
     const element = result.rows[0]?.elements?.[0];
     if (!element || element.status !== "OK") {
       console.error("Distance calculation failed:", element);
-      return 0;
+      throw new Error("Unable to calculate delivery distance");
     }
 
     // Distance in meters, convert to km
@@ -702,12 +702,12 @@ export async function calculateShippingByDistance(customerAddress: string) {
 
     // Get per-km shipping configuration
     const db = await getDb();
-    if (!db) return 0;
+    if (!db) throw new Error("Shipping configuration is unavailable");
     
     const config = await db.select().from(shippingRates).limit(1);
     if (config.length === 0) {
       console.error(`No shipping configuration found`);
-      return 0;
+      throw new Error("Shipping configuration is unavailable");
     }
 
     const baseCost = Number(config[0].baseCost) || 0;
@@ -718,7 +718,7 @@ export async function calculateShippingByDistance(customerAddress: string) {
     return shippingCost;
   } catch (error) {
     console.error("Error calculating shipping distance:", error);
-    return 0;
+    throw new Error("Unable to calculate delivery charge for this address");
   }
 }
 
