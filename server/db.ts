@@ -2,7 +2,7 @@ import { eq, and, like, desc, asc, sql, or, lte, gte, getTableColumns } from "dr
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users, products, inventory, cartItems, orders, orderItems,
-  quotations, categories, gstConfiguration, shippingRates, inventoryMovement,
+  quotations, categories, gstConfiguration, shippingRates, pinCodeZones, inventoryMovement,
   customerNotes, customerSegments, reviews, orderTracking
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -736,6 +736,83 @@ export async function getShippingConfig() {
     baseCost: Number(config[0].baseCost) || 0,
     costPerKm: Number(config[0].costPerKm) || 0,
     freeShippingThreshold: Number(config[0].minDistance) || 1000,
+  };
+}
+
+// PIN-code delivery charges. Each PIN code is stored as a one-code zone so an
+// admin can set a different charge for every Surat area without a Maps API.
+export async function getPinCodeZones() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(pinCodeZones).orderBy(asc(pinCodeZones.pinCodeStart));
+}
+
+export async function savePinCodeZone(pincode: string, shippingCharge: number, areaName?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable");
+
+  const existing = await db
+    .select()
+    .from(pinCodeZones)
+    .where(and(eq(pinCodeZones.pinCodeStart, pincode), eq(pinCodeZones.pinCodeEnd, pincode)))
+    .limit(1);
+
+  if (existing.length > 0) {
+    await db
+      .update(pinCodeZones)
+      .set({
+        areaName: areaName?.trim() || "Surat",
+        shippingCost: String(shippingCharge),
+        isActive: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(pinCodeZones.id, existing[0].id));
+    return existing[0].id;
+  }
+
+  const result = await db.insert(pinCodeZones).values({
+    pinCodeStart: pincode,
+    pinCodeEnd: pincode,
+    zone: "Surat",
+    areaName: areaName?.trim() || "Surat",
+    shippingCost: String(shippingCharge),
+    isActive: true,
+  });
+  return Number((result as any)[0]?.insertId);
+}
+
+export async function deletePinCodeZone(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable");
+  await db.delete(pinCodeZones).where(eq(pinCodeZones.id, id));
+  return true;
+}
+
+export async function getShippingQuoteByPincode(pincode: string, orderAmount: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Shipping service is unavailable");
+
+  const zones = await db
+    .select()
+    .from(pinCodeZones)
+    .where(eq(pinCodeZones.isActive, true));
+  const zone = zones.find(item => pincode >= item.pinCodeStart && pincode <= item.pinCodeEnd);
+
+  if (!zone) {
+    return { available: false, shippingCost: 0, isFreeShipping: false, areaName: "" };
+  }
+
+  const config = await getShippingConfig();
+  const freeShippingThreshold = Number(config.freeShippingThreshold) || 0;
+  if (freeShippingThreshold > 0 && orderAmount >= freeShippingThreshold) {
+    return { available: true, shippingCost: 0, isFreeShipping: true, areaName: zone.areaName };
+  }
+
+  return {
+    available: true,
+    shippingCost: Number(zone.shippingCost),
+    isFreeShipping: false,
+    areaName: zone.areaName,
   };
 }
 
