@@ -160,7 +160,7 @@ const currentImage =
   decoding="async"
   width="600"
   height="600"
-  className="w-full h-full object-cover"
+  className="w-full h-full object-contain p-2"
 />
     ) : (
       <Package className="h-24 w-24 text-muted-foreground/20" />
