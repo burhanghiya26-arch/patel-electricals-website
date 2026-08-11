@@ -7,7 +7,7 @@ import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { AdminNav } from "./AdminDashboard";
 import { toast } from "sonner";
-import { AlertCircle, Save, Loader2, Edit2 } from "lucide-react";
+import { AlertCircle, Save, Loader2, Edit2, Trash2 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function AdminShipping() {
@@ -17,10 +17,9 @@ export default function AdminShipping() {
     return <div className="p-4">Access denied. Admin only.</div>;
   }
   const [, setLocation] = useLocation();
-  // Shipping config queries disabled - using defaults
+  // Shipping procedures are registered under the adminDashboard router.
   const shippingConfig = trpc.adminDashboard.getShippingConfig.useQuery();
-const utils = trpc.useUtils();
-  // const utils = trpc.useUtils();
+  const pinCodeZones = trpc.adminDashboard.listPinCodeZones.useQuery();
 
   const [isEditing, setIsEditing] = React.useState(false);
   const [formData, setFormData] = React.useState({
@@ -28,6 +27,7 @@ const utils = trpc.useUtils();
     costPerKm: 0,
     freeShippingThreshold: 1000,
   });
+  const [pinForm, setPinForm] = React.useState({ pincode: "", areaName: "", shippingCharge: 0 });
 
   // Initialize form data when config loads
 React.useEffect(() => {
@@ -60,6 +60,31 @@ const handleSave = () => {
   });
 };  
 
+const savePinCodeZone = trpc.adminDashboard.savePinCodeZone.useMutation({
+  onSuccess: () => {
+    toast.success("Pincode delivery charge saved");
+    pinCodeZones.refetch();
+    setPinForm({ pincode: "", areaName: "", shippingCharge: 0 });
+  },
+  onError: (error) => toast.error(error.message || "Could not save pincode"),
+});
+
+const deletePinCodeZone = trpc.adminDashboard.deletePinCodeZone.useMutation({
+  onSuccess: () => {
+    toast.success("Pincode deleted");
+    pinCodeZones.refetch();
+  },
+  onError: (error) => toast.error(error.message || "Could not delete pincode"),
+});
+
+const handleSavePincode = () => {
+  if (!/^\d{6}$/.test(pinForm.pincode)) {
+    toast.error("Enter a valid 6-digit pincode");
+    return;
+  }
+  savePinCodeZone.mutate(pinForm);
+};
+
   if (!isAuthenticated || user?.role !== 'admin') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -80,14 +105,14 @@ const handleSave = () => {
       <AdminNav current="/admin/shipping" />
       <div className="container py-8">
         <h1 className="text-2xl font-bold mb-2">Shipping Configuration</h1>
-        <p className="text-muted-foreground mb-8">Configure per-kilometer shipping charges</p>
+        <p className="text-muted-foreground mb-8">Configure delivery charges for Surat pincodes</p>
 
         <div className="space-y-6">
           {/* Main Configuration Card */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center justify-between">
-                <span>Per-Kilometer Shipping Rate</span>
+                <span>General Shipping Settings</span>
                 {!isEditing && (
                   <Button
                     variant="outline"
@@ -151,7 +176,7 @@ const handleSave = () => {
 
                   <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
                     <p className="text-sm text-muted-foreground">
-                      <strong>Formula:</strong> Shipping Cost = Base Cost + (Distance × Cost Per Km)
+                      PIN-code charges below are used at checkout. Base Cost and Cost Per Km are not used for PIN-code delivery.
                     </p>
                   </div>
 
@@ -215,6 +240,82 @@ const handleSave = () => {
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">PIN Code Delivery Charges</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Add each Surat pincode and its fixed delivery charge. Adding the same pincode again updates its charge.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="shipping-pincode">Pincode *</Label>
+                  <Input
+                    id="shipping-pincode"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="e.g., 395003"
+                    value={pinForm.pincode}
+                    onChange={(event) => setPinForm({ ...pinForm, pincode: event.target.value.replace(/\D/g, "") })}
+                    className="mt-2"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="shipping-area">Area name</Label>
+                  <Input
+                    id="shipping-area"
+                    placeholder="e.g., Udhana"
+                    value={pinForm.areaName}
+                    onChange={(event) => setPinForm({ ...pinForm, areaName: event.target.value })}
+                    className="mt-2"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="shipping-charge">Delivery charge (₹) *</Label>
+                  <Input
+                    id="shipping-charge"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={pinForm.shippingCharge}
+                    onChange={(event) => setPinForm({ ...pinForm, shippingCharge: Number(event.target.value) })}
+                    className="mt-2"
+                  />
+                </div>
+              </div>
+              <Button onClick={handleSavePincode} disabled={savePinCodeZone.isPending}>
+                {savePinCodeZone.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                Save Pincode Charge
+              </Button>
+
+              <div className="rounded-lg border overflow-hidden">
+                <div className="grid grid-cols-[1fr_1.2fr_1fr_auto] gap-3 bg-muted px-4 py-3 text-sm font-medium">
+                  <span>Pincode</span><span>Area</span><span>Charge</span><span>Actions</span>
+                </div>
+                {pinCodeZones.isLoading ? (
+                  <p className="p-4 text-sm text-muted-foreground">Loading pincodes...</p>
+                ) : pinCodeZones.data?.length ? pinCodeZones.data.map((zone) => (
+                  <div key={zone.id} className="grid grid-cols-[1fr_1.2fr_1fr_auto] items-center gap-3 border-t px-4 py-3 text-sm">
+                    <span className="font-medium">{zone.pinCodeStart}</span>
+                    <span className="text-muted-foreground">{zone.areaName}</span>
+                    <span>₹{Number(zone.shippingCost).toFixed(2)}</span>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" title="Edit" onClick={() => setPinForm({ pincode: zone.pinCodeStart, areaName: zone.areaName, shippingCharge: Number(zone.shippingCost) })}>
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" title="Delete" disabled={deletePinCodeZone.isPending} onClick={() => deletePinCodeZone.mutate({ id: zone.id })}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                )) : (
+                  <p className="p-4 text-sm text-muted-foreground">No pincodes added yet.</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* How It Works */}
           <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200">
             <CardHeader>
@@ -222,17 +323,16 @@ const handleSave = () => {
             </CardHeader>
             <CardContent className="space-y-4 text-sm text-muted-foreground">
               <div className="space-y-2">
-                <p><strong className="text-foreground">1. Google Maps Distance Calculation</strong></p>
-                <p className="ml-4">Customer enters their delivery address at checkout. System automatically calculates distance from your warehouse (Udhana, Surat - 394210) using Google Maps.</p>
+                <p><strong className="text-foreground">1. PIN Code Delivery Charge</strong></p>
+                <p className="ml-4">Customer enters a Surat pincode at checkout. The delivery charge saved for that pincode is shown automatically.</p>
               </div>
               <div className="space-y-2">
-                <p><strong className="text-foreground">2. Per-Kilometer Calculation</strong></p>
-                <p className="ml-4">Formula: Base Cost + (Distance × Cost Per Km)</p>
-                <p className="ml-4 text-xs">Example: ₹{Number(formData.baseCost).toFixed(2)} + (10 km × ₹{Number(formData.costPerKm).toFixed(2)}/km) = ₹{(Number(formData.baseCost) + (10 * Number(formData.costPerKm))).toFixed(2)}</p>
+                <p><strong className="text-foreground">2. Only Added PIN Codes Deliver</strong></p>
+                <p className="ml-4">A pincode that is not listed above cannot be used for delivery.</p>
               </div>
               <div className="space-y-2">
                 <p><strong className="text-foreground">3. Automatic Application</strong></p>
-                <p className="ml-4">Shipping cost is calculated automatically during checkout and shown to customer before they place the order.</p>
+                <p className="ml-4">The delivery charge is shown during checkout and checked again when the order is placed.</p>
               </div>
               <div className="space-y-2">
                 <p><strong className="text-foreground">4. Free Shipping Threshold</strong></p>
