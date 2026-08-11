@@ -431,18 +431,15 @@ console.log("ORDER USER =>", ctx.user);
         }
 
         // Calculate shipping on the server so a browser cannot change the charge.
-        const shippingConfig = await db.getShippingConfig();
-        const freeShippingThreshold = Number(shippingConfig.freeShippingThreshold) || 0;
-        let calculatedShippingCost = 0;
-        if (freeShippingThreshold === 0 || totalAmount < freeShippingThreshold) {
-          calculatedShippingCost = await db.calculateShippingByDistance(input.shippingAddress);
-          if (calculatedShippingCost <= 0) {
-            throw new TRPCError({
-              code: 'BAD_REQUEST',
-              message: 'Unable to calculate delivery charge for this address.',
-            });
-          }
+        const customerPincode = input.shippingPincode || "";
+        if (!/^\d{6}$/.test(customerPincode)) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'A valid 6-digit pincode is required.' });
         }
+        const shippingQuote = await db.getShippingQuoteByPincode(customerPincode, totalAmount);
+        if (!shippingQuote.available) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Delivery is not available for this pincode.' });
+        }
+        const calculatedShippingCost = shippingQuote.shippingCost;
 
         const orderNumber = `ORD-${Date.now()}`;
 
@@ -882,16 +879,10 @@ try {
         return { shippingCost: cost };
       }),
 
-    calculateShippingByDistance: publicProcedure
-      .input(z.object({ address: z.string().min(1), orderAmount: z.number().nonnegative() }))
+    calculateShippingByPincode: publicProcedure
+      .input(z.object({ pincode: z.string().regex(/^\d{6}$/), orderAmount: z.number().nonnegative() }))
       .query(async ({ input }) => {
-        const config = await db.getShippingConfig();
-        const freeShippingThreshold = Number(config.freeShippingThreshold) || 0;
-        if (freeShippingThreshold > 0 && input.orderAmount >= freeShippingThreshold) {
-          return { shippingCost: 0, isFreeShipping: true };
-        }
-        const cost = await db.calculateShippingByDistance(input.address);
-        return { shippingCost: cost, isFreeShipping: false };
+        return db.getShippingQuoteByPincode(input.pincode, input.orderAmount);
       }),
 
     setManualShippingCharge: adminProcedure
@@ -905,6 +896,23 @@ try {
       }),
 
     getShippingConfig: adminProcedure.query(async () => db.getShippingConfig()),
+
+    listPinCodeZones: adminProcedure.query(async () => db.getPinCodeZones()),
+
+    savePinCodeZone: adminProcedure
+      .input(z.object({
+        pincode: z.string().regex(/^\d{6}$/, "Enter a valid 6-digit pincode"),
+        shippingCharge: z.number().min(0),
+        areaName: z.string().max(100).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const id = await db.savePinCodeZone(input.pincode, input.shippingCharge, input.areaName);
+        return { success: true, id };
+      }),
+
+    deletePinCodeZone: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => ({ success: await db.deletePinCodeZone(input.id) })),
 
   updateShippingConfig: adminProcedure
   .input(z.object({
