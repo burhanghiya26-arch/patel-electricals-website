@@ -31,18 +31,10 @@ const utils = trpc.useUtils();
     city: "Surat", state: "Gujarat", pincode: "",
   });
 
-  const hasCompleteDeliveryAddress =
-    address.addressLine1.trim().length > 0 && /^\d{6}$/.test(address.pincode);
-  const deliveryAddress = [
-    address.addressLine1,
-    address.addressLine2,
-    address.city,
-    address.state,
-    address.pincode,
-  ].filter(Boolean).join(", ");
-  const shippingQuote = trpc.adminDashboard.calculateShippingByDistance.useQuery(
-    { address: deliveryAddress, orderAmount: subtotal },
-    { enabled: hasCompleteDeliveryAddress, retry: false },
+  const hasValidPincode = /^\d{6}$/.test(address.pincode);
+  const shippingQuote = trpc.adminDashboard.calculateShippingByPincode.useQuery(
+    { pincode: address.pincode, orderAmount: subtotal },
+    { enabled: hasValidPincode, retry: false },
   );
 
   const createOrder = trpc.orders.create.useMutation({
@@ -74,6 +66,10 @@ const utils = trpc.useUtils();
     }
     if (!shippingQuote.data) {
       toast.error("Please wait for the delivery charge to be calculated.");
+      return;
+    }
+    if (!shippingQuote.data.available) {
+      toast.error("Delivery is not available for this pincode.");
       return;
     }
     const fullAddress = `${address.fullName}, ${address.phone}\n${address.addressLine1}${address.addressLine2 ? ", " + address.addressLine2 : ""}\n${address.city}, ${address.state} - ${address.pincode}`;
@@ -233,12 +229,14 @@ const utils = trpc.useUtils();
                 <div className="space-y-2 border-t pt-3">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground">Shipping</span>
-                    {!hasCompleteDeliveryAddress ? (
-                      <span className="text-muted-foreground">Enter address and pincode</span>
+                    {!hasValidPincode ? (
+                      <span className="text-muted-foreground">Enter a 6-digit pincode</span>
                     ) : shippingQuote.isFetching ? (
                       <span className="text-muted-foreground">Calculating...</span>
                     ) : shippingQuote.isError ? (
-                      <span className="text-destructive">Unable to calculate</span>
+                      <span className="text-destructive">Unable to check delivery</span>
+                    ) : !shippingQuote.data?.available ? (
+                      <span className="text-destructive">Delivery unavailable</span>
                     ) : shippingQuote.data?.isFreeShipping ? (
                       <Badge className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-1">
                         <Check className="h-3 w-3" />
