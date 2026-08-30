@@ -499,6 +499,197 @@ export async function setManualShippingCharge(orderId: number, shippingCharge: n
 }
 
 // ========================
+// DELIVERY STAFF & OTP CONFIRMATION
+// ========================
+
+// Keeping the assignment in the existing order_tracking table means this
+// feature works without creating a new database table. The marker is never
+// shown to delivery staff; it is only read by the secure server routes below.
+const DELIVERY_ASSIGNMENT_PREFIX = "DELIVERY_ASSIGNMENT:";
+
+function makeDeliveryAssignmentNote(deliveryStaffId: number, otp: string) {
+  return `${DELIVERY_ASSIGNMENT_PREFIX}${JSON.stringify({ deliveryStaffId, otp })}`;
+}
+
+function readDeliveryAssignment(note: string | null) {
+  if (!note?.startsWith(DELIVERY_ASSIGNMENT_PREFIX)) return null;
+  try {
+    const value = JSON.parse(note.slice(DELIVERY_ASSIGNMENT_PREFIX.length));
+    if (typeof value.deliveryStaffId !== "number" || !/^\d{6}$/.test(value.otp)) return null;
+    return value as { deliveryStaffId: number; otp: string };
+  } catch {
+    return null;
+  }
+}
+
+export async function createDeliveryStaff(input: {
+  name: string;
+  email: string;
+  phone?: string;
+  password: string;
+}) {
+  const database = await getDb();
+  if (!database) throw new Error("Database not available");
+
+  const existing = await getUserByEmail(input.email);
+  if (existing) throw new Error("This email is already in use");
+
+  const bcrypt = await import("bcryptjs").then((module) => module.default || module);
+  const passwordHash = await bcrypt.hash(input.password, 10);
+  const result = await database.insert(users).values({
+    openId: `delivery_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+    name: input.name,
+    email: input.email,
+    businessPhone: input.phone || null,
+    passwordHash,
+    loginMethod: "delivery_portal",
+    // sales_rep is an existing restricted role. It has no admin permissions.
+    role: "sales_rep",
+    isVerified: true,
+    lastSignedIn: new Date(),
+  } as any);
+
+  return { id: Number((result as any)[0]?.insertId || (result as any).insertId) };
+}
+
+export async function getDeliveryStaff() {
+  const database = await getDb();
+  if (!database) return [];
+  return database
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      phone: users.businessPhone,
+      isActive: users.isVerified,
+    })
+    .from(users)
+    .where(eq(users.role, "sales_rep"))
+    .orderBy(asc(users.name));
+}
+
+export async function authenticateDeliveryStaff(email: string, password: string) {
+  const staff = await getUserByEmail(email);
+  if (!staff || staff.role !== "sales_rep" || !staff.passwordHash) return null;
+
+  const bcrypt = await import("bcryptjs").then((module) => module.default || module);
+  const passwordMatches = await bcrypt.compare(password, staff.passwordHash);
+  if (!passwordMatches) return null;
+  return staff;
+}
+
+export async function assignOrderToDeliveryStaff(orderId: number, deliveryStaffId: number) {
+  const database = await getDb();
+  if (!database) throw new Error("Database not available");
+
+  const order = await getOrderById(orderId);
+  if (!order || order.orderStatus !== "shipped") {
+    throw new Error("Only shipped orders can be assigned for delivery");
+  }
+
+  const staff = await getUserById(deliveryStaffId);
+  if (!staff || staff.role !== "sales_rep") throw new Error("Delivery staff member not found");
+
+  const otp = String(Math.floor(100000 + Math.random() * 900000));
+  const note = makeDeliveryAssignmentNote(deliveryStaffId, otp);
+  const existing = await database
+    .select()
+    .from(orderTracking)
+    .where(and(eq(orderTracking.orderId, orderId), like(orderTracking.notes, `${DELIVERY_ASSIGNMENT_PREFIX}%`)))
+    .orderBy(desc(orderTracking.createdAt))
+    .limit(1);
+
+  if (existing[0]) {
+    await database
+      .update(orderTracking)
+      .set({ status: "shipped", statusChangedBy: deliveryStaffId, notes: note })
+      .where(eq(orderTracking.id, existing[0].id));
+  } else {
+    await createOrderTracking({
+      orderId,
+      status: "shipped",
+      statusChangedBy: deliveryStaffId,
+      notes: note,
+    });
+  }
+
+  return { otp };
+}
+
+export async function getDeliveryOrdersForStaff(deliveryStaffId: number) {
+  const database = await getDb();
+  if (!database) return [];
+
+  const rows = await database
+    .select({
+      order: getTableColumns(orders),
+      assignmentNote: orderTracking.notes,
+      customerName: users.name,
+      customerPhone: users.businessPhone,
+    })
+    .from(orderTracking)
+    .innerJoin(orders, eq(orderTracking.orderId, orders.id))
+    .leftJoin(users, eq(orders.userId, users.id))
+    .where(
+      and(
+        eq(orderTracking.statusChangedBy, deliveryStaffId),
+        eq(orderTracking.status, "shipped"),
+        eq(orders.orderStatus, "shipped"),
+        like(orderTracking.notes, `${DELIVERY_ASSIGNMENT_PREFIX}%`),
+      ),
+    )
+    .orderBy(desc(orders.createdAt));
+
+  return rows.map(({ assignmentNote: _assignmentNote, ...row }) => row);
+}
+
+export async function getDeliveryOtpForCustomer(orderId: number) {
+  const database = await getDb();
+  if (!database) return null;
+
+  const assignments = await database
+    .select({ notes: orderTracking.notes })
+    .from(orderTracking)
+    .where(and(eq(orderTracking.orderId, orderId), like(orderTracking.notes, `${DELIVERY_ASSIGNMENT_PREFIX}%`)))
+    .orderBy(desc(orderTracking.createdAt))
+    .limit(1);
+
+  const assignment = readDeliveryAssignment(assignments[0]?.notes ?? null);
+  return assignment?.otp ?? null;
+}
+
+export async function confirmDeliveryWithOtp(orderId: number, deliveryStaffId: number, otp: string) {
+  const database = await getDb();
+  if (!database) return { success: false, message: "Database not available" };
+
+  const order = await getOrderById(orderId);
+  if (!order || order.orderStatus !== "shipped") {
+    return { success: false, message: "This order is not ready for delivery confirmation" };
+  }
+
+  const assignments = await database
+    .select({ notes: orderTracking.notes })
+    .from(orderTracking)
+    .where(and(eq(orderTracking.orderId, orderId), eq(orderTracking.statusChangedBy, deliveryStaffId), like(orderTracking.notes, `${DELIVERY_ASSIGNMENT_PREFIX}%`)))
+    .orderBy(desc(orderTracking.createdAt))
+    .limit(1);
+
+  const assignment = readDeliveryAssignment(assignments[0]?.notes ?? null);
+  if (!assignment || assignment.deliveryStaffId !== deliveryStaffId || assignment.otp !== otp) {
+    return { success: false, message: "Incorrect delivery OTP" };
+  }
+
+  await updateOrderStatus(orderId, "delivered");
+  await createOrderTracking({
+    orderId,
+    status: "delivered",
+    statusChangedBy: deliveryStaffId,
+    notes: "Delivery OTP verified by delivery staff",
+  });
+  return { success: true, message: "Delivery confirmed" };
+}
+
+// ========================
 // QUOTATION FUNCTIONS
 // ========================
 
