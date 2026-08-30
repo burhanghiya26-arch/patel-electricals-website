@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ShoppingCart, AlertCircle, CheckCircle, Package, ArrowLeft, MessageCircle, Star } from "lucide-react";
+import { ShoppingCart, AlertCircle, CheckCircle, Package, ArrowLeft, MessageCircle, Star, Zap } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -375,7 +375,7 @@ const currentImage =
                   </div>
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <Button
                     size="lg"
                     className="flex-1"
@@ -384,6 +384,28 @@ const currentImage =
                   >
                     <ShoppingCart className="h-4 w-4 mr-2" />
                     {addToCartMutation.isPending ? "Adding..." : isQuantityExceeded ? "Quantity Exceeds Stock" : "Add to Cart"}
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="secondary"
+                    className="flex-1"
+                    disabled={!inventory?.quantityInStock || addToCartMutation.isPending || isQuantityExceeded}
+                    onClick={() =>
+                      addToCartMutation.mutate(
+                        {
+                          productId,
+                          quantity,
+                          selectedColor: selectedColor || undefined,
+                          selectedSize: selectedSize || undefined,
+                        },
+                        {
+                          onSuccess: () => setLocation("/checkout"),
+                        },
+                      )
+                    }
+                  >
+                    <Zap className="h-4 w-4 mr-2" />
+                    {addToCartMutation.isPending ? "Adding..." : isQuantityExceeded ? "Quantity Exceeds Stock" : "Buy Now"}
                   </Button>
                   <WhatsAppButton
                     message={`Hi, I want to enquire about ${product.name} (Part #${product.partNumber}), Price: ₹${Number(product.basePrice).toLocaleString()}, Qty: ${quantity}`}
