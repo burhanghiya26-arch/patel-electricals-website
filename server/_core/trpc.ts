@@ -43,3 +43,22 @@ export const adminProcedure = t.procedure.use(
     });
   }),
 );
+
+// Delivery staff use the existing sales_rep role. This middleware prevents a
+// customer, dealer, or admin session from using delivery-only endpoints.
+export const deliveryProcedure = t.procedure.use(
+  t.middleware(async opts => {
+    const { ctx, next } = opts;
+
+    if (!ctx.user || ctx.user.role !== 'sales_rep') {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Delivery staff access required" });
+    }
+
+    return next({
+      ctx: {
+        ...ctx,
+        user: ctx.user,
+      },
+    });
+  }),
+);
