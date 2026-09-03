@@ -29,6 +29,7 @@ import SimpleCustomerLogin from "./pages/SimpleCustomerLogin";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import DeliveryPortal from "./pages/DeliveryPortal";
 import AdminDelivery from "./pages/AdminDelivery";
+import DeliveryOtpNotice from "./components/DeliveryOtpNotice";
 
 function Router() {
   return (
@@ -70,6 +71,7 @@ function App() {
           <TooltipProvider>
             <Toaster />
             <Router />
+            <DeliveryOtpNotice />
           </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
