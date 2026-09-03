@@ -2,7 +2,7 @@ import CustomerOrderDetails from "@/pages/CustomerOrderDetails";
 import { CustomerProvider } from "./contexts/CustomerContext";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/NotFound";
+import NotFound from "./pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -27,6 +27,8 @@ import AdminReviews from "./pages/AdminReviews";
 import AdminLogin from "./pages/AdminLogin";
 import SimpleCustomerLogin from "./pages/SimpleCustomerLogin";
 import CustomerDashboard from "./pages/CustomerDashboard";
+import DeliveryPortal from "./pages/DeliveryPortal";
+import AdminDelivery from "./pages/AdminDelivery";
 
 function Router() {
   return (
@@ -43,6 +45,7 @@ function Router() {
       <Route path="/customer/login" component={SimpleCustomerLogin} />
       <Route path="/customer/dashboard" component={CustomerDashboard} />
       <Route path="/customer/orders/:id" component={CustomerOrderDetails} />
+      <Route path="/delivery" component={DeliveryPortal} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/products" component={AdminProducts} />
@@ -53,6 +56,7 @@ function Router() {
       <Route path="/admin/customers" component={AdminCustomers} />
       <Route path="/admin/categories" component={AdminCategories} />
       <Route path="/admin/reviews" component={AdminReviews} />
+      <Route path="/admin/delivery" component={AdminDelivery} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
