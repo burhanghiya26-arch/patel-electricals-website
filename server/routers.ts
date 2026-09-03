@@ -1,7 +1,7 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router, protectedProcedure, adminProcedure } from "./_core/trpc";
+import { publicProcedure, router, protectedProcedure, adminProcedure, deliveryProcedure } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
 import { TRPCError } from "@trpc/server";
@@ -193,6 +193,92 @@ console.log("[LOGIN TOKEN]", token);
       ctx.res.clearCookie('customer_session');
       return { success: true };
     }),
+  }),
+
+  delivery: router({
+    login: publicProcedure
+      .input(z.object({ email: z.string().email(), password: z.string().min(1) }))
+      .mutation(async ({ input, ctx }) => {
+        const staff = await db.authenticateDeliveryStaff(input.email, input.password);
+        if (!staff) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid delivery login details" });
+        }
+
+        const token = jwt.sign(
+          { id: staff.id, email: staff.email, type: "delivery" },
+          process.env.JWT_SECRET || "secret",
+          { expiresIn: "7d" },
+        );
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie("customer_session", token, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
+        return { success: true, name: staff.name };
+      }),
+
+    logout: publicProcedure.mutation(({ ctx }) => {
+      ctx.res.clearCookie("customer_session");
+      return { success: true };
+    }),
+
+    me: deliveryProcedure.query(({ ctx }) => ({
+      id: ctx.user.id,
+      name: ctx.user.name,
+      email: ctx.user.email,
+    })),
+
+    assignedOrders: deliveryProcedure.query(({ ctx }) =>
+      db.getDeliveryOrdersForStaff(ctx.user.id),
+    ),
+
+    confirmOtp: deliveryProcedure
+      .input(z.object({ orderId: z.number().int().positive(), otp: z.string().regex(/^\d{6}$/, "Enter the 6-digit OTP") }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await db.confirmDeliveryWithOtp(input.orderId, ctx.user.id, input.otp);
+        if (!result.success) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: result.message });
+        }
+        await db.deductInventoryForOrder(input.orderId);
+        return { success: true, message: result.message };
+      }),
+
+    customerOtp: protectedProcedure
+      .input(z.number().int().positive())
+      .query(async ({ ctx, input: orderId }) => {
+        const order = await db.getOrderById(orderId);
+        if (!order || order.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+        }
+        if (order.orderStatus !== "shipped") return { otp: null };
+        return { otp: await db.getDeliveryOtpForCustomer(orderId) };
+      }),
+
+    listStaff: adminProcedure.query(() => db.getDeliveryStaff()),
+
+    createStaff: adminProcedure
+      .input(z.object({
+        name: z.string().trim().min(2),
+        email: z.string().email(),
+        phone: z.string().trim().min(6).max(20).optional(),
+        password: z.string().min(6),
+      }))
+      .mutation(async ({ input }) => {
+        try {
+          const staff = await db.createDeliveryStaff(input);
+          return { success: true, staffId: staff.id };
+        } catch (error: any) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: error.message || "Could not create delivery staff" });
+        }
+      }),
+
+    assignOrder: adminProcedure
+      .input(z.object({ orderId: z.number().int().positive(), deliveryStaffId: z.number().int().positive() }))
+      .mutation(async ({ input }) => {
+        try {
+          await db.assignOrderToDeliveryStaff(input.orderId, input.deliveryStaffId);
+          return { success: true };
+        } catch (error: any) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: error.message || "Could not assign delivery order" });
+        }
+      }),
   }),
 
   products: router({
