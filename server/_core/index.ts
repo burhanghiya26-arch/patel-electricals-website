@@ -9,6 +9,34 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { initializeDefaultAdmin } from "./adminInit";
 
+const CATALOG_SITE_URL = "https://patelspares.com";
+
+function escapeCatalogCsv(value: unknown): string {
+  const text = String(value ?? "").replace(/\r?\n/g, " ");
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function getCatalogImageUrl(product: any): string {
+  if (Array.isArray(product.productImages)) {
+    const firstImage = product.productImages.find((image: unknown) => typeof image === "string" && image.trim());
+    if (firstImage) return firstImage;
+  }
+
+  if (typeof product.productImages === "string") {
+    try {
+      const images = JSON.parse(product.productImages);
+      if (Array.isArray(images)) {
+        const firstImage = images.find((image: unknown) => typeof image === "string" && image.trim());
+        if (firstImage) return firstImage;
+      }
+    } catch {
+      // Fall back to the legacy single-image field below.
+    }
+  }
+
+  return typeof product.imageUrl === "string" ? product.imageUrl : "";
+}
+
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
     const server = net.createServer();
@@ -39,6 +67,56 @@ async function startServer() {
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+  // Public Meta Commerce product feed. Meta refreshes this URL to keep the
+  // Instagram catalog aligned with the active products on patelspares.com.
+  app.get("/catalog-feed.csv", async (_req, res) => {
+    try {
+      const db = await import("../db");
+      const products = await db.getAllProducts(1000, 0);
+      const headers = [
+        "id",
+        "title",
+        "description",
+        "availability",
+        "condition",
+        "price",
+        "link",
+        "image_link",
+        "brand",
+        "mpn",
+      ];
+
+      const rows = products
+        .filter((product: any) => getCatalogImageUrl(product))
+        .map((product: any) => {
+          const quantity = Number(product.quantityInStock ?? product.stockQty ?? 0);
+          const price = Number(product.basePrice ?? 0);
+          return [
+            product.id,
+            product.name,
+            product.description || product.name,
+            quantity > 0 ? "in stock" : "out of stock",
+            "new",
+            `${Number.isFinite(price) ? price.toFixed(2) : "0.00"} INR`,
+            `${CATALOG_SITE_URL}/products/${product.id}`,
+            getCatalogImageUrl(product),
+            "Patel Electricals",
+            product.partNumber || product.id,
+          ]
+            .map(escapeCatalogCsv)
+            .join(",");
+        });
+
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Cache-Control", "public, max-age=600");
+      res.send([headers.join(","), ...rows].join("\n"));
+    } catch (error) {
+      console.error("[CatalogFeed] Failed to generate product feed", error);
+      res.status(500).send("Unable to generate catalog feed");
+    }
+  });
+
   // Chat API with streaming and tool calling
   registerChatRoutes(app);
   // Invoice download endpoint with proper headers for mobile
