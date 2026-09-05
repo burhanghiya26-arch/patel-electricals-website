@@ -194,7 +194,7 @@ export default function ProductCatalog() {
                 onClick={() => setLocation(`/products/${product.id}`)}
               >
                 <CardContent className="p-0">
-                  <div className="h-40 bg-gradient-to-br from-secondary to-muted flex items-center justify-center relative">
+                  <div className="h-40 bg-white flex items-center justify-center relative overflow-hidden">
                     {product.imageUrl ? (
               <img
   src={product.imageUrl}
@@ -203,7 +203,7 @@ export default function ProductCatalog() {
   decoding="async"
   width="300"
   height="300"
-  className="w-full h-full object-cover"
+  className="w-full h-full object-contain object-center p-2"
 />
                     ) : (
                       <Package className="h-12 w-12 text-muted-foreground/30" />
@@ -255,7 +255,7 @@ export default function ProductCatalog() {
                 onClick={() => setLocation(`/products/${product.id}`)}
               >
                 <CardContent className="p-4 flex items-center gap-4">
-                  <div className="h-16 w-16 bg-secondary rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div className="h-16 w-16 bg-white border border-border rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
                     {product.imageUrl ? (
               <img
   src={product.imageUrl}
@@ -264,7 +264,7 @@ export default function ProductCatalog() {
   decoding="async"
   width="64"
   height="64"
-  className="w-full h-full object-cover rounded-lg"
+  className="w-full h-full object-contain object-center p-1"
 />
                     ) : (
                       <Package className="h-6 w-6 text-muted-foreground/30" />
