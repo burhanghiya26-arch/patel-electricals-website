@@ -207,8 +207,8 @@ const utils = trpc.useUtils();
               <CardContent className="space-y-3">
                 {cartItems.map((item) => (
                   <div key={item.id} className="flex items-center gap-3">
-                    <div className="h-12 w-12 bg-muted rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
-                      {item.product?.imageUrl ? <img src={item.product.imageUrl} alt="" className="h-full w-full object-cover" /> : <Package className="h-5 w-5 text-muted-foreground" />}
+                    <div className="h-12 w-12 bg-white border border-border rounded flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      {item.product?.imageUrl ? <img src={item.product.imageUrl} alt="" className="h-full w-full object-contain object-center p-1" /> : <Package className="h-5 w-5 text-muted-foreground" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{item.product?.name}</p>
