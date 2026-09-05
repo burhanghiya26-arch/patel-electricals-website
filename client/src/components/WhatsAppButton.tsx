@@ -1,5 +1,6 @@
 import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { trackEvent } from "@/lib/analytics";
 
 interface WhatsAppButtonProps {
   phoneNumber?: string;
@@ -17,6 +18,7 @@ export function WhatsAppButton({
   showText = true,
 }: WhatsAppButtonProps) {
   const handleWhatsAppClick = () => {
+    trackEvent("whatsapp_click", { page_path: window.location.pathname, placement: "button" });
     const encodedMessage = encodeURIComponent(message);
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
     window.open(whatsappUrl, "_blank");
@@ -47,6 +49,7 @@ export function WhatsAppFloatingButton({
   message = "Hello! I'm interested in your products.",
 }: WhatsAppFloatingButtonProps) {
   const handleWhatsAppClick = () => {
+    trackEvent("whatsapp_click", { page_path: window.location.pathname, placement: "floating_button" });
     const encodedMessage = encodeURIComponent(message);
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
     window.open(whatsappUrl, "_blank");
