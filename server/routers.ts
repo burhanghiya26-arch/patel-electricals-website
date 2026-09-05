@@ -315,6 +315,10 @@ console.log("[LOGIN TOKEN]", token);
     create: adminProcedure
       .input(z.object({
         partNumber: z.string(), name: z.string(), description: z.string().optional(),
+        keyFeatures: z.array(z.string()).optional(),
+        specifications: z.array(z.object({ name: z.string(), value: z.string() })).optional(),
+        seoMetaDescription: z.string().max(320).optional(),
+        seoKeywords: z.string().max(1000).optional(),
         categoryName: z.string().default("General"),
         basePrice: z.number(),
         compatibleModels: z.array(z.string()).optional(),
@@ -358,6 +362,10 @@ console.log("[LOGIN TOKEN]", token);
         id: z.number(),
         data: z.object({
           name: z.string().optional(), description: z.string().optional(),
+          keyFeatures: z.array(z.string()).optional(),
+          specifications: z.array(z.object({ name: z.string(), value: z.string() })).optional(),
+          seoMetaDescription: z.string().max(320).optional(),
+          seoKeywords: z.string().max(1000).optional(),
           basePrice: z.number().optional(), isActive: z.boolean().optional(),
           partNumber: z.string().optional(), categoryName: z.string().optional(),
           imageUrl: z.string().optional(), productImages: z.array(z.string()).optional(),
