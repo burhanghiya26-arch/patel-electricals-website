@@ -68,9 +68,9 @@ export default function ShoppingCart() {
               {cartItemsList.map((item) => (
                 <Card key={item.id} className="overflow-hidden">
                   <CardContent className="p-4 flex items-center gap-4">
-                    <div className="w-20 h-20 bg-secondary rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="w-20 h-20 bg-white border border-border rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
                       {item.product?.imageUrl ? (
-                        <img src={item.product.imageUrl} alt={item.product.name} className="w-full h-full object-cover rounded-lg" />
+                        <img src={item.product.imageUrl} alt={item.product.name} className="w-full h-full object-contain object-center p-1" />
                       ) : (
                         <Package className="h-8 w-8 text-muted-foreground/30" />
                       )}
