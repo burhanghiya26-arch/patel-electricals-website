@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +47,28 @@ export default function ProductDetail() {
     },
   });
 
+  useEffect(() => {
+    const product = productData?.product;
+    if (!product) return;
+
+    const title = `${product.name} | Patel Electricals`;
+    const description = product.seoMetaDescription || product.description || `Buy ${product.name} from Patel Electricals, Surat.`;
+    document.title = title;
+
+    const setMeta = (name: string, content: string) => {
+      let tag = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
+      if (!tag) {
+        tag = document.createElement("meta");
+        tag.name = name;
+        document.head.appendChild(tag);
+      }
+      tag.content = content;
+    };
+
+    setMeta("description", description);
+    if (product.seoKeywords) setMeta("keywords", product.seoKeywords);
+  }, [productData?.product]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
@@ -78,6 +100,20 @@ export default function ProductDetail() {
   }
 
   const { product, inventory } = productData;
+
+  const parseProductJson = (value: unknown): unknown[] => {
+    if (Array.isArray(value)) return value;
+    if (typeof value !== "string") return [];
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+  const keyFeatures = parseProductJson(product.keyFeatures).filter((feature): feature is string => typeof feature === "string" && Boolean(feature.trim()));
+  const specifications = parseProductJson(product.specifications)
+    .filter((spec): spec is { name: string; value: string } => Boolean(spec && typeof spec === "object" && typeof (spec as any).name === "string" && typeof (spec as any).value === "string"));
 
   console.log("PRODUCT =", product);
 console.log("PRODUCT IMAGES =", product.productImages);
@@ -225,6 +261,38 @@ const currentImage =
                 <p className="text-muted-foreground leading-relaxed">{product.description}</p>
               )}
             </div>
+
+            {keyFeatures.length > 0 && (
+              <Card>
+                <CardHeader><CardTitle className="text-base">Key Features</CardTitle></CardHeader>
+                <CardContent>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    {keyFeatures.map((feature, index) => (
+                      <li key={`${feature}-${index}`} className="flex gap-2">
+                        <CheckCircle className="h-4 w-4 mt-0.5 shrink-0 text-green-600" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+
+            {specifications.length > 0 && (
+              <Card>
+                <CardHeader><CardTitle className="text-base">Specifications</CardTitle></CardHeader>
+                <CardContent className="p-0">
+                  <dl className="divide-y divide-border text-sm">
+                    {specifications.map((spec, index) => (
+                      <div key={`${spec.name}-${index}`} className="grid grid-cols-2 gap-4 px-6 py-3">
+                        <dt className="font-medium text-foreground">{spec.name}</dt>
+                        <dd className="text-muted-foreground">{spec.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Rating Display */}
             {rating && (
