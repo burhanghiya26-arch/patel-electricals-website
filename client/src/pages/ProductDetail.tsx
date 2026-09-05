@@ -205,7 +205,7 @@ const currentImage =
           {/* Left: Product Image */}
           <div>
         <div className="space-y-4">
-  <div className="bg-gradient-to-br from-secondary to-muted rounded-xl h-80 md:h-96 flex items-center justify-center overflow-hidden">
+  <div className="relative w-full aspect-square min-h-[280px] max-h-[520px] rounded-xl border border-border bg-white overflow-hidden flex items-center justify-center">
     {currentImage ? (
     <img
   src={currentImage}
@@ -215,7 +215,7 @@ const currentImage =
   decoding="async"
   width="600"
   height="600"
-  className="w-full h-full object-contain p-2"
+  className="absolute inset-0 h-full w-full object-contain object-center p-3 sm:p-5"
 />
     ) : (
       <Package className="h-24 w-24 text-muted-foreground/20" />
@@ -234,7 +234,7 @@ const currentImage =
   width="80"
   height="80" 
           onClick={() => setSelectedImage(img)}
-          className={`h-20 w-20 rounded-lg object-cover cursor-pointer border ${
+          className={`h-20 w-20 rounded-lg bg-white object-contain object-center p-1 cursor-pointer border ${
             currentImage === img
               ? "border-primary border-2"
               : "border-border"
