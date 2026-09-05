@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
+import mysql from "mysql2/promise";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerChatRoutes } from "./chat";
 import { appRouter } from "../routers";
@@ -10,6 +11,35 @@ import { serveStatic, setupVite } from "./vite";
 import { initializeDefaultAdmin } from "./adminInit";
 
 const CATALOG_SITE_URL = "https://patelspares.com";
+
+async function ensureProductContentColumns(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.warn("[Database] Product content columns were not checked because DATABASE_URL is unavailable");
+    return;
+  }
+
+  const connection = await mysql.createConnection(process.env.DATABASE_URL);
+  const columns = [
+    { name: "keyFeatures", definition: "JSON NULL" },
+    { name: "specifications", definition: "JSON NULL" },
+    { name: "seoMetaDescription", definition: "TEXT NULL" },
+    { name: "seoKeywords", definition: "TEXT NULL" },
+  ];
+
+  try {
+    for (const column of columns) {
+      try {
+        await connection.execute(`ALTER TABLE \`products\` ADD COLUMN \`${column.name}\` ${column.definition}`);
+        console.log(`[Database] Added products.${column.name}`);
+      } catch (error: any) {
+        // MySQL/MariaDB error 1060 means the column was already added.
+        if (error?.code !== "ER_DUP_FIELDNAME" && error?.errno !== 1060) throw error;
+      }
+    }
+  } finally {
+    await connection.end();
+  }
+}
 
 function escapeCatalogCsv(value: unknown): string {
   const text = String(value ?? "").replace(/\r?\n/g, " ");
@@ -57,6 +87,10 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
+  // Keep existing product data intact while adding the fields used by the
+  // Product Details and SEO feature.
+  await ensureProductContentColumns();
+
   // Initialize default admin account if needed
   await initializeDefaultAdmin().catch(err => {
     console.warn('[Server] Failed to initialize admin:', err.message);
