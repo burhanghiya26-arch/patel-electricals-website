@@ -11,6 +11,7 @@ import { trpc } from "@/lib/trpc";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { toast } from "sonner";
+import { trackEvent } from "@/lib/analytics";
 
 export default function ShoppingCart() {
   const [, setLocation] = useLocation();
@@ -153,7 +154,14 @@ export default function ShoppingCart() {
                     <p className="text-xs text-muted-foreground mt-1"></p>
                   </div>
 
-                  <Button className="w-full" size="lg" onClick={() => setLocation("/checkout")}>
+                  <Button className="w-full" size="lg" onClick={() => {
+                    trackEvent("proceed_to_checkout", {
+                      currency: "INR",
+                      value: total,
+                      item_count: cartItemsList.length,
+                    });
+                    setLocation("/checkout");
+                  }}>
                     Proceed to Checkout
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
