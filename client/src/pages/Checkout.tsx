@@ -12,6 +12,7 @@ import { trpc } from "@/lib/trpc";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { toast } from "sonner";
+import { trackEvent } from "@/lib/analytics";
 
 export default function Checkout() {
 const utils = trpc.useUtils();  
@@ -46,6 +47,20 @@ const utils = trpc.useUtils();
   setOrderPlaced(true);
   setOrderNumber(data.orderNumber);
 
+  trackEvent("purchase", {
+    transaction_id: data.orderNumber,
+    currency: "INR",
+    value: total,
+    shipping: shippingCost,
+    payment_type: paymentMethod,
+    items: (cartItems || []).map(item => ({
+      item_id: String(item.productId),
+      item_name: item.product?.name || "Product",
+      price: Number(item.product?.basePrice || 0),
+      quantity: item.quantity,
+    })),
+  });
+
   toast.success("Order placed successfully! Check WhatsApp for order details.");
 },  
     onError: (err) => toast.error(err.message),
@@ -73,6 +88,12 @@ const utils = trpc.useUtils();
       return;
     }
     const fullAddress = `${address.fullName}, ${address.phone}\n${address.addressLine1}${address.addressLine2 ? ", " + address.addressLine2 : ""}\n${address.city}, ${address.state} - ${address.pincode}`;
+    trackEvent("begin_checkout", {
+      currency: "INR",
+      value: total,
+      item_count: cartItems?.length || 0,
+      payment_type: paymentMethod,
+    });
     createOrder.mutate({
       shippingAddress: fullAddress,
       paymentMethod: paymentMethod,
