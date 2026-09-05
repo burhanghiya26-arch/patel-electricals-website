@@ -217,7 +217,7 @@ const displayStats = [
                 <Card key={product.id} className="group hover:shadow-lg hover:border-primary/30 transition-all duration-300 cursor-pointer" onClick={() => setLocation(`/products/${product.id}`)}>
                   <CardContent className="p-4">
                     {productImage ? (
-                      <div className="mb-3 h-32 bg-secondary rounded-lg overflow-hidden flex items-center justify-center">
+                      <div className="mb-3 h-32 bg-white border border-border rounded-lg overflow-hidden flex items-center justify-center">
               <img
   src={productImage}
   alt={product.name}
@@ -225,10 +225,10 @@ const displayStats = [
   decoding="async"
   width="300"
   height="300"
-  className="h-full w-full object-cover"
+  className="h-full w-full object-contain object-center p-2"
 />
                       </div>
-                    ) : <div className="mb-3 h-32 bg-secondary rounded-lg flex items-center justify-center"><Package className="h-10 w-10 text-muted-foreground/30" /></div>}
+                    ) : <div className="mb-3 h-32 bg-white border border-border rounded-lg flex items-center justify-center"><Package className="h-10 w-10 text-muted-foreground/30" /></div>}
                     <h3 className="font-semibold text-sm mb-1 line-clamp-2">{product.name}</h3>
                     <p className="text-xs text-muted-foreground mb-2">Part: {product.partNumber}</p>
                     <div className="flex items-center justify-between">
