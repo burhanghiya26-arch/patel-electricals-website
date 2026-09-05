@@ -27,6 +27,39 @@ export async function executeRaw(sql: string): Promise<any> {
   return await (db as any).execute(sql);
 }
 
+/**
+ * Adds the product-content columns when a new version of the website starts.
+ * Each ALTER is intentionally safe to run again: MySQL reports an existing
+ * column and we simply continue. This lets Railway deploy the feature without
+ * deleting or changing any existing products.
+ */
+export async function ensureProductContentColumns(): Promise<void> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Product content columns were not checked because the database is unavailable");
+    return;
+  }
+
+  const columns = [
+    { name: "keyFeatures", definition: "JSON NULL" },
+    { name: "specifications", definition: "JSON NULL" },
+    { name: "seoMetaDescription", definition: "TEXT NULL" },
+    { name: "seoKeywords", definition: "TEXT NULL" },
+  ];
+
+  for (const column of columns) {
+    try {
+      await (db as any).execute(`ALTER TABLE \`products\` ADD COLUMN \`${column.name}\` ${column.definition}`);
+      console.log(`[Database] Added products.${column.name}`);
+    } catch (error: any) {
+      // MySQL/MariaDB error 1060 means the column already exists.
+      if (error?.code !== "ER_DUP_FIELDNAME" && error?.errno !== 1060) {
+        throw error;
+      }
+    }
+  }
+}
+
 // ========================
 // USER FUNCTIONS
 // ========================
@@ -218,6 +251,10 @@ export async function createProduct(data: any) {
     name: data.name || 'Unnamed Product',
     description: data.description || null,
     categoryId: data.categoryId || 1,
+    keyFeatures: data.keyFeatures || null,
+    specifications: data.specifications || null,
+    seoMetaDescription: data.seoMetaDescription || null,
+    seoKeywords: data.seoKeywords || null,
     basePrice: String(data.basePrice || '0'),
     compatibleModels: data.compatibleModels || null,
     compatibleBrands: data.compatibleBrands || null,
