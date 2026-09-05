@@ -2,7 +2,7 @@ import CustomerOrderDetails from "@/pages/CustomerOrderDetails";
 import { CustomerProvider } from "./contexts/CustomerContext";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "./pages/NotFound";
+import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -30,6 +30,7 @@ import CustomerDashboard from "./pages/CustomerDashboard";
 import DeliveryPortal from "./pages/DeliveryPortal";
 import AdminDelivery from "./pages/AdminDelivery";
 import DeliveryOtpNotice from "./components/DeliveryOtpNotice";
+import GoogleAnalytics from "./components/GoogleAnalytics";
 
 function Router() {
   return (
@@ -70,6 +71,7 @@ function App() {
       <ThemeProvider defaultTheme="light">
           <TooltipProvider>
             <Toaster />
+            <GoogleAnalytics />
             <Router />
             <DeliveryOtpNotice />
           </TooltipProvider>
