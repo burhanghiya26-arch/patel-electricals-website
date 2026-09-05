@@ -4,7 +4,7 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
-import { Zap, ShoppingCart, Package, Truck, Shield, Phone, Mail, MapPin, ArrowRight, Search, MessageCircle, Loader2, Clock, Sliders, LogIn, Menu, X, ChevronDown } from "lucide-react";
+import { Zap, ShoppingCart, Package, Truck, Shield, Phone, Mail, MapPin, ArrowRight, Search, MessageCircle, Loader2, Clock, Sliders, LogIn, Menu, X } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import Footer from "@/components/Footer";
 import { WhatsAppButton, WhatsAppFloatingButton } from "@/components/WhatsAppButton";
@@ -96,19 +96,7 @@ const displayStats = [
           <div className="hidden md:flex items-center gap-1">
             <button className="px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors" onClick={() => setLocation("/")}>Home</button>
             <button className="px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors" onClick={() => setLocation("/products")}>Products</button>
-            <details className="relative">
-              <summary className="list-none cursor-pointer px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors flex items-center gap-1 [&::-webkit-details-marker]:hidden">
-                Categories <ChevronDown className="h-4 w-4" />
-              </summary>
-              <div className="absolute left-0 top-full mt-1 w-56 max-h-80 overflow-y-auto rounded-md border border-border bg-background p-1 shadow-lg">
-                <button className="w-full rounded px-3 py-2 text-left text-sm font-medium hover:bg-accent" onClick={() => setLocation("/products")}>All Products</button>
-                {categories?.filter((cat: any) => cat.name !== "General").map((cat: any) => (
-                  <button key={cat.id} className="w-full rounded px-3 py-2 text-left text-sm hover:bg-accent" onClick={() => setLocation(`/products?category=${encodeURIComponent(cat.name)}`)}>
-                    {cat.name}
-                  </button>
-                ))}
-              </div>
-            </details>
+            <button className="px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors" onClick={() => setLocation("/categories")}>Categories</button>
             <button className="px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors flex items-center gap-1.5" onClick={() => setLocation("/cart")}><ShoppingCart className="h-4 w-4" />Cart</button>
           </div>
 
@@ -148,13 +136,7 @@ const displayStats = [
           <div className="md:hidden border-t border-border bg-background px-4 py-3 space-y-1">
             <button className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors" onClick={() => { setLocation("/"); setMobileMenuOpen(false); }}>Home</button>
             <button className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors" onClick={() => { setLocation("/products"); setMobileMenuOpen(false); }}>Products</button>
-            <p className="px-3 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Categories</p>
-            <button className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors" onClick={() => { setLocation("/products"); setMobileMenuOpen(false); }}>All Products</button>
-            {categories?.filter((cat: any) => cat.name !== "General").map((cat: any) => (
-              <button key={cat.id} className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-md transition-colors" onClick={() => { setLocation(`/products?category=${encodeURIComponent(cat.name)}`); setMobileMenuOpen(false); }}>
-                {cat.name}
-              </button>
-            ))}
+            <button className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors" onClick={() => { setLocation("/categories"); setMobileMenuOpen(false); }}>Categories</button>
             <button className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors flex items-center gap-2" onClick={() => { setLocation("/cart"); setMobileMenuOpen(false); }}><ShoppingCart className="h-4 w-4" />Cart</button>
             <div className="border-t border-border pt-2 mt-2">
               {isLoggedIn ? (
