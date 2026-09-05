@@ -87,6 +87,14 @@ export const products = mysqlTable("products", {
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   categoryId: int("categoryId").notNull(),
+
+  // Product-page content
+  keyFeatures: json("keyFeatures"), // Array of short customer-facing benefits
+  specifications: json("specifications"), // Array of { name, value } entries
+
+  // Search engine information
+  seoMetaDescription: text("seoMetaDescription"),
+  seoKeywords: text("seoKeywords"),
   
   // Pricing
   basePrice: decimal("basePrice", { precision: 12, scale: 2 }).notNull(),
@@ -474,5 +482,4 @@ export const orderTracking = mysqlTable("order_tracking", {
 }));
 export type OrderTracking = typeof orderTracking.$inferSelect;
 export type InsertOrderTracking = typeof orderTracking.$inferInsert;
-
 
