@@ -31,12 +31,14 @@ import DeliveryPortal from "./pages/DeliveryPortal";
 import AdminDelivery from "./pages/AdminDelivery";
 import DeliveryOtpNotice from "./components/DeliveryOtpNotice";
 import GoogleAnalytics from "./components/GoogleAnalytics";
+import Categories from "./pages/Categories";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/products" component={ProductCatalog} />
+      <Route path="/categories" component={Categories} />
       <Route path="/products/:id" component={ProductDetail} />
       <Route path="/cart" component={ShoppingCart} />
       <Route path="/checkout" component={Checkout} />
