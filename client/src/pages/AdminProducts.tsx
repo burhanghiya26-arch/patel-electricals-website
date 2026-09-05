@@ -31,6 +31,7 @@ export default function AdminProducts() {
     partNumber: '', name: '', description: '', categoryName: 'General',
     basePrice: '', stock: '', moq: '1', imageUrl: '', productImages: [] as string[],
     colorOptions: '', sizeOptions: '',
+    keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '',
   });
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [productImageGallery, setProductImageGallery] = useState<string[]>([]);
@@ -99,7 +100,7 @@ const uploadImage = trpc.upload.image.useMutation({
   });
 
   const resetForm = () => {
-    setForm({ partNumber: '', name: '', description: '', categoryName: 'General', basePrice: '', stock: '', moq: '1', imageUrl: '', productImages: [], colorOptions: '', sizeOptions: '' });
+    setForm({ partNumber: '', name: '', description: '', categoryName: 'General', basePrice: '', stock: '', moq: '1', imageUrl: '', productImages: [], colorOptions: '', sizeOptions: '', keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '' });
     setImagePreview(null);
     setProductImageGallery([]);
     setShowForm(false);
@@ -140,7 +141,17 @@ const uploadImage = trpc.upload.image.useMutation({
       toast.error("Valid price daalo!");
       return;
     }
-    const parseOptions = (str: string) => str.trim() ? str.split(',').map(s => s.trim()).filter(Boolean) : undefined;
+    const parseOptions = (str: string) => str.trim() ? str.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const keyFeatures = form.keyFeatures.split(/\n|,/).map(feature => feature.trim()).filter(Boolean);
+    const specifications = form.specifications
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+      .map(line => {
+        const [name, ...valueParts] = line.split(':');
+        return { name: name.trim(), value: valueParts.join(':').trim() };
+      })
+      .filter(spec => spec.name && spec.value);
 
     if (editingProduct) {
       updateProduct.mutate({
@@ -148,6 +159,10 @@ const uploadImage = trpc.upload.image.useMutation({
         data: {
           name: form.name,
           description: form.description || undefined,
+          keyFeatures,
+          specifications,
+          seoMetaDescription: form.seoMetaDescription.trim() || undefined,
+          seoKeywords: form.seoKeywords.trim() || undefined,
           basePrice: price,
           categoryName: form.categoryName || 'General',
           imageUrl: form.imageUrl,
@@ -162,7 +177,11 @@ const uploadImage = trpc.upload.image.useMutation({
       createProduct.mutate({
         partNumber: form.partNumber,
         name: form.name,
-         description: form.description || undefined,
+        description: form.description || undefined,
+        keyFeatures,
+        specifications,
+        seoMetaDescription: form.seoMetaDescription.trim() || undefined,
+        seoKeywords: form.seoKeywords.trim() || undefined,
         categoryName: form.categoryName || 'General',
         basePrice: price,
         stock: form.stock ? parseInt(form.stock) : 0,
@@ -177,6 +196,12 @@ const uploadImage = trpc.upload.image.useMutation({
 
   const startEdit = (product: any) => {
     setEditingProduct(product);
+    const parseJson = (value: unknown) => {
+      if (typeof value !== 'string') return value;
+      try { return JSON.parse(value); } catch { return []; }
+    };
+    const features = parseJson(product.keyFeatures);
+    const specs = parseJson(product.specifications);
     const galleryImages = product.productImages && Array.isArray(product.productImages) 
       ? product.productImages.map((img: any) => typeof img === 'string' ? img : img.url)
       : [];
@@ -192,6 +217,14 @@ const uploadImage = trpc.upload.image.useMutation({
       productImages: galleryImages,
       colorOptions: product.colorOptions && Array.isArray(product.colorOptions) ? product.colorOptions.join(', ') : '',
       sizeOptions: product.sizeOptions && Array.isArray(product.sizeOptions) ? product.sizeOptions.join(', ') : '',
+      keyFeatures: Array.isArray(features) ? features.filter((item): item is string => typeof item === 'string').join('\n') : '',
+      specifications: Array.isArray(specs) ? specs
+        .filter((item): item is { name?: unknown; value?: unknown } => Boolean(item && typeof item === 'object'))
+        .map(item => `${String(item.name || '').trim()}: ${String(item.value || '').trim()}`.trim())
+        .filter(line => line !== ':')
+        .join('\n') : '',
+      seoMetaDescription: product.seoMetaDescription || '',
+      seoKeywords: product.seoKeywords || '',
     });
     setImagePreview(product.imageUrl || null);
     setProductImageGallery(galleryImages);
@@ -282,6 +315,57 @@ const uploadImage = trpc.upload.image.useMutation({
                   value={form.description}
                   onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
                 />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <Label>Key Features</Label>
+                  <textarea
+                    className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[130px] focus:outline-none focus:ring-2 focus:ring-ring"
+                    placeholder={'One feature per line\nExample: Energy efficient\nCopper winding'}
+                    value={form.keyFeatures}
+                    onChange={(e) => setForm(prev => ({ ...prev, keyFeatures: e.target.value }))}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Customer ko bullet points me dikhega.</p>
+                </div>
+                <div>
+                  <Label>Specifications</Label>
+                  <textarea
+                    className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[130px] focus:outline-none focus:ring-2 focus:ring-ring"
+                    placeholder={'One specification per line\nExample: Power: 48W\nVoltage: 220V\nMaterial: Copper'}
+                    value={form.specifications}
+                    onChange={(e) => setForm(prev => ({ ...prev, specifications: e.target.value }))}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Har line me pehle naam, phir colon (:), phir value likhen.</p>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4 space-y-4">
+                <div>
+                  <p className="font-medium">SEO Information</p>
+                  <p className="text-xs text-muted-foreground">Google search ke liye. Agar blank chhoda to product name aur description use hoga.</p>
+                </div>
+                <div>
+                  <Label>SEO Meta Description</Label>
+                  <textarea
+                    className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[72px] focus:outline-none focus:ring-2 focus:ring-ring"
+                    maxLength={320}
+                    placeholder="Example: Buy genuine 48W ceiling fan from Patel Electricals, Surat. Fast local delivery and COD available."
+                    value={form.seoMetaDescription}
+                    onChange={(e) => setForm(prev => ({ ...prev, seoMetaDescription: e.target.value }))}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">{form.seoMetaDescription.length}/320 characters</p>
+                </div>
+                <div>
+                  <Label>SEO Keywords</Label>
+                  <Input
+                    placeholder="Example: ceiling fan, 48w fan, fan Surat, Patel Electricals"
+                    value={form.seoKeywords}
+                    onChange={(e) => setForm(prev => ({ ...prev, seoKeywords: e.target.value }))}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Keywords ko comma (,) se alag likhen.</p>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
