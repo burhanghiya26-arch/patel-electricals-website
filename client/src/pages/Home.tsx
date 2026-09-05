@@ -4,7 +4,7 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
-import { Zap, ShoppingCart, Package, Truck, Shield, Phone, Mail, MapPin, ArrowRight, Search, MessageCircle, Loader2, Clock, Sliders, LogIn, Menu, X } from "lucide-react";
+import { Zap, ShoppingCart, Package, Truck, Shield, Phone, Mail, MapPin, ArrowRight, Search, MessageCircle, Loader2, Clock, Sliders, LogIn, Menu, X, ChevronDown } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import Footer from "@/components/Footer";
 import { WhatsAppButton, WhatsAppFloatingButton } from "@/components/WhatsAppButton";
@@ -15,14 +15,24 @@ export default function Home() {
 const { isLoggedIn } = useCustomer();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
-  const {
-  data: categories,
-  isLoading: catsLoading,
-} = trpc.products.getCategories.useQuery();
+  const { data: categories } = trpc.products.getCategories.useQuery();
   
   const { data: dashboardStats } = trpc.adminDashboard.stats.useQuery();
-  const generalCategoryId = React.useMemo(() => categories?.find((c: any) => c.name === "General")?.id, [categories]);
-  const { data: generalCategoryProducts } = trpc.products.getByCategory.useQuery(generalCategoryId || 0, { enabled: !!generalCategoryId });
+  const { data: allProducts, isLoading: productsLoading } = trpc.products.list.useQuery({ limit: 100, offset: 0 });
+
+  const getProductImage = (product: any): string => {
+    if (product.imageUrl) return product.imageUrl;
+    if (Array.isArray(product.productImages)) return product.productImages.find((image: unknown) => typeof image === "string") || "";
+    if (typeof product.productImages === "string") {
+      try {
+        const images = JSON.parse(product.productImages);
+        return Array.isArray(images) ? images.find((image: unknown) => typeof image === "string") || "" : "";
+      } catch {
+        return "";
+      }
+    }
+    return "";
+  };
 
 React.useEffect(() => {
   document.title = "Patel Electricals | Wholesale Electrical Spare Parts in Surat";
@@ -86,6 +96,19 @@ const displayStats = [
           <div className="hidden md:flex items-center gap-1">
             <button className="px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors" onClick={() => setLocation("/")}>Home</button>
             <button className="px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors" onClick={() => setLocation("/products")}>Products</button>
+            <details className="relative">
+              <summary className="list-none cursor-pointer px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors flex items-center gap-1 [&::-webkit-details-marker]:hidden">
+                Categories <ChevronDown className="h-4 w-4" />
+              </summary>
+              <div className="absolute left-0 top-full mt-1 w-56 max-h-80 overflow-y-auto rounded-md border border-border bg-background p-1 shadow-lg">
+                <button className="w-full rounded px-3 py-2 text-left text-sm font-medium hover:bg-accent" onClick={() => setLocation("/products")}>All Products</button>
+                {categories?.filter((cat: any) => cat.name !== "General").map((cat: any) => (
+                  <button key={cat.id} className="w-full rounded px-3 py-2 text-left text-sm hover:bg-accent" onClick={() => setLocation(`/products?category=${encodeURIComponent(cat.name)}`)}>
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+            </details>
             <button className="px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors flex items-center gap-1.5" onClick={() => setLocation("/cart")}><ShoppingCart className="h-4 w-4" />Cart</button>
           </div>
 
@@ -125,6 +148,13 @@ const displayStats = [
           <div className="md:hidden border-t border-border bg-background px-4 py-3 space-y-1">
             <button className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors" onClick={() => { setLocation("/"); setMobileMenuOpen(false); }}>Home</button>
             <button className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors" onClick={() => { setLocation("/products"); setMobileMenuOpen(false); }}>Products</button>
+            <p className="px-3 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Categories</p>
+            <button className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors" onClick={() => { setLocation("/products"); setMobileMenuOpen(false); }}>All Products</button>
+            {categories?.filter((cat: any) => cat.name !== "General").map((cat: any) => (
+              <button key={cat.id} className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-md transition-colors" onClick={() => { setLocation(`/products?category=${encodeURIComponent(cat.name)}`); setMobileMenuOpen(false); }}>
+                {cat.name}
+              </button>
+            ))}
             <button className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors flex items-center gap-2" onClick={() => { setLocation("/cart"); setMobileMenuOpen(false); }}><ShoppingCart className="h-4 w-4" />Cart</button>
             <div className="border-t border-border pt-2 mt-2">
               {isLoggedIn ? (
@@ -189,49 +219,25 @@ const displayStats = [
         </div>
       </section>
 
-      {/* Categories Section */}
-      <section className="py-16 md:py-20">
-        <div className="container">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-3">Shop by Category</h2>
-            <p className="text-muted-foreground max-w-xl mx-auto">Browse our extensive range of electrical spare parts organized by category</p>
-          </div>
-          <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-            {catsLoading ? (
-              <div className="col-span-full flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-            ) : categories && categories.length > 0 ? (
-              categories.filter((cat: any) => cat.name !== "General").map((cat: any) => (
-                <Card key={cat.id} className="group cursor-pointer hover:shadow-lg hover:border-primary/30 transition-all duration-300" onClick={() => setLocation(`/products?category=${encodeURIComponent(cat.name)}`)}>
-                  <CardContent className="p-6 text-center">
-                    <div className="text-4xl mb-3">📦</div>
-                    <h3 className="font-semibold text-sm mb-1">{cat.name}</h3>
-                    <p className="text-xs text-muted-foreground">{cat.description || "Parts"}</p>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <div className="col-span-full text-center text-muted-foreground">No categories available</div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Products */}
-      {generalCategoryProducts && generalCategoryProducts.length > 0 && (
-        <section className="py-16 md:py-20 bg-secondary/30">
+      {/* All Products */}
+      <section className="py-16 md:py-20 bg-secondary/30">
           <div className="container">
             <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold mb-3">Featured Products</h2>
-              <p className="text-muted-foreground max-w-xl mx-auto">Our most popular electrical spare parts available for immediate delivery</p>
+              <h2 className="text-3xl font-bold mb-3">All Products</h2>
+              <p className="text-muted-foreground max-w-xl mx-auto">Browse all electrical spare parts available for delivery in Surat</p>
             </div>
             <div className="grid gap-6 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-              {generalCategoryProducts.slice(0, 8).map((product: any) => (
+              {productsLoading ? (
+                <div className="col-span-full flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              ) : allProducts && allProducts.length > 0 ? allProducts.map((product: any) => {
+                const productImage = getProductImage(product);
+                return (
                 <Card key={product.id} className="group hover:shadow-lg hover:border-primary/30 transition-all duration-300 cursor-pointer" onClick={() => setLocation(`/products/${product.id}`)}>
                   <CardContent className="p-4">
-                    {product.image && (
+                    {productImage ? (
                       <div className="mb-3 h-32 bg-secondary rounded-lg overflow-hidden flex items-center justify-center">
               <img
-  src={product.image}
+  src={productImage}
   alt={product.name}
   loading="lazy"
   decoding="async"
@@ -240,7 +246,7 @@ const displayStats = [
   className="h-full w-full object-cover"
 />
                       </div>
-                    )}
+                    ) : <div className="mb-3 h-32 bg-secondary rounded-lg flex items-center justify-center"><Package className="h-10 w-10 text-muted-foreground/30" /></div>}
                     <h3 className="font-semibold text-sm mb-1 line-clamp-2">{product.name}</h3>
                     <p className="text-xs text-muted-foreground mb-2">Part: {product.partNumber}</p>
                     <div className="flex items-center justify-between">
@@ -249,11 +255,10 @@ const displayStats = [
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+              )}) : <div className="col-span-full text-center text-muted-foreground">No products available</div>}
             </div>
           </div>
-        </section>
-      )}
+      </section>
 
       {/* Shipping Location Banner */}
       <section className="bg-[oklch(0.65_0.15_85)]/10 border-b border-[oklch(0.65_0.15_85)]/30 py-4">
