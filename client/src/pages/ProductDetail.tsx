@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { SocialShareButtons } from "@/components/SocialShareButtons";
+import { trackEvent } from "@/lib/analytics";
 
 
 
@@ -36,6 +37,14 @@ export default function ProductDetail() {
   const utils = trpc.useUtils();
   const addToCartMutation = trpc.cart.add.useMutation({
     onSuccess: () => {
+      const trackedProduct = productData?.product;
+      if (trackedProduct) {
+        trackEvent("add_to_cart", {
+          currency: "INR",
+          value: Number(trackedProduct.basePrice) * quantity,
+          items: [{ item_id: String(trackedProduct.id), item_name: trackedProduct.name, price: Number(trackedProduct.basePrice), quantity }],
+        });
+      }
       toast.success("Product added to cart!");
       utils.cart.list.invalidate();
       setQuantity(1);
@@ -67,6 +76,16 @@ export default function ProductDetail() {
 
     setMeta("description", description);
     if (product.seoKeywords) setMeta("keywords", product.seoKeywords);
+  }, [productData?.product]);
+
+  useEffect(() => {
+    const product = productData?.product;
+    if (!product) return;
+    trackEvent("view_item", {
+      currency: "INR",
+      value: Number(product.basePrice),
+      items: [{ item_id: String(product.id), item_name: product.name, price: Number(product.basePrice), quantity: 1 }],
+    });
   }, [productData?.product]);
 
   if (isLoading) {
