@@ -33,8 +33,8 @@ const utils = trpc.useUtils();
   });
 
   const hasValidPincode = /^\d{6}$/.test(address.pincode);
-  const shippingQuote = trpc.adminDashboard.calculateShippingByPincode.useQuery(
-    { pincode: address.pincode, orderAmount: subtotal },
+  const shippingQuote = trpc.shipping.quote.useQuery(
+    { pincode: address.pincode },
     { enabled: hasValidPincode, retry: false },
   );
 
@@ -76,7 +76,7 @@ const utils = trpc.useUtils();
       return;
     }
     if (!/^\d{6}$/.test(address.pincode)) {
-      toast.error("Please enter a valid 6-digit Surat pincode.");
+      toast.error("Please enter a valid 6-digit pincode.");
       return;
     }
     if (!shippingQuote.data) {
@@ -84,7 +84,7 @@ const utils = trpc.useUtils();
       return;
     }
     if (!shippingQuote.data.available) {
-      toast.error("Delivery is not available for this pincode.");
+      toast.error(shippingQuote.data.message || "Delivery is not available for this pincode.");
       return;
     }
     const fullAddress = `${address.fullName}, ${address.phone}\n${address.addressLine1}${address.addressLine2 ? ", " + address.addressLine2 : ""}\n${address.city}, ${address.state} - ${address.pincode}`;
@@ -187,11 +187,11 @@ const utils = trpc.useUtils();
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label>City *</Label>
-                    <Input placeholder="Surat" value={address.city} readOnly disabled className="bg-muted cursor-not-allowed" />
+                    <Input placeholder="e.g. Surat" value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} />
                   </div>
                   <div>
                     <Label>State *</Label>
-                    <Input placeholder="State" value={address.state} readOnly disabled className="bg-muted cursor-not-allowed" />
+                    <Input placeholder="e.g. Gujarat" value={address.state} onChange={(e) => setAddress({ ...address, state: e.target.value })} />
                   </div>
                   <div>
                     <Label>Pincode *</Label>
@@ -257,7 +257,7 @@ const utils = trpc.useUtils();
                     ) : shippingQuote.isError ? (
                       <span className="text-destructive">Unable to check delivery</span>
                     ) : !shippingQuote.data?.available ? (
-                      <span className="text-destructive">Delivery unavailable</span>
+                      <span className="text-destructive">{shippingQuote.data?.message || "Delivery unavailable"}</span>
                     ) : shippingQuote.data?.isFreeShipping ? (
                       <Badge className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-1">
                         <Check className="h-3 w-3" />
@@ -267,6 +267,13 @@ const utils = trpc.useUtils();
                       <span>₹{Math.round(shippingCost).toLocaleString()}</span>
                     )}
                   </div>
+                  {shippingQuote.data?.available && (
+                    <p className="text-xs text-muted-foreground">
+                      {shippingQuote.data.deliveryMethod === "local_delivery"
+                        ? "Local Surat delivery — delivered by our team"
+                        : `${shippingQuote.data.courierName || "Courier"} delivery${shippingQuote.data.estimatedDelivery ? ` · Estimated: ${shippingQuote.data.estimatedDelivery}` : ""}`}
+                    </p>
+                  )}
                   <div className="flex justify-between font-bold text-lg">
                     <span>Total</span>
                     <span>₹{Math.round(total).toLocaleString()}</span>
