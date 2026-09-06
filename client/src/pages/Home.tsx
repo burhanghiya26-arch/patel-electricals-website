@@ -179,7 +179,7 @@ const displayStats = [
               </h1>
 
               <p className="text-lg text-white/80 mb-8 max-w-md">
-                Quality spare parts for electrical equipment. Fast delivery, competitive prices, and reliable service for dealers across Surat.
+                Quality spare parts for electrical equipment. Fast delivery, competitive prices, and reliable service across India.
               </p>
 
               <div className="mb-6 max-w-md">
@@ -206,7 +206,7 @@ const displayStats = [
           <div className="container">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold mb-3">All Products</h2>
-              <p className="text-muted-foreground max-w-xl mx-auto">Browse all electrical spare parts available for delivery in Surat</p>
+              <p className="text-muted-foreground max-w-xl mx-auto">Browse electrical spare parts available for delivery across India</p>
             </div>
             <div className="grid gap-6 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {productsLoading ? (
@@ -247,7 +247,7 @@ const displayStats = [
         <div className="container">
           <div className="flex items-center justify-center gap-2 text-center">
             <MapPin className="h-5 w-5 text-[oklch(0.65_0.15_85)] flex-shrink-0" />
-            <p className="text-sm font-semibold text-[oklch(0.65_0.15_85)]">Shipping Available Only in Surat, Gujarat</p>
+            <p className="text-sm font-semibold text-[oklch(0.65_0.15_85)]">All-India Shipping Available • Local Surat Delivery Available</p>
           </div>
         </div>
       </section>
