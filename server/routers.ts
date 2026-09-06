@@ -10,6 +10,7 @@ import { nanoid } from "nanoid";
 import { sendOrderConfirmationWhatsApp, sendOrderTrackingWhatsApp } from "./_core/whatsappNotification";
 import { generateInvoicePDF } from "./_core/invoiceGenerator";
 import { generateShippingLabel } from "./_core/shippingLabelGenerator";
+import { getShiprocketShippingQuote } from "./_core/shiprocket";
 import { authenticateAdmin, createAdminAccount, verifyAdminToken } from "./_core/adminAuth";
 import jwt from "jsonwebtoken";
 import { parse as parseCookieHeader } from "cookie";
@@ -22,6 +23,58 @@ function getCookie(req: any, name: string): string | undefined {
   return parsed[name];
 }
 console.log("ROUTES FILE LOADED - CATEGORY VERSION");
+
+type ShippingCartItem = {
+  product: { shippingWeightKg: unknown };
+  quantity: number;
+};
+
+async function getCheckoutShippingQuote(
+  pincode: string,
+  orderAmount: number,
+  items: ShippingCartItem[],
+) {
+  // Pin codes deliberately saved in Admin > Shipping are the Surat/local
+  // delivery zones. They continue to use the delivery-boy OTP workflow.
+  const localQuote = await db.getShippingQuoteByPincode(pincode, orderAmount);
+  if (localQuote.available) {
+    return { ...localQuote, deliveryMethod: "local_delivery" as const, message: undefined as string | undefined };
+  }
+
+  const missingWeight = items.some(item => {
+    const weight = Number(item.product.shippingWeightKg);
+    return !Number.isFinite(weight) || weight <= 0;
+  });
+  if (missingWeight) {
+    return {
+      available: false,
+      shippingCost: 0,
+      isFreeShipping: false,
+      areaName: "",
+      deliveryMethod: "shiprocket" as const,
+      message: "Shipping weight is not set for one or more products. Please contact us.",
+    };
+  }
+
+  const weightKg = items.reduce(
+    (sum, item) => sum + Number(item.product.shippingWeightKg) * item.quantity,
+    0,
+  );
+  try {
+    const quote = await getShiprocketShippingQuote({ deliveryPincode: pincode, weightKg, cod: true });
+    return { ...quote, isFreeShipping: false, areaName: "", deliveryMethod: "shiprocket" as const };
+  } catch (error) {
+    console.error("[Shipping] Shiprocket quote failed", error);
+    return {
+      available: false,
+      shippingCost: 0,
+      isFreeShipping: false,
+      areaName: "",
+      deliveryMethod: "shiprocket" as const,
+      message: "Delivery charge could not be calculated. Please try again.",
+    };
+  }
+}
 
 export const appRouter = router({
   system: systemRouter,
@@ -321,6 +374,7 @@ console.log("[LOGIN TOKEN]", token);
         seoKeywords: z.string().max(1000).optional(),
         categoryName: z.string().default("General"),
         basePrice: z.number(),
+        shippingWeightKg: z.number().positive().optional(),
         compatibleModels: z.array(z.string()).optional(),
         compatibleBrands: z.array(z.string()).optional(),
         alternatePartNumbers: z.array(z.string()).optional(),
@@ -366,7 +420,7 @@ console.log("[LOGIN TOKEN]", token);
           specifications: z.array(z.object({ name: z.string(), value: z.string() })).optional(),
           seoMetaDescription: z.string().max(320).optional(),
           seoKeywords: z.string().max(1000).optional(),
-          basePrice: z.number().optional(), isActive: z.boolean().optional(),
+          basePrice: z.number().optional(), shippingWeightKg: z.number().positive().optional(), isActive: z.boolean().optional(),
           partNumber: z.string().optional(), categoryName: z.string().optional(),
           imageUrl: z.string().optional(), productImages: z.array(z.string()).optional(),
           colorOptions: z.array(z.string()).optional(),
@@ -464,6 +518,30 @@ console.log("[LOGIN TOKEN]", token);
     clear: protectedProcedure.mutation(async ({ ctx }) => db.clearCart(ctx.user.id)),
   }),
 
+  shipping: router({
+    quote: protectedProcedure
+      .input(z.object({ pincode: z.string().regex(/^\d{6}$/, "Enter a valid 6-digit pincode") }))
+      .query(async ({ ctx, input }) => {
+        const cartItems = await db.getCartItems(ctx.user.id);
+        if (cartItems.length === 0) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Your cart is empty." });
+        }
+        const items = await Promise.all(cartItems.map(async item => ({
+          product: await db.getProductById(item.productId),
+          quantity: item.quantity,
+        })));
+        if (items.some(item => !item.product)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "One of the products in your cart is unavailable." });
+        }
+        const total = items.reduce((sum, item) => sum + Number(item.product!.basePrice) * item.quantity, 0);
+        return getCheckoutShippingQuote(
+          input.pincode,
+          total,
+          items.map(item => ({ product: item.product!, quantity: item.quantity })),
+        );
+      }),
+  }),
+
   orders: router({
     list: protectedProcedure.query(async ({ ctx }) => {
   console.log("CTX USER =>", ctx.user);
@@ -504,6 +582,7 @@ console.log("ORDER USER =>", ctx.user);
 
         let totalAmount = 0;
         const orderItemsData = [];
+        const shippingItems: ShippingCartItem[] = [];
         for (const item of cartItemsList) {
           const product = await db.getProductById(item.productId);
           if (!product) continue;
@@ -522,6 +601,7 @@ console.log("ORDER USER =>", ctx.user);
             selectedColor: item.selectedColor || undefined,
             selectedSize: item.selectedSize || undefined,
           });
+          shippingItems.push({ product, quantity: item.quantity });
         }
 
         // Calculate shipping on the server so a browser cannot change the charge.
@@ -529,9 +609,9 @@ console.log("ORDER USER =>", ctx.user);
         if (!/^\d{6}$/.test(customerPincode)) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: 'A valid 6-digit pincode is required.' });
         }
-        const shippingQuote = await db.getShippingQuoteByPincode(customerPincode, totalAmount);
+        const shippingQuote = await getCheckoutShippingQuote(customerPincode, totalAmount, shippingItems);
         if (!shippingQuote.available) {
-          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Delivery is not available for this pincode.' });
+          throw new TRPCError({ code: 'BAD_REQUEST', message: shippingQuote.message || 'Delivery is not available for this pincode.' });
         }
         const calculatedShippingCost = shippingQuote.shippingCost;
 
@@ -564,6 +644,7 @@ try {
     gstAmount: String(0),
     shippingCost: String(calculatedShippingCost),
     shippingAddress: input.shippingAddress,
+    shippingMethod: shippingQuote.deliveryMethod,
     paymentMethod: input.paymentMethod,
     paymentStatus: "pending",
     orderStatus: "pending",
