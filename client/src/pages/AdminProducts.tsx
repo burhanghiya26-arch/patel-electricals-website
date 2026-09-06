@@ -29,7 +29,7 @@ export default function AdminProducts() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [form, setForm] = useState({
     partNumber: '', name: '', description: '', categoryName: 'General',
-    basePrice: '', stock: '', moq: '1', imageUrl: '', productImages: [] as string[],
+    basePrice: '', shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [] as string[],
     colorOptions: '', sizeOptions: '',
     keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '',
   });
@@ -100,7 +100,7 @@ const uploadImage = trpc.upload.image.useMutation({
   });
 
   const resetForm = () => {
-    setForm({ partNumber: '', name: '', description: '', categoryName: 'General', basePrice: '', stock: '', moq: '1', imageUrl: '', productImages: [], colorOptions: '', sizeOptions: '', keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '' });
+    setForm({ partNumber: '', name: '', description: '', categoryName: 'General', basePrice: '', shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [], colorOptions: '', sizeOptions: '', keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '' });
     setImagePreview(null);
     setProductImageGallery([]);
     setShowForm(false);
@@ -137,8 +137,13 @@ const uploadImage = trpc.upload.image.useMutation({
       return;
     }
     const price = parseFloat(form.basePrice);
+    const shippingWeightKg = parseFloat(form.shippingWeightKg);
     if (isNaN(price) || price <= 0) {
       toast.error("Valid price daalo!");
+      return;
+    }
+    if (isNaN(shippingWeightKg) || shippingWeightKg <= 0) {
+      toast.error("Shipping weight (kg) required hai. Packed product ka weight likho.");
       return;
     }
     const parseOptions = (str: string) => str.trim() ? str.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -164,6 +169,7 @@ const uploadImage = trpc.upload.image.useMutation({
           seoMetaDescription: form.seoMetaDescription.trim() || undefined,
           seoKeywords: form.seoKeywords.trim() || undefined,
           basePrice: price,
+          shippingWeightKg,
           categoryName: form.categoryName || 'General',
           imageUrl: form.imageUrl,
           productImages: form.productImages,
@@ -184,6 +190,7 @@ const uploadImage = trpc.upload.image.useMutation({
         seoKeywords: form.seoKeywords.trim() || undefined,
         categoryName: form.categoryName || 'General',
         basePrice: price,
+        shippingWeightKg,
         stock: form.stock ? parseInt(form.stock) : 0,
         moq: form.moq ? parseInt(form.moq) : 1,
         imageUrl: form.imageUrl,
@@ -211,6 +218,7 @@ const uploadImage = trpc.upload.image.useMutation({
       description: product.description || '',
       categoryName: product.categoryName || 'General',
       basePrice: String(Number(product.basePrice)),
+      shippingWeightKg: product.shippingWeightKg ? String(Number(product.shippingWeightKg)) : '',
       stock: String(product.inventory?.quantityInStock || 0),
       moq: String(product.inventory?.minimumOrderQuantity || 1),
       imageUrl: product.imageUrl || '',
@@ -368,7 +376,7 @@ const uploadImage = trpc.upload.image.useMutation({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <Label>Base Price (₹) *</Label>
                   <Input
@@ -391,6 +399,19 @@ const uploadImage = trpc.upload.image.useMutation({
                     onChange={(e) => setForm(prev => ({ ...prev, stock: e.target.value }))}
                     className="mt-1"
                   />
+                </div>
+                <div>
+                  <Label>Shipping Weight (kg) *</Label>
+                  <Input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    placeholder="e.g. 0.5"
+                    value={form.shippingWeightKg}
+                    onChange={(e) => setForm(prev => ({ ...prev, shippingWeightKg: e.target.value }))}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Packing ke baad ka total weight.</p>
                 </div>
                 <div>
                   <Label>Min Order Qty</Label>
