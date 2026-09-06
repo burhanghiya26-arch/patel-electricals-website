@@ -98,6 +98,9 @@ export const products = mysqlTable("products", {
   
   // Pricing
   basePrice: decimal("basePrice", { precision: 12, scale: 2 }).notNull(),
+  // Packed product weight in kg. This is only used for Shiprocket quotes
+  // outside the local Surat delivery zone.
+  shippingWeightKg: decimal("shippingWeightKg", { precision: 8, scale: 3 }),
   
   // Compatibility
   compatibleModels: json("compatibleModels"), // Array of model names/numbers
@@ -482,4 +485,3 @@ export const orderTracking = mysqlTable("order_tracking", {
 }));
 export type OrderTracking = typeof orderTracking.$inferSelect;
 export type InsertOrderTracking = typeof orderTracking.$inferInsert;
-
