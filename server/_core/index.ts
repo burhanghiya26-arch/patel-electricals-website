@@ -24,6 +24,7 @@ async function ensureProductContentColumns(): Promise<void> {
     { name: "specifications", definition: "JSON NULL" },
     { name: "seoMetaDescription", definition: "TEXT NULL" },
     { name: "seoKeywords", definition: "TEXT NULL" },
+    { name: "shippingWeightKg", definition: "DECIMAL(8,3) NULL" },
   ];
 
   try {
