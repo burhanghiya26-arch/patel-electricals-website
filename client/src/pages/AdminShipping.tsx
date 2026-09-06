@@ -105,7 +105,7 @@ const handleSavePincode = () => {
       <AdminNav current="/admin/shipping" />
       <div className="container py-8">
         <h1 className="text-2xl font-bold mb-2">Shipping Configuration</h1>
-        <p className="text-muted-foreground mb-8">Configure delivery charges for Surat pincodes</p>
+        <p className="text-muted-foreground mb-8">Configure local Surat delivery charges. Other pincodes use Shiprocket at checkout.</p>
 
         <div className="space-y-6">
           {/* Main Configuration Card */}
@@ -244,7 +244,7 @@ const handleSavePincode = () => {
             <CardHeader>
               <CardTitle className="text-lg">PIN Code Delivery Charges</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Add each Surat pincode and its fixed delivery charge. Adding the same pincode again updates its charge.
+                Add each Surat pincode and its fixed delivery charge. These pincodes stay with your own delivery team and OTP system. Adding the same pincode again updates its charge.
               </p>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -327,12 +327,12 @@ const handleSavePincode = () => {
                 <p className="ml-4">Customer enters a Surat pincode at checkout. The delivery charge saved for that pincode is shown automatically.</p>
               </div>
               <div className="space-y-2">
-                <p><strong className="text-foreground">2. Only Added PIN Codes Deliver</strong></p>
-                <p className="ml-4">A pincode that is not listed above cannot be used for delivery.</p>
+                <p><strong className="text-foreground">2. Delivery Outside Surat</strong></p>
+                <p className="ml-4">A pincode not listed above is checked with Shiprocket. If COD delivery is serviceable, the live courier charge is shown at checkout.</p>
               </div>
               <div className="space-y-2">
                 <p><strong className="text-foreground">3. Automatic Application</strong></p>
-                <p className="ml-4">The delivery charge is shown during checkout and checked again when the order is placed.</p>
+                <p className="ml-4">The local or Shiprocket delivery charge is shown during checkout and checked again when the order is placed.</p>
               </div>
               <div className="space-y-2">
                 <p><strong className="text-foreground">4. Free Shipping Threshold</strong></p>
