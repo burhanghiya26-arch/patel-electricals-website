@@ -1,15 +1,13 @@
-import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
-import { ForbiddenError } from "@shared/_core/errors";
+import { COOKIE_NAME } from "@shared/const";
 import { parse as parseCookieHeader } from "cookie";
 import type { Request } from "express";
-import { SignJWT, jwtVerify } from "jose";
+import { jwtVerify } from "jose";
 import jwt from "jsonwebtoken";
 import type { User } from "../../drizzle/schema";
 import * as db from "../db";
 import { ENV } from "./env";
 import { verifyAdminToken } from "./adminAuth";
 
-// Utility function
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0;
 
@@ -21,99 +19,59 @@ export type SessionPayload = {
 
 class SDKServer {
   private parseCookies(cookieHeader: string | undefined) {
-    if (!cookieHeader) {
-      return new Map<string, string>();
-    }
-
-    const parsed = parseCookieHeader(cookieHeader);
-    return new Map(Object.entries(parsed));
+    if (!cookieHeader) return new Map<string, string>();
+    return new Map(Object.entries(parseCookieHeader(cookieHeader)));
   }
 
   private getSessionSecret() {
-    const secret = ENV.JWT_SECRET;
-    return new TextEncoder().encode(secret);
+    return new TextEncoder().encode(ENV.JWT_SECRET);
   }
 
   async verifySession(
     cookieValue: string | undefined | null
   ): Promise<{ openId: string; appId: string; name: string } | null> {
-    if (!cookieValue) {
-      console.warn("[Auth] Missing session cookie");
-      return null;
-    }
+    if (!cookieValue) return null;
 
     try {
-      const secretKey = this.getSessionSecret();
-      const { payload } = await jwtVerify(cookieValue, secretKey, {
+      const { payload } = await jwtVerify(cookieValue, this.getSessionSecret(), {
         algorithms: ["HS256"],
       });
       const { openId, appId, name } = payload as Record<string, unknown>;
-
-      if (
-        !isNonEmptyString(openId) ||
-        !isNonEmptyString(appId) ||
-        !isNonEmptyString(name)
-      ) {
-        console.warn("[Auth] Session payload missing required fields");
+      if (!isNonEmptyString(openId) || !isNonEmptyString(appId) || !isNonEmptyString(name)) {
         return null;
       }
-
-      return {
-        openId,
-        appId,
-        name,
-      };
-    } catch (error) {
-      console.warn("[Auth] Session verification failed", String(error));
+      return { openId, appId, name };
+    } catch {
       return null;
     }
   }
 
   async authenticateRequest(req: Request): Promise<User | null> {
     const cookies = this.parseCookies(req.headers.cookie);
-    
-    console.log("=================================");
-console.log("URL =", req.originalUrl);
-console.log("CUSTOMER COOKIE =", cookies.get("customer_session"));
-console.log("ADMIN COOKIE =", cookies.get(COOKIE_NAME));
-console.log("=================================");
-
     const customerSessionCookie = cookies.get("customer_session");
 
-// Customer login ko hamesha priority do
-if (customerSessionCookie) {
-  console.log("CHECKING CUSTOMER TOKEN...");
-
-  try {
-    const decoded = jwt.verify(
-      customerSessionCookie,
-      ENV.JWT_SECRET
-    ) as any;
-
-    if (decoded?.id) {
-      const user = await db.getUserById(decoded.id);
-      if (user) return user;
+    // Give a signed-in customer priority over an admin cookie in the same browser.
+    if (customerSessionCookie) {
+      try {
+        const decoded = jwt.verify(customerSessionCookie, ENV.JWT_SECRET) as { id?: number };
+        if (decoded?.id) {
+          const user = await db.getUserById(decoded.id);
+          if (user) return user;
+        }
+      } catch {
+        // An expired or invalid customer cookie is expected; treat it as signed out.
+      }
     }
-  } catch (err) {
-    console.warn("[Auth] Customer session verification failed", String(err));
-  }
-}
 
-// Sirf customer login na ho tab admin check karo
-const sessionCookie = cookies.get(COOKIE_NAME);
+    // Check the admin session only when no valid customer session was found.
+    const sessionCookie = cookies.get(COOKIE_NAME);
+    if (!sessionCookie) return null;
 
-if (!sessionCookie) {
-  return null;
-}
-
-try {
-  console.log("CHECKING ADMIN TOKEN...");
-  const adminToken = verifyAdminToken(sessionCookie);
+    try {
+      const adminToken = verifyAdminToken(sessionCookie);
       if (adminToken) {
         const admin = await db.getUserByEmail(adminToken.email);
-        if (admin && admin.role === "admin") {
-          return admin;
-        }
+        if (admin && admin.role === "admin") return admin;
 
         const syntheticAdmin: User = {
           id: adminToken.adminId,
@@ -137,11 +95,10 @@ try {
           updatedAt: new Date(),
           lastSignedIn: new Date(),
         };
-
         return syntheticAdmin;
       }
-    } catch (error) {
-      console.warn("[Auth] Token verification failed", String(error));
+    } catch {
+      // An expired or invalid admin cookie is expected; treat it as signed out.
     }
 
     return null;
