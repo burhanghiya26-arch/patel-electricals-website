@@ -814,6 +814,12 @@ console.log("ORDER USER =>", ctx.user);
         if (!shippingQuote.available) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: shippingQuote.message || 'Delivery is not available for this pincode.' });
         }
+        if (shippingQuote.deliveryMethod !== "local_delivery") {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Cash on Delivery is available only for local Surat delivery. Please pay online for this pincode.",
+          });
+        }
         const calculatedShippingCost = shippingQuote.shippingCost;
 
         const orderNumber = `ORD-${Date.now()}`;
