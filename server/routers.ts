@@ -11,6 +11,13 @@ import { sendOrderConfirmationWhatsApp, sendOrderTrackingWhatsApp } from "./_cor
 import { generateInvoicePDF } from "./_core/invoiceGenerator";
 import { generateShippingLabel } from "./_core/shippingLabelGenerator";
 import { getShiprocketShippingQuote } from "./_core/shiprocket";
+import {
+  captureRazorpayPayment,
+  createRazorpayOrder,
+  fetchRazorpayPayment,
+  getRazorpayPublicConfig,
+  verifyRazorpaySignature,
+} from "./_core/razorpay";
 import { authenticateAdmin, createAdminAccount, verifyAdminToken } from "./_core/adminAuth";
 import jwt from "jsonwebtoken";
 import { parse as parseCookieHeader } from "cookie";
@@ -74,6 +81,70 @@ async function getCheckoutShippingQuote(
       message: "Delivery charge could not be calculated. Please try again.",
     };
   }
+}
+
+async function prepareOrderFromCart(userId: number, shippingPincode: string) {
+  const cartItemsList = await db.getCartItems(userId);
+  if (cartItemsList.length === 0) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Cart is empty" });
+  }
+
+  let totalAmount = 0;
+  const orderItemsData: Array<{
+    productId: number;
+    quantity: number;
+    unitPrice: string;
+    totalPrice: string;
+    selectedColor?: string;
+    selectedSize?: string;
+  }> = [];
+  const shippingItems: ShippingCartItem[] = [];
+
+  for (const item of cartItemsList) {
+    const product = await db.getProductById(item.productId);
+    if (!product) continue;
+    const inventory = await db.getInventoryByProductId(item.productId);
+    const availableStock = inventory?.quantityInStock || 0;
+    if (availableStock < item.quantity) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: `${product.name} has only ${availableStock} units available, but you requested ${item.quantity}`,
+      });
+    }
+    const itemTotal = Number(product.basePrice) * item.quantity;
+    totalAmount += itemTotal;
+    orderItemsData.push({
+      productId: item.productId,
+      quantity: item.quantity,
+      unitPrice: String(Number(product.basePrice)),
+      totalPrice: String(itemTotal),
+      selectedColor: item.selectedColor || undefined,
+      selectedSize: item.selectedSize || undefined,
+    });
+    shippingItems.push({ product, quantity: item.quantity });
+  }
+
+  if (orderItemsData.length === 0) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Cart contains unavailable products." });
+  }
+  if (!/^\d{6}$/.test(shippingPincode)) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "A valid 6-digit pincode is required." });
+  }
+
+  const shippingQuote = await getCheckoutShippingQuote(shippingPincode, totalAmount, shippingItems);
+  if (!shippingQuote.available) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: shippingQuote.message || "Delivery is not available for this pincode.",
+    });
+  }
+
+  return {
+    orderItemsData,
+    shippingQuote,
+    subtotal: totalAmount,
+    totalAmount: totalAmount + shippingQuote.shippingCost,
+  };
 }
 
 export const appRouter = router({
@@ -542,6 +613,132 @@ console.log("[LOGIN TOKEN]", token);
       }),
   }),
 
+  payments: router({
+    config: protectedProcedure.query(() => getRazorpayPublicConfig()),
+
+    startRazorpay: protectedProcedure
+      .input(z.object({
+        shippingAddress: z.string().min(10),
+        shippingPincode: z.string().regex(/^\d{6}$/, "Enter a valid 6-digit pincode"),
+        customerPhone: z.string().min(8).max(20),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const prepared = await prepareOrderFromCart(ctx.user.id, input.shippingPincode);
+        const orderNumber = `ORD-${Date.now()}`;
+        const localOrderId = await db.createOrder({
+          orderNumber,
+          userId: ctx.user.id,
+          totalAmount: String(prepared.totalAmount),
+          gstAmount: "0",
+          shippingCost: String(prepared.shippingQuote.shippingCost),
+          shippingAddress: input.shippingAddress,
+          shippingMethod: prepared.shippingQuote.deliveryMethod,
+          paymentMethod: "razorpay",
+          paymentStatus: "pending",
+          orderStatus: "pending",
+          notes: "Online payment pending",
+        });
+        if (!localOrderId) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Could not start the payment." });
+        }
+        await db.addOrderItems(localOrderId, prepared.orderItemsData);
+
+        try {
+          const razorpayOrder = await createRazorpayOrder({
+            amountPaise: Math.round(prepared.totalAmount * 100),
+            receipt: `pe_${localOrderId}_${Date.now()}`.slice(0, 40),
+            notes: { local_order: String(localOrderId), order_number: orderNumber, website: "patelspares.com" },
+          });
+          if (typeof razorpayOrder?.id !== "string") {
+            throw new Error("Razorpay did not return an order ID.");
+          }
+          await db.setRazorpayOrderId(localOrderId, razorpayOrder.id);
+          return {
+            keyId: getRazorpayPublicConfig().keyId,
+            razorpayOrderId: razorpayOrder.id,
+            localOrderId,
+            orderNumber,
+            amount: Math.round(prepared.totalAmount * 100),
+            currency: "INR" as const,
+          };
+        } catch (error: any) {
+          console.error("[Razorpay] Could not create payment order", error);
+          throw new TRPCError({
+            code: "BAD_GATEWAY",
+            message: error?.message || "Online payment could not be started. Please try again.",
+          });
+        }
+      }),
+
+    verifyRazorpay: protectedProcedure
+      .input(z.object({
+        localOrderId: z.number().int().positive(),
+        razorpayOrderId: z.string().min(1),
+        razorpayPaymentId: z.string().min(1),
+        razorpaySignature: z.string().min(1),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const order = await db.getOrderById(input.localOrderId);
+        if (!order || order.userId !== ctx.user.id || order.paymentMethod !== "razorpay") {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Payment order was not found." });
+        }
+        if (order.paymentStatus === "completed") {
+          return { orderNumber: order.orderNumber, totalAmount: Number(order.totalAmount), orderId: order.id };
+        }
+        if (!order.razorpayOrderId || order.razorpayOrderId !== input.razorpayOrderId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid payment order." });
+        }
+        const alreadyUsed = await db.getOrderByRazorpayPaymentId(input.razorpayPaymentId);
+        if (alreadyUsed) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "This payment has already been used." });
+        }
+        if (!verifyRazorpaySignature(input)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Payment verification failed. No order was placed." });
+        }
+
+        const expectedAmount = Math.round(Number(order.totalAmount) * 100);
+        let payment = await fetchRazorpayPayment(input.razorpayPaymentId);
+        // Capture immediately if the Razorpay dashboard is not configured for
+        // automatic capture. This prevents a genuine authorised payment from
+        // being auto-refunded later.
+        if (payment?.status === "authorized") {
+          payment = await captureRazorpayPayment(input.razorpayPaymentId, expectedAmount);
+        }
+        if (
+          payment?.order_id !== order.razorpayOrderId ||
+          Number(payment?.amount) !== expectedAmount ||
+          payment?.currency !== "INR" ||
+          payment?.status !== "captured"
+        ) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Payment is not captured yet. Please wait a moment and try again.",
+          });
+        }
+
+        await db.completeRazorpayPayment({ orderId: order.id, razorpayPaymentId: input.razorpayPaymentId });
+        await db.clearCart(ctx.user.id);
+
+        const user = await db.getUserById(ctx.user.id);
+        const items = await db.getOrderItems(order.id);
+        sendOrderConfirmationWhatsApp({
+          customerPhone: user?.businessPhone || "",
+          customerName: user?.name || "Valued Customer",
+          orderId: String(order.id),
+          orderNumber: order.orderNumber,
+          totalAmount: Number(order.totalAmount),
+          items: items.map(item => ({
+            name: `Product #${item.productId}`,
+            quantity: item.quantity,
+            price: Number(item.unitPrice),
+          })),
+          shippingAddress: order.shippingAddress,
+        }).catch(error => console.error("Failed to send Razorpay order WhatsApp notification:", error));
+
+        return { orderNumber: order.orderNumber, totalAmount: Number(order.totalAmount), orderId: order.id };
+      }),
+  }),
+
   orders: router({
     list: protectedProcedure.query(async ({ ctx }) => {
   console.log("CTX USER =>", ctx.user);
@@ -574,6 +771,10 @@ console.log("[LOGIN TOKEN]", token);
         customerPhone: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
+
+        if (input.paymentMethod !== "cod") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Use the secure online-payment flow for prepaid orders." });
+        }
 
 console.log("ORDER USER =>", ctx.user);
 
