@@ -451,6 +451,42 @@ export async function getOrderById(id: number) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function setRazorpayOrderId(orderId: number, razorpayOrderId: string) {
+  const database = await getDb();
+  if (!database) throw new Error("Database is unavailable");
+  await database
+    .update(orders)
+    .set({ razorpayOrderId, updatedAt: new Date() })
+    .where(eq(orders.id, orderId));
+}
+
+export async function getOrderByRazorpayPaymentId(razorpayPaymentId: string) {
+  const database = await getDb();
+  if (!database) return undefined;
+  const result = await database
+    .select()
+    .from(orders)
+    .where(eq(orders.razorpayPaymentId, razorpayPaymentId))
+    .limit(1);
+  return result[0];
+}
+
+export async function completeRazorpayPayment(input: {
+  orderId: number;
+  razorpayPaymentId: string;
+}) {
+  const database = await getDb();
+  if (!database) throw new Error("Database is unavailable");
+  await database
+    .update(orders)
+    .set({
+      razorpayPaymentId: input.razorpayPaymentId,
+      paymentStatus: "completed",
+      updatedAt: new Date(),
+    })
+    .where(eq(orders.id, input.orderId));
+}
+
 export async function getOrdersByUserId(userId: number) {
   const db = await getDb();
 if (!db) return [];
