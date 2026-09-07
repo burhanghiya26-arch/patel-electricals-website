@@ -14,6 +14,41 @@ import Footer from "@/components/Footer";
 import { toast } from "sonner";
 import { trackEvent } from "@/lib/analytics";
 
+type RazorpayPaymentResponse = {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+};
+
+type RazorpayCheckout = {
+  open: () => void;
+  on: (event: string, callback: (response: unknown) => void) => void;
+};
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: Record<string, unknown>) => RazorpayCheckout;
+  }
+}
+
+function loadRazorpayCheckout(): Promise<boolean> {
+  if (window.Razorpay) return Promise.resolve(true);
+  return new Promise(resolve => {
+    const existing = document.getElementById("razorpay-checkout-script") as HTMLScriptElement | null;
+    if (existing) {
+      existing.addEventListener("load", () => resolve(Boolean(window.Razorpay)), { once: true });
+      existing.addEventListener("error", () => resolve(false), { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.id = "razorpay-checkout-script";
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(Boolean(window.Razorpay));
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
 export default function Checkout() {
 const utils = trpc.useUtils();  
   
@@ -24,7 +59,7 @@ const utils = trpc.useUtils();
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "razorpay" | "card" | "upi" | "bank_transfer" | "credit">("cod");
-  const [isLoadingOrder, setIsLoadingOrder] = useState(false);
+  const [isOpeningPayment, setIsOpeningPayment] = useState(false);
 
   // Address
   const [address, setAddress] = useState({
@@ -38,8 +73,7 @@ const utils = trpc.useUtils();
     { enabled: hasValidPincode, retry: false },
   );
 
-  const createOrder = trpc.orders.create.useMutation({
-  onSuccess: async (data) => {
+  const finishOrder = async (data: { orderNumber: string; totalAmount: number; orderId: number }) => {
   await utils.customer.getMyData.invalidate();
   await utils.orders.list.invalidate();
   await utils.cart.list.invalidate();
@@ -50,8 +84,8 @@ const utils = trpc.useUtils();
   trackEvent("purchase", {
     transaction_id: data.orderNumber,
     currency: "INR",
-    value: total,
-    shipping: shippingCost,
+    value: Number(data.totalAmount),
+    shipping: Number(shippingQuote.data?.shippingCost || 0),
     payment_type: paymentMethod,
     items: (cartItems || []).map(item => ({
       item_id: String(item.productId),
@@ -62,15 +96,21 @@ const utils = trpc.useUtils();
   });
 
   toast.success("Order placed successfully! Check WhatsApp for order details.");
-},  
+  };
+
+  const createOrder = trpc.orders.create.useMutation({
+  onSuccess: finishOrder,
     onError: (err) => toast.error(err.message),
   });
+
+  const startRazorpay = trpc.payments.startRazorpay.useMutation();
+  const verifyRazorpay = trpc.payments.verifyRazorpay.useMutation();
 
   // Totals
   const shippingCost = shippingQuote.data?.shippingCost ?? 0;
   const total = subtotal + shippingCost;
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     if (!address.fullName || !address.phone || !address.addressLine1 || !address.city || !address.pincode) {
       toast.error("Please fill all address fields!");
       return;
@@ -94,13 +134,64 @@ const utils = trpc.useUtils();
       item_count: cartItems?.length || 0,
       payment_type: paymentMethod,
     });
-    createOrder.mutate({
-      shippingAddress: fullAddress,
-      paymentMethod: paymentMethod,
-      shippingPincode: address.pincode,
-      shippingCost: Math.round(shippingCost),
-      customerPhone: address.phone,
-    });
+    if (paymentMethod === "cod") {
+      createOrder.mutate({
+        shippingAddress: fullAddress,
+        paymentMethod: "cod",
+        shippingPincode: address.pincode,
+        shippingCost: Math.round(shippingCost),
+        customerPhone: address.phone,
+      });
+      return;
+    }
+
+    setIsOpeningPayment(true);
+    try {
+      const checkoutLoaded = await loadRazorpayCheckout();
+      if (!checkoutLoaded || !window.Razorpay) {
+        throw new Error("Online payment could not load. Please check your internet and try again.");
+      }
+      const paymentOrder = await startRazorpay.mutateAsync({
+        shippingAddress: fullAddress,
+        shippingPincode: address.pincode,
+        customerPhone: address.phone,
+      });
+      const razorpay = new window.Razorpay({
+        key: paymentOrder.keyId,
+        amount: paymentOrder.amount,
+        currency: paymentOrder.currency,
+        name: "Patel Electricals",
+        description: `Order ${paymentOrder.orderNumber}`,
+        order_id: paymentOrder.razorpayOrderId,
+        prefill: { name: address.fullName, contact: address.phone },
+        notes: { order_number: paymentOrder.orderNumber },
+        theme: { color: "#243b5a" },
+        handler: async (response: RazorpayPaymentResponse) => {
+          try {
+            const completedOrder = await verifyRazorpay.mutateAsync({
+              localOrderId: paymentOrder.localOrderId,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+            await finishOrder(completedOrder);
+          } catch (error: any) {
+            toast.error(error?.message || "Payment received but verification is pending. Please contact us with your payment ID.");
+          } finally {
+            setIsOpeningPayment(false);
+          }
+        },
+        modal: { ondismiss: () => setIsOpeningPayment(false) },
+      });
+      razorpay.on("payment.failed", () => {
+        setIsOpeningPayment(false);
+        toast.error("Payment was not completed. No online order has been confirmed.");
+      });
+      razorpay.open();
+    } catch (error: any) {
+      setIsOpeningPayment(false);
+      toast.error(error?.message || "Online payment could not be started. Please try again.");
+    }
   };
 
 
@@ -228,13 +319,21 @@ const utils = trpc.useUtils();
                   <input type="radio" name="payment" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} />
                   <div><p className="font-medium">Cash on Delivery (COD)</p><p className="text-xs text-muted-foreground">Pay when order arrives</p></div>
                 </label>
+                <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted" onClick={() => setPaymentMethod('razorpay')}>
+                  <input type="radio" name="payment" checked={paymentMethod === 'razorpay'} onChange={() => setPaymentMethod('razorpay')} />
+                  <div><p className="font-medium">Pay Online</p><p className="text-xs text-muted-foreground">UPI, Google Pay, PhonePe, cards and net-banking</p></div>
+                </label>
 
               </CardContent>
             </Card>
 
             {/* Place Order Button */}
-            <Button className="w-full" size="lg" onClick={handlePlaceOrder} disabled={createOrder.isPending}>
-              {createOrder.isPending ? "Placing Order..." : `Place Order - ₹${Math.round(total).toLocaleString()}`}
+            <Button className="w-full" size="lg" onClick={handlePlaceOrder} disabled={createOrder.isPending || startRazorpay.isPending || verifyRazorpay.isPending || isOpeningPayment}>
+              {createOrder.isPending || startRazorpay.isPending || verifyRazorpay.isPending || isOpeningPayment
+                ? "Processing..."
+                : paymentMethod === "razorpay"
+                  ? `Pay Online - ₹${Math.round(total).toLocaleString()}`
+                  : `Place Order - ₹${Math.round(total).toLocaleString()}`}
             </Button>
           </div>
 
