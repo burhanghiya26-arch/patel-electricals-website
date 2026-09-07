@@ -29,8 +29,6 @@ function getCookie(req: any, name: string): string | undefined {
   const parsed = parseCookieHeader(cookieHeader);
   return parsed[name];
 }
-console.log("ROUTES FILE LOADED - CATEGORY VERSION");
-
 type ShippingCartItem = {
   product: { shippingWeightKg: unknown };
   quantity: number;
@@ -203,9 +201,6 @@ export const appRouter = router({
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Customer not found' });
         }
 
- console.log("LOGIN CUSTOMER =>", customer);
-console.log("LOGIN CUSTOMER ID =>", customer.id);    
-
         const bcrypt = await import('bcryptjs').then(m => m.default || m);
         const isPasswordValid = await bcrypt.compare(input.password, customer.passwordHash);
         if (!isPasswordValid) {
@@ -219,7 +214,6 @@ console.log("LOGIN CUSTOMER ID =>", customer.id);
         );
         
         const cookieOptions = getSessionCookieOptions(ctx.req);
-        console.log("LOGIN USER ID=>", customer.id);
         ctx.res.cookie('customer_session', token, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
         
         return { success: true, token, customerId: customer.id };
@@ -284,9 +278,6 @@ console.log("LOGIN CUSTOMER ID =>", customer.id);
           { expiresIn: '30d' }
         );
 
-console.log("[LOGIN USER]", user);
-console.log("[LOGIN TOKEN]", token);
-
         const cookieOptions = getSessionCookieOptions(ctx.req);
         ctx.res.cookie('customer_session', token, { ...cookieOptions, maxAge: 30 * 24 * 60 * 60 * 1000 });
         return { success: true, userId: user.id, email: user.email, name: user.name };
@@ -298,14 +289,8 @@ console.log("[LOGIN TOKEN]", token);
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { id: number; email: string };
         const user = await db.getUserById(decoded.id);
-        console.log("JWT ID =>",decoded);
-        console.log("DB USER =>",user);
-        console.log("TOKEN ID =",decoded.id);
-        console.log("USER =", user);
         if (!user) return null;
         const userOrders = await db.getOrdersByUserId(user.id);
-        console.log("USER ID =", user.id);
-        console.log("ORDERS =", userOrders);
         let userQuotations: any[] = [];
         try { userQuotations = await db.getQuotationsByUserId(user.id); } catch {}
         return { user: { id: user.id, email: user.email, name: user.name, phone: user.businessPhone },orders: userOrders, quotations: userQuotations };
@@ -531,11 +516,7 @@ console.log("[LOGIN TOKEN]", token);
       .input(z.object({ limit: z.number().default(100), offset: z.number().default(0) }))
       .query(async ({ input }) => {
         
-        console.log("ADMINLIST ROUTE CALLED");
- 
         const prods = await db.getAllProductsAdmin(input.limit, input.offset);
-
-        console.log("PRODUCT COUNT =", prods.length);
         
         // Attach inventory info to each product
         const result = await Promise.all(prods.map(async (p) => {
@@ -662,7 +643,6 @@ console.log("[LOGIN TOKEN]", token);
             currency: "INR" as const,
           };
         } catch (error: any) {
-          console.error("[Razorpay] Could not create payment order", error);
           throw new TRPCError({
             code: "BAD_GATEWAY",
             message: error?.message || "Online payment could not be started. Please try again.",
@@ -741,9 +721,6 @@ console.log("[LOGIN TOKEN]", token);
 
   orders: router({
     list: protectedProcedure.query(async ({ ctx }) => {
-  console.log("CTX USER =>", ctx.user);
-  console.log("CTX USER ID =>", ctx.user.id);
-
   return db.getOrdersByUserId(ctx.user.id);
 }),
 
@@ -775,8 +752,6 @@ console.log("[LOGIN TOKEN]", token);
         if (input.paymentMethod !== "cod") {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Use the secure online-payment flow for prepaid orders." });
         }
-
-console.log("ORDER USER =>", ctx.user);
 
         const cartItemsList = await db.getCartItems(ctx.user.id);
         if (cartItemsList.length === 0) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Cart is empty' });
@@ -824,54 +799,26 @@ console.log("ORDER USER =>", ctx.user);
 
         const orderNumber = `ORD-${Date.now()}`;
 
-        // Create order with PENDING status - admin must confirm
-console.log("ORDER USER =>", ctx.user);
-console.log("USER ID =>", ctx.user.id);
-console.log("EMAIL =>", ctx.user.email);
-        console.log("CTX USER ID=>", ctx.user.id);
-        console.log("CTX USER =>", ctx.user);
-        console.log("CTX USER EMAIL=>", ctx.user.email);
-        console.log("ORDER USER ID=", ctx.user.id);
-        console.log("BEFORE CREATE ORDER");
-
-let orderId;
-
-try {
-  console.log("CREATE ORDER DATA =>", {
-    orderNumber,
-    userId: ctx.user.id,
-    totalAmount: String(totalAmount + calculatedShippingCost),
-    shippingAddress: input.shippingAddress,
-  });
-
-  orderId = await db.createOrder({
-    orderNumber,
-    userId: ctx.user.id,
-    totalAmount: String(totalAmount + calculatedShippingCost),
-    gstAmount: String(0),
-    shippingCost: String(calculatedShippingCost),
-    shippingAddress: input.shippingAddress,
-    shippingMethod: shippingQuote.deliveryMethod,
-    paymentMethod: input.paymentMethod,
-    paymentStatus: "pending",
-    orderStatus: "pending",
-    notes: null,
-  });
-
-  console.log("CREATED ORDER ID =>", orderId);
-} catch (err) {
-  console.error("CREATE ORDER ERROR =>", err);
-  throw err;
-}
-        const orders = await db.getOrdersByUserId(ctx.user.id);
-        console.log("ORDERS AFTER CREATE =>", orders);
+        // Create order with PENDING status - admin must confirm.
+        const orderId = await db.createOrder({
+          orderNumber,
+          userId: ctx.user.id,
+          totalAmount: String(totalAmount + calculatedShippingCost),
+          gstAmount: String(0),
+          shippingCost: String(calculatedShippingCost),
+          shippingAddress: input.shippingAddress,
+          shippingMethod: shippingQuote.deliveryMethod,
+          paymentMethod: input.paymentMethod,
+          paymentStatus: "pending",
+          orderStatus: "pending",
+          notes: null,
+        });
         // Update totalAmount in return to include shipping
         const finalTotal = totalAmount + calculatedShippingCost;
 
         // Add order items
         if (orderId) {
           await db.addOrderItems(orderId, orderItemsData);
-          console.log("ORDER CREATED=>", orderId);
         }
 
         await db.clearCart(ctx.user.id);
@@ -894,9 +841,7 @@ try {
             shippingAddress: input.shippingAddress,
           }).catch((err) => console.error("Failed to send WhatsApp notification:", err));
         }
-     const check = await db.getOrdersByUserId(ctx.user.id);
-        console.log("AFTER CREATE CHECK =", check);
-        return { orderNumber, totalAmount: finalTotal, orderId, orders: check,};
+        return { orderNumber, totalAmount: finalTotal, orderId };
       }),
 
     getAllOrders: adminProcedure
@@ -1304,7 +1249,6 @@ try {
   }))
 .mutation(async ({ input }) => {
   try {
-    console.log("Shipping Input:", input);
 
     const success = await db.updateShippingConfig(
       input.baseCost,
@@ -1312,7 +1256,6 @@ try {
       input.freeShippingThreshold
     );
 
-    console.log("Shipping Success:", success);
 
     return { success };
   } catch (err) {
@@ -1405,7 +1348,6 @@ try {
       .mutation(async ({ input }) => {
         const success = await db.updateCategory(input.id, input.name, input.description);
         
-       console.log("UPDATE CATEGORY RESULT =", success);
  
         return { success };
       }),
@@ -1413,11 +1355,9 @@ try {
      deleteCategory: adminProcedure   
       .input(z.number())
       .mutation(async ({ input }) => {
-      console.log("DELETE CATEGORY PROCEDURE HIT");
         
         const success = await db.deleteCategory(input);
 
-        console.log("DELETE CATEGORY RESULT =", success);
         
         return { success };
       }),
@@ -1463,7 +1403,6 @@ try {
       }))
       .mutation(async ({ input }) => {
 
-console.log("RESET INPUT =", input);
 
         try {
           if (input.resetOrders) {
@@ -1475,14 +1414,12 @@ console.log("RESET INPUT =", input);
   try {
     await db.executeRaw(`DELETE FROM quotations`);
   } catch (e) {
-    console.log("quotations table not found");
   }
 }
          if (input.resetReviews) {
   try {
     await db.executeRaw(`DELETE FROM reviews`);
   } catch (e) {
-    console.log("reviews table not found");
   }
 }
           if (input.resetCartItems) {
