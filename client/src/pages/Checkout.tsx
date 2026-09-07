@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,6 +72,14 @@ const utils = trpc.useUtils();
     { pincode: address.pincode },
     { enabled: hasValidPincode, retry: false },
   );
+  const isLocalSuratDelivery = shippingQuote.data?.deliveryMethod === "local_delivery";
+
+  useEffect(() => {
+    // COD is intentionally restricted to the shop's own Surat delivery team.
+    if (shippingQuote.data && !isLocalSuratDelivery && paymentMethod === "cod") {
+      setPaymentMethod("razorpay");
+    }
+  }, [shippingQuote.data, isLocalSuratDelivery, paymentMethod]);
 
   const finishOrder = async (data: { orderNumber: string; totalAmount: number; orderId: number }) => {
   await utils.customer.getMyData.invalidate();
@@ -315,14 +323,19 @@ const utils = trpc.useUtils();
             <Card>
               <CardHeader><CardTitle className="text-base">Payment Method</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted" onClick={() => setPaymentMethod('cod')}>
-                  <input type="radio" name="payment" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} />
-                  <div><p className="font-medium">Cash on Delivery (COD)</p><p className="text-xs text-muted-foreground">Pay when order arrives</p></div>
-                </label>
+                {isLocalSuratDelivery && (
+                  <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted" onClick={() => setPaymentMethod('cod')}>
+                    <input type="radio" name="payment" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} />
+                    <div><p className="font-medium">Cash on Delivery (COD)</p><p className="text-xs text-muted-foreground">Available with local Surat delivery</p></div>
+                  </label>
+                )}
                 <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted" onClick={() => setPaymentMethod('razorpay')}>
                   <input type="radio" name="payment" checked={paymentMethod === 'razorpay'} onChange={() => setPaymentMethod('razorpay')} />
                   <div><p className="font-medium">Pay Online</p><p className="text-xs text-muted-foreground">UPI, Google Pay, PhonePe, cards and net-banking</p></div>
                 </label>
+                {!isLocalSuratDelivery && hasValidPincode && shippingQuote.data?.available && (
+                  <p className="text-xs text-muted-foreground">For deliveries outside Surat, payment is online only.</p>
+                )}
 
               </CardContent>
             </Card>
