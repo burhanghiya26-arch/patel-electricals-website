@@ -215,27 +215,16 @@ export async function getAllProducts(limit = 50, offset = 0) {
     .offset(offset);
 }
 export async function getAllProductsAdmin(limit = 100, offset = 0) {
-  console.log("STEP 1");
-
   const db = await getDb();
-
-  console.log("STEP 2 =", !!db);
-
   if (!db) return [];
 
   try {
-    console.log("STEP 3");
-
-    const data = await db
-  .select()
-  .from(products)
-  .where(eq(products.isActive, true))
-  .limit(limit)
-  .offset(offset);
-
-    console.log("STEP 4 =", data.length);
-
-    return data;
+    return await db
+      .select()
+      .from(products)
+      .where(eq(products.isActive, true))
+      .limit(limit)
+      .offset(offset);
   } catch (err) {
     console.error("GET ALL PRODUCTS ERROR =", err);
     throw err;
@@ -278,23 +267,11 @@ export async function updateProduct(id: number, data: Record<string, unknown>) {
   if (!db) return false;
 
   try {
-    console.log("UPDATE PRODUCT DATA =", data);
-    console.log("IMAGE URL =", data.imageUrl);
-console.log("PRODUCT IMAGES =", data.productImages);
-
     await db
       .update(products)
       .set({ ...data, updatedAt: new Date() } as any)
       .where(eq(products.id, id));
-    
-const check = await db
-  .select()
-  .from(products)
-  .where(eq(products.id, id))
-  .limit(1);
 
-console.log("PRODUCT AFTER UPDATE =", check[0]);
-    
     return true;
   } catch (err) {
     console.error("UPDATE PRODUCT ERROR =", err);
@@ -415,30 +392,9 @@ export async function clearCart(userId: number) {
 // ========================
 
 export async function createOrder(orderData: any): Promise<number | undefined> {
- console.log("CREATE ORDER FUNCTION START");
   const db = await getDb();
   if (!db) return undefined;
-console.log("CREATE ORDER DATA =>", orderData);
-console.log("ORDER USER ID=>", orderData.userId);
-  let result;
-
-try {
-  result = await db.insert(orders).values(orderData);
-  console.log("INSERT SUCCESS =>", result);
-} catch (err) {
-  console.error("INSERT FAILED =>", err);
-  throw err;
-}
-  const check = await db.execute(sql`SELECT COUNT(*) as total FROM orders`);
-console.log("TOTAL ORDERS =>", check);
-console.log("CREATE ORDER RESULT =>", result);
-console.log("INSERT ID =>", (result as any).insertId);
-const allOrders = await db.select().from(orders);
-const lastOrder = allOrders[allOrders.length - 1];
-  console.log("LAST ORDER ID =>", lastOrder?.id);
-    console.log("LAST ORDER USER ID =>",lastOrder?.userId);
-console.log("LAST ORDER NUMBER =>",lastOrder?.orderNumber);
-console.log("ALL ORDERS AFTER INSERT =>", allOrders);
+  const result = await db.insert(orders).values(orderData);
 
   // MySQL returns insertId in the result
   return (result as any)[0]?.insertId || (result as any).insertId || undefined;
@@ -489,16 +445,8 @@ export async function completeRazorpayPayment(input: {
 
 export async function getOrdersByUserId(userId: number) {
   const db = await getDb();
-if (!db) return [];
-
-console.log("GET ORDERS USER ID =>", userId);
-
-const result = await db.select().from(orders).where(eq(orders.userId,userId))
-  .orderBy(desc(orders.createdAt));
-  console.log("ALL ORDERS =",
-              result);
-  console.log("SEARCH USER ID =", userId);
-  return result;
+  if (!db) return [];
+  return db.select().from(orders).where(eq(orders.userId, userId)).orderBy(desc(orders.createdAt));
 }
 
 export async function getAllOrders(limit = 50, offset = 0) {
@@ -1115,6 +1063,13 @@ export async function deductInventoryForOrder(orderId: number): Promise<boolean>
   if (!db) { console.warn("[Database] Cannot deduct inventory: database not available"); return false; }
 
   try {
+    const order = await db.select({ inventoryDeducted: orders.inventoryDeducted })
+      .from(orders)
+      .where(eq(orders.id, orderId))
+      .limit(1);
+    if (!order[0]) return false;
+    if (order[0].inventoryDeducted) return true;
+
     // Get order items
     const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
     
