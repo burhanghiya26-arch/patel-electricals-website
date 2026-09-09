@@ -230,6 +230,7 @@ export default function Checkout() {
         name: "Patel Electricals",
         description: `Order ${paymentOrder.orderNumber}`,
         order_id: paymentOrder.razorpayOrderId,
+        webview_intent: true,
         prefill: {
           name: address.fullName,
           contact: address.phone,
