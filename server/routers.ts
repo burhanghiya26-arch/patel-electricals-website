@@ -66,7 +66,7 @@ async function getCheckoutShippingQuote(
     0,
   );
   try {
-    const quote = await getShiprocketShippingQuote({ deliveryPincode: pincode, weightKg, cod: true });
+    const quote = await getShiprocketShippingQuote({ deliveryPincode: pincode, weightKg, cod: false });
     return { ...quote, isFreeShipping: false, areaName: "", deliveryMethod: "shiprocket" as const };
   } catch (error) {
     console.error("[Shipping] Shiprocket quote failed", error);
