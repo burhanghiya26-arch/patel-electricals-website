@@ -606,38 +606,21 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const prepared = await prepareOrderFromCart(ctx.user.id, input.shippingPincode);
         const orderNumber = `ORD-${Date.now()}`;
-        const localOrderId = await db.createOrder({
-          orderNumber,
-          userId: ctx.user.id,
-          totalAmount: String(prepared.totalAmount),
-          gstAmount: "0",
-          shippingCost: String(prepared.shippingQuote.shippingCost),
-          shippingAddress: input.shippingAddress,
-          shippingMethod: prepared.shippingQuote.deliveryMethod,
-          paymentMethod: "razorpay",
-          paymentStatus: "pending",
-          orderStatus: "pending",
-          notes: "Online payment pending",
-        });
-        if (!localOrderId) {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Could not start the payment." });
-        }
-        await db.addOrderItems(localOrderId, prepared.orderItemsData);
 
         try {
           const razorpayOrder = await createRazorpayOrder({
             amountPaise: Math.round(prepared.totalAmount * 100),
-            receipt: `pe_${localOrderId}_${Date.now()}`.slice(0, 40),
-            notes: { local_order: String(localOrderId), order_number: orderNumber, website: "patelspares.com" },
+            receipt: `pe_${ctx.user.id}_${Date.now()}`.slice(0, 40),
+            // This is a payment request only. The customer order is deliberately
+            // not written to our database until Razorpay confirms a capture.
+            notes: { user_id: String(ctx.user.id), order_number: orderNumber, website: "patelspares.com" },
           });
           if (typeof razorpayOrder?.id !== "string") {
             throw new Error("Razorpay did not return an order ID.");
           }
-          await db.setRazorpayOrderId(localOrderId, razorpayOrder.id);
           return {
             keyId: getRazorpayPublicConfig().keyId,
             razorpayOrderId: razorpayOrder.id,
-            localOrderId,
             orderNumber,
             amount: Math.round(prepared.totalAmount * 100),
             currency: "INR" as const,
@@ -652,31 +635,25 @@ export const appRouter = router({
 
     verifyRazorpay: protectedProcedure
       .input(z.object({
-        localOrderId: z.number().int().positive(),
         razorpayOrderId: z.string().min(1),
         razorpayPaymentId: z.string().min(1),
         razorpaySignature: z.string().min(1),
+        shippingAddress: z.string().min(10),
+        shippingPincode: z.string().regex(/^\d{6}$/, "Enter a valid 6-digit pincode"),
       }))
       .mutation(async ({ ctx, input }) => {
-        const order = await db.getOrderById(input.localOrderId);
-        if (!order || order.userId !== ctx.user.id || order.paymentMethod !== "razorpay") {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Payment order was not found." });
-        }
-        if (order.paymentStatus === "completed") {
-          return { orderNumber: order.orderNumber, totalAmount: Number(order.totalAmount), orderId: order.id };
-        }
-        if (!order.razorpayOrderId || order.razorpayOrderId !== input.razorpayOrderId) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid payment order." });
-        }
         const alreadyUsed = await db.getOrderByRazorpayPaymentId(input.razorpayPaymentId);
         if (alreadyUsed) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "This payment has already been used." });
+          return { orderNumber: alreadyUsed.orderNumber, totalAmount: Number(alreadyUsed.totalAmount), orderId: alreadyUsed.id };
         }
         if (!verifyRazorpaySignature(input)) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Payment verification failed. No order was placed." });
         }
 
-        const expectedAmount = Math.round(Number(order.totalAmount) * 100);
+        // Rebuild the cart and shipping total on the server. Browser-provided
+        // prices are never used for either payment verification or the order.
+        const prepared = await prepareOrderFromCart(ctx.user.id, input.shippingPincode);
+        const expectedAmount = Math.round(prepared.totalAmount * 100);
         let payment = await fetchRazorpayPayment(input.razorpayPaymentId);
         // Capture immediately if the Razorpay dashboard is not configured for
         // automatic capture. This prevents a genuine authorised payment from
@@ -685,7 +662,7 @@ export const appRouter = router({
           payment = await captureRazorpayPayment(input.razorpayPaymentId, expectedAmount);
         }
         if (
-          payment?.order_id !== order.razorpayOrderId ||
+          payment?.order_id !== input.razorpayOrderId ||
           Number(payment?.amount) !== expectedAmount ||
           payment?.currency !== "INR" ||
           payment?.status !== "captured"
@@ -696,26 +673,47 @@ export const appRouter = router({
           });
         }
 
-        await db.completeRazorpayPayment({ orderId: order.id, razorpayPaymentId: input.razorpayPaymentId });
+        // The first database write for an online order happens only after the
+        // payment is captured and independently verified with Razorpay.
+        const orderNumber = `ORD-${Date.now()}`;
+        const orderId = await db.createOrder({
+          orderNumber,
+          userId: ctx.user.id,
+          totalAmount: String(prepared.totalAmount),
+          gstAmount: "0",
+          shippingCost: String(prepared.shippingQuote.shippingCost),
+          shippingAddress: input.shippingAddress,
+          shippingMethod: prepared.shippingQuote.deliveryMethod,
+          paymentMethod: "razorpay",
+          paymentStatus: "completed",
+          razorpayOrderId: input.razorpayOrderId,
+          razorpayPaymentId: input.razorpayPaymentId,
+          orderStatus: "pending",
+          notes: "Online payment captured by Razorpay",
+        });
+        if (!orderId) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Payment was captured but the order could not be saved. Please contact us with your payment ID." });
+        }
+        await db.addOrderItems(orderId, prepared.orderItemsData);
         await db.clearCart(ctx.user.id);
 
         const user = await db.getUserById(ctx.user.id);
-        const items = await db.getOrderItems(order.id);
+        const items = await db.getOrderItems(orderId);
         sendOrderConfirmationWhatsApp({
           customerPhone: user?.businessPhone || "",
           customerName: user?.name || "Valued Customer",
-          orderId: String(order.id),
-          orderNumber: order.orderNumber,
-          totalAmount: Number(order.totalAmount),
+          orderId: String(orderId),
+          orderNumber,
+          totalAmount: prepared.totalAmount,
           items: items.map(item => ({
             name: `Product #${item.productId}`,
             quantity: item.quantity,
             price: Number(item.unitPrice),
           })),
-          shippingAddress: order.shippingAddress,
+          shippingAddress: input.shippingAddress,
         }).catch(error => console.error("Failed to send Razorpay order WhatsApp notification:", error));
 
-        return { orderNumber: order.orderNumber, totalAmount: Number(order.totalAmount), orderId: order.id };
+        return { orderNumber, totalAmount: prepared.totalAmount, orderId };
       }),
   }),
 
@@ -1405,11 +1403,8 @@ export const appRouter = router({
 
 
         try {
-          if (input.resetOrders) {
-            await db.executeRaw(`DELETE FROM order_items`);
-            await db.executeRaw(`DELETE FROM order_tracking`);
-            await db.executeRaw(`DELETE FROM orders`);
-          }
+          // Customer order history is shared with My Account. It must never be
+          // erased from an admin dashboard reset.
          if (input.resetQuotations) {
   try {
     await db.executeRaw(`DELETE FROM quotations`);
