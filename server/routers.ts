@@ -717,6 +717,57 @@ export const appRouter = router({
       }),
   }),
 
+  returns: router({
+    listForOrder: protectedProcedure
+      .input(z.number().int().positive())
+      .query(async ({ ctx, input: orderId }) => {
+        const order = await db.getOrderById(orderId);
+        if (!order || (order.userId !== ctx.user.id && ctx.user.role !== "admin")) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Order not found." });
+        }
+        return db.getReturnRequestsByOrderId(orderId);
+      }),
+
+    create: protectedProcedure
+      .input(z.object({ orderId: z.number().int().positive(), reason: z.string().trim().min(10, "Please enter at least 10 characters.").max(1000) }))
+      .mutation(async ({ ctx, input }) => {
+        const order = await db.getOrderById(input.orderId);
+        if (!order || order.userId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Order not found." });
+        }
+        if (order.orderStatus !== "delivered") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "A return can be requested only after delivery." });
+        }
+        const deliveredAt = order.deliveredAt ? new Date(order.deliveredAt).getTime() : NaN;
+        const returnDeadline = deliveredAt + 48 * 60 * 60 * 1000;
+        if (!Number.isFinite(deliveredAt) || Date.now() > returnDeadline) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "The 48-hour return request period for this order has ended." });
+        }
+        const existing = await db.getReturnRequestsByOrderId(order.id);
+        if (existing.some(request => request.status === "requested" || request.status === "approved")) {
+          throw new TRPCError({ code: "CONFLICT", message: "A return request for this order is already under review." });
+        }
+        const id = await db.createReturnRequest({ orderId: order.id, userId: ctx.user.id, reason: input.reason });
+        return { id, success: true };
+      }),
+
+    getAll: adminProcedure.query(async () => {
+      const requests = await db.getAllReturnRequests();
+      return Promise.all(requests.map(async request => {
+        const order = await db.getOrderById(request.orderId);
+        const customer = await db.getUserById(request.userId);
+        return { ...request, orderNumber: order?.orderNumber || `Order #${request.orderId}`, customerName: customer?.name || customer?.email || "Unknown" };
+      }));
+    }),
+
+    update: adminProcedure
+      .input(z.object({ id: z.number().int().positive(), status: z.enum(["requested", "approved", "rejected", "completed"]), adminNote: z.string().trim().max(1000).optional() }))
+      .mutation(async ({ input }) => {
+        await db.updateReturnRequest(input);
+        return { success: true };
+      }),
+  }),
+
   orders: router({
     list: protectedProcedure.query(async ({ ctx }) => {
   return db.getOrdersByUserId(ctx.user.id);
