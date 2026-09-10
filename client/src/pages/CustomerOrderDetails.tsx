@@ -142,6 +142,10 @@ export default function CustomerOrderDetails() {
   const activeReturnRequest = returnRequests.data?.find(
     (request) => request.status === "requested" || request.status === "approved",
   );
+  const deliveredAt = order.deliveredAt ? new Date(order.deliveredAt).getTime() : NaN;
+  const returnDeadline = deliveredAt + 48 * 60 * 60 * 1000;
+  const returnWindowOpen = Number.isFinite(deliveredAt) && Date.now() <= returnDeadline;
+  const remainingReturnHours = Math.max(0, Math.ceil((returnDeadline - Date.now()) / (60 * 60 * 1000)));
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6">
@@ -315,9 +319,13 @@ export default function CustomerOrderDetails() {
                 <p className="mt-1 whitespace-pre-line">Reason: {activeReturnRequest.reason}</p>
                 {activeReturnRequest.adminNote && <p className="mt-1">Admin note: {activeReturnRequest.adminNote}</p>}
               </div>
+            ) : !returnWindowOpen ? (
+              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                Return request ka 48-hour period khatam ho gaya hai. Ab is order ke liye return request nahi ki ja sakti.
+              </div>
             ) : (
               <>
-                <p className="mt-2 text-sm text-gray-500">Product return karne ka reason likhiye. Hamari team request review karegi.</p>
+                <p className="mt-2 text-sm text-gray-500">Product return karne ka reason likhiye. Aapke paas return request ke liye lagbhag {remainingReturnHours} hour bache hain.</p>
                 <textarea value={returnReason} onChange={(event) => setReturnReason(event.target.value)} placeholder="Return reason (minimum 10 characters)" rows={4} className="mt-4 w-full rounded-md border px-3 py-2" />
                 <Button className="mt-3" disabled={createReturnRequest.isPending || returnReason.trim().length < 10} onClick={() => createReturnRequest.mutate({ orderId: order.id, reason: returnReason.trim() })}>
                   {createReturnRequest.isPending ? "Submitting..." : "Request Return"}
