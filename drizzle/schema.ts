@@ -280,6 +280,28 @@ export type OrderItem = typeof orderItems.$inferSelect;
 export type InsertOrderItem = typeof orderItems.$inferInsert;
 
 /**
+ * Customer return requests. A request is reviewed by an admin before any
+ * refund or stock adjustment is made.
+ */
+export const returnRequests = mysqlTable("return_requests", {
+  id: int("id").autoincrement().primaryKey(),
+  orderId: int("orderId").notNull(),
+  userId: int("userId").notNull(),
+  reason: text("reason").notNull(),
+  status: mysqlEnum("status", ["requested", "approved", "rejected", "completed"]).default("requested").notNull(),
+  adminNote: text("adminNote"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  orderIdx: index("return_requests_order_idx").on(table.orderId),
+  userIdx: index("return_requests_user_idx").on(table.userId),
+  statusIdx: index("return_requests_status_idx").on(table.status),
+}));
+
+export type ReturnRequest = typeof returnRequests.$inferSelect;
+export type InsertReturnRequest = typeof returnRequests.$inferInsert;
+
+/**
  * Quotations
  */
 export const quotations = mysqlTable("quotations", {
