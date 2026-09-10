@@ -36,6 +36,13 @@ export default function AdminOrders() {
     onSuccess: () => { toast.success("Order status updated"); refetch(); },
     onError: (e) => toast.error(e.message),
   });
+  const { data: returnRequests, refetch: refetchReturnRequests } = trpc.returns.getAll.useQuery(undefined, {
+    enabled: isAuthenticated && user?.role === "admin",
+  });
+  const updateReturnRequest = trpc.returns.update.useMutation({
+    onSuccess: () => { toast.success("Return request updated"); refetchReturnRequests(); },
+    onError: (error) => toast.error(error.message),
+  });
 
 const shippingLabelMutation = trpc.orders.generateShippingLabel.useMutation({
   onSuccess: ({ url }) => {
@@ -56,6 +63,36 @@ const shippingLabelMutation = trpc.orders.generateShippingLabel.useMutation({
       <div className="container py-8">
         <h1 className="text-2xl font-bold mb-2">Orders</h1>
         <p className="text-muted-foreground mb-6">{orders?.length || 0} total orders</p>
+
+        {returnRequests && returnRequests.length > 0 && (
+          <Card className="mb-6 border-amber-200">
+            <CardContent className="p-4">
+              <h2 className="mb-3 text-lg font-bold">Customer Return Requests</h2>
+              <div className="space-y-3">
+                {returnRequests.map((request) => (
+                  <div key={request.id} className="rounded-lg border p-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="font-semibold">{request.orderNumber} · {request.customerName}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">{request.reason}</p>
+                        {request.adminNote && <p className="mt-1 text-xs">Note: {request.adminNote}</p>}
+                      </div>
+                      <Select value={request.status} onValueChange={(status) => updateReturnRequest.mutate({ id: request.id, status: status as "requested" | "approved" | "rejected" | "completed" })}>
+                        <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="requested">Requested</SelectItem>
+                          <SelectItem value="approved">Approved</SelectItem>
+                          <SelectItem value="rejected">Rejected</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {isLoading ? (
           <div className="space-y-3">{[...Array(5)].map((_, i) => <Card key={i} className="animate-pulse"><CardContent className="p-4"><div className="h-16 bg-muted rounded" /></CardContent></Card>)}</div>
