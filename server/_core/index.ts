@@ -42,6 +42,28 @@ async function ensureProductContentColumns(): Promise<void> {
   }
 }
 
+async function ensureReturnRequestsTable(): Promise<void> {
+  if (!process.env.DATABASE_URL) return;
+  const connection = await mysql.createConnection(process.env.DATABASE_URL);
+  try {
+    await connection.execute(`CREATE TABLE IF NOT EXISTS \`return_requests\` (
+      \`id\` INT AUTO_INCREMENT PRIMARY KEY,
+      \`orderId\` INT NOT NULL,
+      \`userId\` INT NOT NULL,
+      \`reason\` TEXT NOT NULL,
+      \`status\` ENUM('requested', 'approved', 'rejected', 'completed') NOT NULL DEFAULT 'requested',
+      \`adminNote\` TEXT NULL,
+      \`createdAt\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      \`updatedAt\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX \`return_requests_order_idx\` (\`orderId\`),
+      INDEX \`return_requests_user_idx\` (\`userId\`),
+      INDEX \`return_requests_status_idx\` (\`status\`)
+    )`);
+  } finally {
+    await connection.end();
+  }
+}
+
 function escapeCatalogCsv(value: unknown): string {
   const text = String(value ?? "").replace(/\r?\n/g, " ");
   return `"${text.replace(/"/g, '""')}"`;
@@ -91,6 +113,7 @@ async function startServer() {
   // Keep existing product data intact while adding the fields used by the
   // Product Details and SEO feature.
   await ensureProductContentColumns();
+  await ensureReturnRequestsTable();
 
   // Initialize default admin account if needed
   await initializeDefaultAdmin().catch(err => {
