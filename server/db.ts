@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users, products, inventory, cartItems, orders, orderItems,
   quotations, categories, gstConfiguration, shippingRates, pinCodeZones, inventoryMovement,
-  customerNotes, customerSegments, reviews, orderTracking
+  customerNotes, customerSegments, reviews, orderTracking, returnRequests
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -425,6 +425,35 @@ export async function getOrderByRazorpayPaymentId(razorpayPaymentId: string) {
     .where(eq(orders.razorpayPaymentId, razorpayPaymentId))
     .limit(1);
   return result[0];
+}
+
+// ========================
+// RETURN REQUEST FUNCTIONS
+// ========================
+
+export async function createReturnRequest(input: { orderId: number; userId: number; reason: string }) {
+  const database = await getDb();
+  if (!database) throw new Error("Database is unavailable");
+  const result = await database.insert(returnRequests).values(input);
+  return Number((result as any)[0]?.insertId || (result as any).insertId);
+}
+
+export async function getReturnRequestsByOrderId(orderId: number) {
+  const database = await getDb();
+  if (!database) return [];
+  return database.select().from(returnRequests).where(eq(returnRequests.orderId, orderId)).orderBy(desc(returnRequests.createdAt));
+}
+
+export async function getAllReturnRequests() {
+  const database = await getDb();
+  if (!database) return [];
+  return database.select().from(returnRequests).orderBy(desc(returnRequests.createdAt));
+}
+
+export async function updateReturnRequest(input: { id: number; status: "requested" | "approved" | "rejected" | "completed"; adminNote?: string }) {
+  const database = await getDb();
+  if (!database) throw new Error("Database is unavailable");
+  await database.update(returnRequests).set({ status: input.status, adminNote: input.adminNote, updatedAt: new Date() }).where(eq(returnRequests.id, input.id));
 }
 
 export async function completeRazorpayPayment(input: {
