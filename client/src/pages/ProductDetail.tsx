@@ -462,10 +462,10 @@ const currentImage =
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <Button
                     size="lg"
-                    className="flex-1"
+                    className="min-h-14 w-full text-base font-semibold sm:min-h-12"
                     disabled={!inventory?.quantityInStock || addToCartMutation.isPending || isQuantityExceeded}
                     onClick={() => addToCartMutation.mutate({ productId, quantity, selectedColor: selectedColor || undefined, selectedSize: selectedSize || undefined })}
                   >
@@ -475,7 +475,7 @@ const currentImage =
                   <Button
                     size="lg"
                     variant="secondary"
-                    className="flex-1"
+                    className="min-h-14 w-full text-base font-semibold sm:min-h-12"
                     disabled={!inventory?.quantityInStock || addToCartMutation.isPending || isQuantityExceeded}
                     onClick={() =>
                       addToCartMutation.mutate(
