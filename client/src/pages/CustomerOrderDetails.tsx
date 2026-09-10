@@ -43,12 +43,24 @@ export default function CustomerOrderDetails() {
   const [rating, setRating] = useState(5);
   const [reviewTitle, setReviewTitle] = useState("");
   const [reviewContent, setReviewContent] = useState("");
+  const [returnReason, setReturnReason] = useState("");
 
   const { data, isLoading } = trpc.orders.getById.useQuery(orderId, {
     enabled: Number.isFinite(orderId) && orderId > 0,
   });
 
   const generateInvoice = trpc.orders.generateInvoice.useMutation();
+  const returnRequests = trpc.returns.listForOrder.useQuery(orderId, {
+    enabled: Number.isFinite(orderId) && orderId > 0,
+  });
+  const createReturnRequest = trpc.returns.create.useMutation({
+    onSuccess: () => {
+      setReturnReason("");
+      returnRequests.refetch();
+      alert("Return request submitted. We will review it shortly.");
+    },
+    onError: (error) => alert(error.message || "Return request submit nahi ho saka."),
+  });
     const reviewMutation = trpc.reviews.create.useMutation({
     onSuccess: () => {
       alert("Review successfully submitted!");
@@ -127,6 +139,9 @@ export default function CustomerOrderDetails() {
 
   const confirmedStatuses = ["confirmed", "processing", "shipped", "delivered"];
   const shippedStatuses = ["shipped", "delivered"];
+  const activeReturnRequest = returnRequests.data?.find(
+    (request) => request.status === "requested" || request.status === "approved",
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6">
@@ -289,6 +304,28 @@ export default function CustomerOrderDetails() {
             </CardContent>
           </Card>
         </div>
+        <Card className="mt-6">
+          <CardContent className="p-6">
+            <h2 className="text-xl font-bold">Return Request</h2>
+            {orderStatus !== "delivered" ? (
+              <p className="mt-2 text-sm text-gray-500">Return request delivery ke baad available hogi.</p>
+            ) : activeReturnRequest ? (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm">
+                <p className="font-semibold">Request status: {activeReturnRequest.status}</p>
+                <p className="mt-1 whitespace-pre-line">Reason: {activeReturnRequest.reason}</p>
+                {activeReturnRequest.adminNote && <p className="mt-1">Admin note: {activeReturnRequest.adminNote}</p>}
+              </div>
+            ) : (
+              <>
+                <p className="mt-2 text-sm text-gray-500">Product return karne ka reason likhiye. Hamari team request review karegi.</p>
+                <textarea value={returnReason} onChange={(event) => setReturnReason(event.target.value)} placeholder="Return reason (minimum 10 characters)" rows={4} className="mt-4 w-full rounded-md border px-3 py-2" />
+                <Button className="mt-3" disabled={createReturnRequest.isPending || returnReason.trim().length < 10} onClick={() => createReturnRequest.mutate({ orderId: order.id, reason: returnReason.trim() })}>
+                  {createReturnRequest.isPending ? "Submitting..." : "Request Return"}
+                </Button>
+              </>
+            )}
+          </CardContent>
+        </Card>
 {reviewProductId && (
   <Card className="mt-8">
     <CardContent className="p-6">
