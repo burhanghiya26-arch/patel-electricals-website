@@ -260,10 +260,11 @@ export default function Checkout() {
         handler: async (response: RazorpayPaymentResponse) => {
           try {
             const completedOrder = await verifyRazorpay.mutateAsync({
-              localOrderId: paymentOrder.localOrderId,
               razorpayOrderId: response.razorpay_order_id,
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature,
+              shippingAddress: fullAddress,
+              shippingPincode: address.pincode,
             });
 
             await finishOrder(completedOrder);
