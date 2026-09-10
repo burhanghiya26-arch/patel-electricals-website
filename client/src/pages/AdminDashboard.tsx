@@ -265,7 +265,6 @@ const monthlySales = orders
   ];
 
   const resetOptionsList = [
-    { key: "resetOrders", label: "Orders", desc: "Delete all orders and order items" },
     { key: "resetReviews", label: "Reviews", desc: "Delete all product reviews" },
     { key: "resetCartItems", label: "Cart Items", desc: "Clear all customer carts" },
     { key: "resetInventory", label: "Inventory", desc: "Reset stock to 100 units each" },
