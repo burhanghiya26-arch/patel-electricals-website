@@ -29,7 +29,7 @@ export default function AdminProducts() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [form, setForm] = useState({
     partNumber: '', name: '', description: '', categoryName: 'General',
-    basePrice: '', wholesalePrice: '', wholesaleMinQty: '1', wholesaleOnly: false, shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [] as string[],
+    basePrice: '', purchaseCost: '', wholesalePrice: '', wholesaleMinQty: '1', wholesaleOnly: false, shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [] as string[],
     colorOptions: '', sizeOptions: '',
     keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '',
   });
@@ -100,7 +100,7 @@ const uploadImage = trpc.upload.image.useMutation({
   });
 
   const resetForm = () => {
-    setForm({ partNumber: '', name: '', description: '', categoryName: 'General', basePrice: '', wholesalePrice: '', wholesaleMinQty: '1', wholesaleOnly: false, shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [], colorOptions: '', sizeOptions: '', keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '' });
+    setForm({ partNumber: '', name: '', description: '', categoryName: 'General', basePrice: '', purchaseCost: '', wholesalePrice: '', wholesaleMinQty: '1', wholesaleOnly: false, shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [], colorOptions: '', sizeOptions: '', keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '' });
     setImagePreview(null);
     setProductImageGallery([]);
     setShowForm(false);
@@ -137,10 +137,15 @@ const uploadImage = trpc.upload.image.useMutation({
       return;
     }
     const price = parseFloat(form.basePrice);
+    const purchaseCost = form.purchaseCost === '' ? null : parseFloat(form.purchaseCost);
     const wholesalePrice = parseFloat(form.wholesalePrice);
     const shippingWeightKg = parseFloat(form.shippingWeightKg);
     if (isNaN(price) || price <= 0) {
       toast.error("Valid price daalo!");
+      return;
+    }
+    if (purchaseCost !== null && (isNaN(purchaseCost) || purchaseCost < 0)) {
+      toast.error("Valid purchase cost daalo!");
       return;
     }
     if (form.wholesalePrice && (isNaN(wholesalePrice) || wholesalePrice <= 0 || wholesalePrice >= price)) {
@@ -174,6 +179,7 @@ const uploadImage = trpc.upload.image.useMutation({
           seoMetaDescription: form.seoMetaDescription.trim() || undefined,
           seoKeywords: form.seoKeywords.trim() || undefined,
           basePrice: price,
+          purchaseCost,
           wholesalePrice: form.wholesalePrice ? wholesalePrice : null,
           wholesaleMinQty: parseInt(form.wholesaleMinQty) || 1,
           wholesaleOnly: form.wholesaleOnly,
@@ -198,6 +204,7 @@ const uploadImage = trpc.upload.image.useMutation({
         seoKeywords: form.seoKeywords.trim() || undefined,
         categoryName: form.categoryName || 'General',
         basePrice: price,
+        purchaseCost: purchaseCost === null ? undefined : purchaseCost,
         wholesalePrice: form.wholesalePrice ? wholesalePrice : undefined,
         wholesaleMinQty: parseInt(form.wholesaleMinQty) || 1,
         wholesaleOnly: form.wholesaleOnly,
@@ -229,6 +236,7 @@ const uploadImage = trpc.upload.image.useMutation({
       description: product.description || '',
       categoryName: product.categoryName || 'General',
       basePrice: String(Number(product.basePrice)),
+      purchaseCost: product.purchaseCost !== null && product.purchaseCost !== undefined ? String(Number(product.purchaseCost)) : '',
       wholesalePrice: product.wholesalePrice ? String(Number(product.wholesalePrice)) : '',
       wholesaleMinQty: String(product.wholesaleMinQty || 1),
       wholesaleOnly: Boolean(product.wholesaleOnly),
@@ -402,6 +410,19 @@ const uploadImage = trpc.upload.image.useMutation({
                     onChange={(e) => setForm(prev => ({ ...prev, basePrice: e.target.value }))}
                     className="mt-1"
                   />
+                </div>
+                <div>
+                  <Label>Purchase Cost (₹)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Aapka kharid rate"
+                    value={form.purchaseCost}
+                    onChange={(e) => setForm(prev => ({ ...prev, purchaseCost: e.target.value }))}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Profit Dashboard ke liye.</p>
                 </div>
                 <div>
                   <Label>Stock Qty</Label>
