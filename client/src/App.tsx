@@ -34,6 +34,7 @@ import GoogleAnalytics from "./components/GoogleAnalytics";
 import Categories from "./pages/Categories";
 import SalesmanOrderBooking from "./pages/SalesmanOrderBooking";
 import AdminSalesmen from "./pages/AdminSalesmen";
+import ProfitDashboard from "./pages/ProfitDashboard";
 
 function Router() {
   return (
@@ -57,6 +58,7 @@ function Router() {
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/products" component={AdminProducts} />
       <Route path="/admin/orders" component={AdminOrders} />
+      <Route path="/admin/profit" component={ProfitDashboard} />
       <Route path="/admin/dealers" component={AdminDealers} />
       <Route path="/admin/salesmen" component={AdminSalesmen} />
       <Route path="/admin/shipping" component={AdminShipping} />
