@@ -1250,6 +1250,65 @@ export async function getTopProducts(limit: number = 10) {
   return result;
 }
 
+// Profit is calculated only from delivered orders. New orders carry a cost
+// snapshot per item; for older orders we use the current product cost as an
+// estimate and clearly count any item whose cost is still unknown.
+export async function getProfitDashboard(days: number | null = 30) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable");
+
+  const startDate = days === null ? null : new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const conditions = [eq(orders.orderStatus, "delivered")];
+  if (startDate) conditions.push(gte(orders.deliveredAt, startDate));
+  const deliveredOrders = await db.select().from(orders).where(and(...conditions)).orderBy(desc(orders.deliveredAt));
+
+  const totals = {
+    totalRevenue: 0, productRevenue: 0, retailRevenue: 0, wholesaleRevenue: 0,
+    costOfGoods: 0, shippingExpense: 0, razorpayFees: 0,
+    deliveredOrders: deliveredOrders.length, missingPurchaseCostItems: 0, missingRazorpayFeeOrders: 0,
+  };
+  const productProfit = new Map<number, { name: string; quantity: number; revenue: number; cost: number; profit: number }>();
+
+  for (const order of deliveredOrders) {
+    const isWholesale = Boolean(order.createdBySalesRepId);
+    totals.totalRevenue += Number(order.totalAmount || 0);
+    totals.shippingExpense += Number(order.manualShippingCharge ?? order.shippingCost ?? 0);
+    totals.razorpayFees += Number(order.razorpayFee ?? 0);
+    if (order.paymentMethod === "razorpay" && order.razorpayFee === null) totals.missingRazorpayFeeOrders += 1;
+
+    const items = await db.select({
+      productId: orderItems.productId, quantity: orderItems.quantity, totalPrice: orderItems.totalPrice,
+      purchaseCost: orderItems.purchaseCost, productName: products.name, currentPurchaseCost: products.purchaseCost,
+    }).from(orderItems).leftJoin(products, eq(orderItems.productId, products.id)).where(eq(orderItems.orderId, order.id));
+
+    for (const item of items) {
+      const revenue = Number(item.totalPrice || 0);
+      const unitCost = item.purchaseCost ?? item.currentPurchaseCost;
+      const costKnown = unitCost !== null && unitCost !== undefined;
+      const cost = costKnown ? Number(unitCost) * item.quantity : 0;
+      totals.productRevenue += revenue;
+      totals.costOfGoods += cost;
+      if (isWholesale) totals.wholesaleRevenue += revenue;
+      else totals.retailRevenue += revenue;
+      if (!costKnown) totals.missingPurchaseCostItems += 1;
+
+      const existing = productProfit.get(item.productId) || { name: item.productName || `Product #${item.productId}`, quantity: 0, revenue: 0, cost: 0, profit: 0 };
+      existing.quantity += item.quantity;
+      existing.revenue += revenue;
+      existing.cost += cost;
+      existing.profit += revenue - cost;
+      productProfit.set(item.productId, existing);
+    }
+  }
+
+  const grossProfit = totals.productRevenue - totals.costOfGoods;
+  return {
+    periodDays: days, ...totals, grossProfit,
+    netProfit: totals.totalRevenue - totals.costOfGoods - totals.shippingExpense - totals.razorpayFees,
+    topProducts: Array.from(productProfit.values()).sort((a, b) => b.profit - a.profit).slice(0, 10),
+  };
+}
+
 export async function getOrderStatusBreakdown() {
   const db = await getDb();
   if (!db) return {};
