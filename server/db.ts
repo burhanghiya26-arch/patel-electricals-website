@@ -159,7 +159,7 @@ export async function updateUserCreditLimit(userId: number, creditLimit: number,
 export async function getProductsByCategory(categoryId: number) {
   const db = await getDb();
   if (!db) return [];
-  return await db.select().from(products).where(and(eq(products.categoryId, categoryId), eq(products.isActive, true)));
+  return await db.select().from(products).where(and(eq(products.categoryId, categoryId), eq(products.isActive, true), eq(products.wholesaleOnly, false)));
 }
 
 export async function searchProducts(query: string, categoryId?: number, minPrice?: number, maxPrice?: number) {
@@ -168,6 +168,7 @@ export async function searchProducts(query: string, categoryId?: number, minPric
   const searchPattern = `%${query}%`;
   const conditions: any[] = [
     eq(products.isActive, true),
+    eq(products.wholesaleOnly, false),
     or(
       like(products.partNumber, searchPattern),
       like(products.name, searchPattern),
@@ -210,7 +211,7 @@ export async function getAllProducts(limit = 50, offset = 0) {
     minimumOrderQuantity: inventory.minimumOrderQuantity,
   }).from(products)
     .leftJoin(inventory, eq(products.id, inventory.productId))
-    .where(eq(products.isActive, true))
+    .where(and(eq(products.isActive, true), eq(products.wholesaleOnly, false)))
     .limit(limit)
     .offset(offset);
 }
@@ -247,6 +248,7 @@ export async function createProduct(data: any) {
     basePrice: String(data.basePrice || '0'),
     wholesalePrice: data.wholesalePrice ? String(data.wholesalePrice) : null,
     wholesaleMinQty: Number(data.wholesaleMinQty || 1),
+    wholesaleOnly: Boolean(data.wholesaleOnly),
     compatibleModels: data.compatibleModels || null,
     compatibleBrands: data.compatibleBrands || null,
     alternatePartNumbers: data.alternatePartNumbers || null,
@@ -602,6 +604,34 @@ export async function createDeliveryStaff(input: {
   } as any);
 
   return { id: Number((result as any)[0]?.insertId || (result as any).insertId) };
+}
+
+export async function createSalesman(input: { name: string; email: string; phone?: string; password: string }) {
+  const database = await getDb();
+  if (!database) throw new Error("Database not available");
+  if (await getUserByEmail(input.email)) throw new Error("This email is already in use");
+  const bcrypt = await import("bcryptjs").then((module) => module.default || module);
+  const passwordHash = await bcrypt.hash(input.password, 10);
+  const result = await database.insert(users).values({
+    openId: `salesman_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+    name: input.name, email: input.email, businessPhone: input.phone || null, passwordHash,
+    loginMethod: "salesman_portal", role: "sales_rep", isVerified: true, lastSignedIn: new Date(),
+  } as any);
+  return { id: Number((result as any)[0]?.insertId || (result as any).insertId) };
+}
+
+export async function getSalesmen() {
+  const database = await getDb();
+  if (!database) return [];
+  return database.select({ id: users.id, name: users.name, email: users.email, phone: users.businessPhone, isActive: users.isVerified })
+    .from(users).where(eq(users.loginMethod, "salesman_portal")).orderBy(asc(users.name));
+}
+
+export async function authenticateSalesman(email: string, password: string) {
+  const staff = await getUserByEmail(email);
+  if (!staff || staff.role !== "sales_rep" || staff.loginMethod !== "salesman_portal" || !staff.passwordHash) return null;
+  const bcrypt = await import("bcryptjs").then((module) => module.default || module);
+  return (await bcrypt.compare(password, staff.passwordHash)) ? staff : null;
 }
 
 export async function getDeliveryStaff() {
