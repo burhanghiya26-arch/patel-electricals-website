@@ -247,6 +247,7 @@ export async function createProduct(data: any) {
     seoKeywords: data.seoKeywords || null,
     basePrice: String(data.basePrice || '0'),
     wholesalePrice: data.wholesalePrice ? String(data.wholesalePrice) : null,
+    purchaseCost: data.purchaseCost ? String(data.purchaseCost) : null,
     wholesaleMinQty: Number(data.wholesaleMinQty || 1),
     wholesaleOnly: Boolean(data.wholesaleOnly),
     compatibleModels: data.compatibleModels || null,
