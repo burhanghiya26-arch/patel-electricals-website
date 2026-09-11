@@ -12,7 +12,7 @@ type CartLine = { productId: number; quantity: number };
 
 export default function SalesmanOrderBooking() {
   const utils = trpc.useUtils();
-  const staff = trpc.delivery.me.useQuery(undefined, { retry: false });
+  const staff = trpc.salesman.me.useQuery(undefined, { retry: false });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const products = trpc.salesmanOrders.products.useQuery(undefined, { enabled: Boolean(staff.data) });
@@ -27,10 +27,10 @@ export default function SalesmanOrderBooking() {
     },
     onError: error => toast.error(error.message),
   });
-  const login = trpc.delivery.login.useMutation({
+  const login = trpc.salesman.login.useMutation({
     onSuccess: async () => {
       toast.success("Salesman login successful");
-      await utils.delivery.me.invalidate();
+      await utils.salesman.me.invalidate();
       await utils.salesmanOrders.products.invalidate();
     },
     onError: error => toast.error(error.message),
