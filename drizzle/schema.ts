@@ -97,7 +97,11 @@ export const products = mysqlTable("products", {
   seoKeywords: text("seoKeywords"),
   
   // Pricing
+  // basePrice remains the retail/customer price. Wholesale price is visible
+  // only in the salesman booking panel.
   basePrice: decimal("basePrice", { precision: 12, scale: 2 }).notNull(),
+  wholesalePrice: decimal("wholesalePrice", { precision: 12, scale: 2 }),
+  wholesaleMinQty: int("wholesaleMinQty").default(1).notNull(),
   // Packed product weight in kg. This is only used for Shiprocket quotes
   // outside the local Surat delivery zone.
   shippingWeightKg: decimal("shippingWeightKg", { precision: 8, scale: 3 }),
@@ -219,6 +223,12 @@ export const orders = mysqlTable("orders", {
   // Shipping
   shippingAddress: text("shippingAddress").notNull(),
   shippingMethod: varchar("shippingMethod", { length: 50 }),
+  // Filled only when a salesman books an order at a shop. The shop never
+  // needs a website account or password.
+  shopName: varchar("shopName", { length: 255 }),
+  customerName: varchar("customerName", { length: 255 }),
+  customerPhone: varchar("customerPhone", { length: 20 }),
+  createdBySalesRepId: int("createdBySalesRepId"),
   
   // Payment
   paymentMethod: mysqlEnum("paymentMethod", ["upi", "bank_transfer", "card", "cod", "razorpay", "credit"]).notNull(),
