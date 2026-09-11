@@ -118,7 +118,9 @@ const shippingLabelMutation = trpc.orders.generateShippingLabel.useMutation({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
                         <div>
                           <p className="text-xs font-semibold text-muted-foreground uppercase">Customer</p>
-                          <p className="text-sm">{order.userName || "N/A"}</p>
+                          <p className="text-sm">{order.shopName || order.userName || "N/A"}</p>
+                          {order.customerName && <p className="text-xs text-muted-foreground">{order.customerName} · {order.customerPhone}</p>}
+                          {order.salesmanName && <p className="text-xs text-blue-600">Booked by: {order.salesmanName}</p>}
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-muted-foreground uppercase">Shipping Address</p>
