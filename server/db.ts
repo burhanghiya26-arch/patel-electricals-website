@@ -646,7 +646,7 @@ export async function getDeliveryStaff() {
       isActive: users.isVerified,
     })
     .from(users)
-    .where(eq(users.role, "sales_rep"))
+    .where(eq(users.loginMethod, "delivery_portal"))
     .orderBy(asc(users.name));
 }
 
