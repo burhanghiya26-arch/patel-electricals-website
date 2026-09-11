@@ -245,6 +245,8 @@ export async function createProduct(data: any) {
     seoMetaDescription: data.seoMetaDescription || null,
     seoKeywords: data.seoKeywords || null,
     basePrice: String(data.basePrice || '0'),
+    wholesalePrice: data.wholesalePrice ? String(data.wholesalePrice) : null,
+    wholesaleMinQty: Number(data.wholesaleMinQty || 1),
     compatibleModels: data.compatibleModels || null,
     compatibleBrands: data.compatibleBrands || null,
     alternatePartNumbers: data.alternatePartNumbers || null,
