@@ -238,6 +238,8 @@ export const orders = mysqlTable("orders", {
   paymentStatus: mysqlEnum("paymentStatus", ["pending", "completed", "failed", "refunded"]).default("pending").notNull(),
   razorpayOrderId: varchar("razorpayOrderId", { length: 100 }),
   razorpayPaymentId: varchar("razorpayPaymentId", { length: 100 }),
+  // Actual Razorpay processing fee, saved after the payment is captured.
+  razorpayFee: decimal("razorpayFee", { precision: 12, scale: 2 }),
   
   // Order status
   orderStatus: mysqlEnum("orderStatus", ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"]).default("pending").notNull(),
@@ -281,6 +283,9 @@ export const orderItems = mysqlTable("order_items", {
   quantity: int("quantity").notNull(),
   unitPrice: decimal("unitPrice", { precision: 12, scale: 2 }).notNull(),
   totalPrice: decimal("totalPrice", { precision: 12, scale: 2 }).notNull(),
+  // The buying cost at order time. This preserves correct historical profit
+  // even if the product purchase cost changes later.
+  purchaseCost: decimal("purchaseCost", { precision: 12, scale: 2 }),
   selectedColor: varchar("selectedColor", { length: 100 }),
   selectedSize: varchar("selectedSize", { length: 100 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
