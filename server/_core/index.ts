@@ -64,6 +64,30 @@ async function ensureReturnRequestsTable(): Promise<void> {
   }
 }
 
+async function ensureSalesmanBookingColumns(): Promise<void> {
+  if (!process.env.DATABASE_URL) return;
+  const connection = await mysql.createConnection(process.env.DATABASE_URL);
+  const changes = [
+    { table: "products", name: "wholesalePrice", definition: "DECIMAL(12,2) NULL" },
+    { table: "products", name: "wholesaleMinQty", definition: "INT NOT NULL DEFAULT 1" },
+    { table: "orders", name: "shopName", definition: "VARCHAR(255) NULL" },
+    { table: "orders", name: "customerName", definition: "VARCHAR(255) NULL" },
+    { table: "orders", name: "customerPhone", definition: "VARCHAR(20) NULL" },
+    { table: "orders", name: "createdBySalesRepId", definition: "INT NULL" },
+  ];
+  try {
+    for (const change of changes) {
+      try {
+        await connection.execute(`ALTER TABLE \`${change.table}\` ADD COLUMN \`${change.name}\` ${change.definition}`);
+      } catch (error: any) {
+        if (error?.code !== "ER_DUP_FIELDNAME" && error?.errno !== 1060) throw error;
+      }
+    }
+  } finally {
+    await connection.end();
+  }
+}
+
 function escapeCatalogCsv(value: unknown): string {
   const text = String(value ?? "").replace(/\r?\n/g, " ");
   return `"${text.replace(/"/g, '""')}"`;
@@ -114,6 +138,7 @@ async function startServer() {
   // Product Details and SEO feature.
   await ensureProductContentColumns();
   await ensureReturnRequestsTable();
+  await ensureSalesmanBookingColumns();
 
   // Initialize default admin account if needed
   await initializeDefaultAdmin().catch(err => {
