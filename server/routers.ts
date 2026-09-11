@@ -1,7 +1,7 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router, protectedProcedure, adminProcedure, deliveryProcedure } from "./_core/trpc";
+import { publicProcedure, router, protectedProcedure, adminProcedure, deliveryProcedure, salesmanProcedure } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
 import { TRPCError } from "@trpc/server";
@@ -409,6 +409,7 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const product = await db.getProductById(input);
         if (!product) throw new TRPCError({ code: 'NOT_FOUND' });
+        if (product.wholesaleOnly) throw new TRPCError({ code: 'NOT_FOUND' });
         const inventory = await db.getInventoryByProductId(input);
         return { product, inventory };
       }),
@@ -432,6 +433,7 @@ export const appRouter = router({
         basePrice: z.number(),
         wholesalePrice: z.number().positive().optional(),
         wholesaleMinQty: z.number().int().positive().optional(),
+        wholesaleOnly: z.boolean().optional(),
         shippingWeightKg: z.number().positive().optional(),
         compatibleModels: z.array(z.string()).optional(),
         compatibleBrands: z.array(z.string()).optional(),
@@ -452,6 +454,7 @@ export const appRouter = router({
           basePrice: String(input.basePrice),
           wholesalePrice: input.wholesalePrice ? String(input.wholesalePrice) : null,
           wholesaleMinQty: input.wholesaleMinQty || 1,
+          wholesaleOnly: input.wholesaleOnly || false,
           compatibleModels: input.compatibleModels || null,
           compatibleBrands: input.compatibleBrands || null,
           alternatePartNumbers: input.alternatePartNumbers || null,
@@ -480,7 +483,7 @@ export const appRouter = router({
           specifications: z.array(z.object({ name: z.string(), value: z.string() })).optional(),
           seoMetaDescription: z.string().max(320).optional(),
           seoKeywords: z.string().max(1000).optional(),
-          basePrice: z.number().optional(), wholesalePrice: z.number().positive().nullable().optional(), wholesaleMinQty: z.number().int().positive().optional(), shippingWeightKg: z.number().positive().optional(), isActive: z.boolean().optional(),
+          basePrice: z.number().optional(), wholesalePrice: z.number().positive().nullable().optional(), wholesaleMinQty: z.number().int().positive().optional(), wholesaleOnly: z.boolean().optional(), shippingWeightKg: z.number().positive().optional(), isActive: z.boolean().optional(),
           partNumber: z.string().optional(), categoryName: z.string().optional(),
           imageUrl: z.string().optional(), productImages: z.array(z.string()).optional(),
           colorOptions: z.array(z.string()).optional(),
@@ -774,7 +777,7 @@ export const appRouter = router({
   }),
 
   salesmanOrders: router({
-    products: deliveryProcedure.query(async () => {
+    products: salesmanProcedure.query(async () => {
       const products = await db.getAllProducts(500, 0);
       const inventory = await db.getAllInventory();
       return products.map(product => ({
@@ -788,7 +791,7 @@ export const appRouter = router({
       })).filter(product => product.wholesalePrice !== null && Number(product.wholesalePrice) > 0);
     }),
 
-    create: deliveryProcedure
+    create: salesmanProcedure
       .input(z.object({
         shopName: z.string().trim().min(2).max(255),
         customerName: z.string().trim().min(2).max(255),
@@ -839,6 +842,23 @@ export const appRouter = router({
         await db.addOrderItems(orderId, orderItemsData);
         return { success: true, orderId, orderNumber, totalAmount };
       }),
+  }),
+
+  salesman: router({
+    login: publicProcedure.input(z.object({ email: z.string().email(), password: z.string().min(1) })).mutation(async ({ input, ctx }) => {
+      const salesman = await db.authenticateSalesman(input.email, input.password);
+      if (!salesman) throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid salesman login details" });
+      const token = jwt.sign({ id: salesman.id, email: salesman.email, type: "salesman" }, process.env.JWT_SECRET || "secret", { expiresIn: "7d" });
+      ctx.res.cookie("customer_session", token, { ...getSessionCookieOptions(ctx.req), maxAge: 7 * 24 * 60 * 60 * 1000 });
+      return { success: true, name: salesman.name };
+    }),
+    logout: publicProcedure.mutation(({ ctx }) => { ctx.res.clearCookie("customer_session"); return { success: true }; }),
+    me: salesmanProcedure.query(({ ctx }) => ({ id: ctx.user.id, name: ctx.user.name, email: ctx.user.email })),
+    list: adminProcedure.query(() => db.getSalesmen()),
+    create: adminProcedure.input(z.object({ name: z.string().trim().min(2), email: z.string().email(), phone: z.string().trim().min(6).max(20).optional(), password: z.string().min(6) })).mutation(async ({ input }) => {
+      try { const salesman = await db.createSalesman(input); return { success: true, salesmanId: salesman.id }; }
+      catch (error: any) { throw new TRPCError({ code: "BAD_REQUEST", message: error.message || "Could not create salesman" }); }
+    }),
   }),
 
   orders: router({
