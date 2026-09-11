@@ -29,7 +29,7 @@ export default function AdminProducts() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [form, setForm] = useState({
     partNumber: '', name: '', description: '', categoryName: 'General',
-    basePrice: '', wholesalePrice: '', wholesaleMinQty: '1', shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [] as string[],
+    basePrice: '', wholesalePrice: '', wholesaleMinQty: '1', wholesaleOnly: false, shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [] as string[],
     colorOptions: '', sizeOptions: '',
     keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '',
   });
@@ -100,7 +100,7 @@ const uploadImage = trpc.upload.image.useMutation({
   });
 
   const resetForm = () => {
-    setForm({ partNumber: '', name: '', description: '', categoryName: 'General', basePrice: '', wholesalePrice: '', wholesaleMinQty: '1', shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [], colorOptions: '', sizeOptions: '', keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '' });
+    setForm({ partNumber: '', name: '', description: '', categoryName: 'General', basePrice: '', wholesalePrice: '', wholesaleMinQty: '1', wholesaleOnly: false, shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [], colorOptions: '', sizeOptions: '', keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '' });
     setImagePreview(null);
     setProductImageGallery([]);
     setShowForm(false);
@@ -176,6 +176,7 @@ const uploadImage = trpc.upload.image.useMutation({
           basePrice: price,
           wholesalePrice: form.wholesalePrice ? wholesalePrice : null,
           wholesaleMinQty: parseInt(form.wholesaleMinQty) || 1,
+          wholesaleOnly: form.wholesaleOnly,
           shippingWeightKg,
           categoryName: form.categoryName || 'General',
           imageUrl: form.imageUrl,
@@ -199,6 +200,7 @@ const uploadImage = trpc.upload.image.useMutation({
         basePrice: price,
         wholesalePrice: form.wholesalePrice ? wholesalePrice : undefined,
         wholesaleMinQty: parseInt(form.wholesaleMinQty) || 1,
+        wholesaleOnly: form.wholesaleOnly,
         shippingWeightKg,
         stock: form.stock ? parseInt(form.stock) : 0,
         moq: form.moq ? parseInt(form.moq) : 1,
@@ -229,6 +231,7 @@ const uploadImage = trpc.upload.image.useMutation({
       basePrice: String(Number(product.basePrice)),
       wholesalePrice: product.wholesalePrice ? String(Number(product.wholesalePrice)) : '',
       wholesaleMinQty: String(product.wholesaleMinQty || 1),
+      wholesaleOnly: Boolean(product.wholesaleOnly),
       shippingWeightKg: product.shippingWeightKg ? String(Number(product.shippingWeightKg)) : '',
       stock: String(product.inventory?.quantityInStock || 0),
       moq: String(product.inventory?.minimumOrderQuantity || 1),
@@ -418,6 +421,10 @@ const uploadImage = trpc.upload.image.useMutation({
                 <div>
                   <Label>Wholesale Min Qty</Label>
                   <Input type="number" min="1" value={form.wholesaleMinQty} onChange={(e) => setForm(prev => ({ ...prev, wholesaleMinQty: e.target.value }))} className="mt-1" />
+                </div>
+                <div className="flex items-center gap-2 sm:col-span-2">
+                  <input id="wholesale-only" type="checkbox" checked={form.wholesaleOnly} onChange={(e) => setForm(prev => ({ ...prev, wholesaleOnly: e.target.checked }))} />
+                  <Label htmlFor="wholesale-only">Wholesale only — normal online customers ko hide karein</Label>
                 </div>
                 <div>
                   <Label>Shipping Weight (kg) *</Label>
