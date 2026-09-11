@@ -430,6 +430,8 @@ export const appRouter = router({
         seoKeywords: z.string().max(1000).optional(),
         categoryName: z.string().default("General"),
         basePrice: z.number(),
+        wholesalePrice: z.number().positive().optional(),
+        wholesaleMinQty: z.number().int().positive().optional(),
         shippingWeightKg: z.number().positive().optional(),
         compatibleModels: z.array(z.string()).optional(),
         compatibleBrands: z.array(z.string()).optional(),
@@ -448,6 +450,8 @@ export const appRouter = router({
           ...rest,
           categoryId,
           basePrice: String(input.basePrice),
+          wholesalePrice: input.wholesalePrice ? String(input.wholesalePrice) : null,
+          wholesaleMinQty: input.wholesaleMinQty || 1,
           compatibleModels: input.compatibleModels || null,
           compatibleBrands: input.compatibleBrands || null,
           alternatePartNumbers: input.alternatePartNumbers || null,
@@ -476,7 +480,7 @@ export const appRouter = router({
           specifications: z.array(z.object({ name: z.string(), value: z.string() })).optional(),
           seoMetaDescription: z.string().max(320).optional(),
           seoKeywords: z.string().max(1000).optional(),
-          basePrice: z.number().optional(), shippingWeightKg: z.number().positive().optional(), isActive: z.boolean().optional(),
+          basePrice: z.number().optional(), wholesalePrice: z.number().positive().nullable().optional(), wholesaleMinQty: z.number().int().positive().optional(), shippingWeightKg: z.number().positive().optional(), isActive: z.boolean().optional(),
           partNumber: z.string().optional(), categoryName: z.string().optional(),
           imageUrl: z.string().optional(), productImages: z.array(z.string()).optional(),
           colorOptions: z.array(z.string()).optional(),
@@ -488,6 +492,7 @@ export const appRouter = router({
         const { categoryName, stock, moq, productImages, colorOptions, sizeOptions, ...restData } = input.data;
         const updateData: any = { ...restData };
         if (updateData.basePrice) updateData.basePrice = String(updateData.basePrice);
+        if (updateData.wholesalePrice !== undefined && updateData.wholesalePrice !== null) updateData.wholesalePrice = String(updateData.wholesalePrice);
         if (productImages) updateData.productImages = productImages;
         if (colorOptions) updateData.colorOptions = colorOptions;
         if (sizeOptions) updateData.sizeOptions = sizeOptions;
@@ -768,6 +773,74 @@ export const appRouter = router({
       }),
   }),
 
+  salesmanOrders: router({
+    products: deliveryProcedure.query(async () => {
+      const products = await db.getAllProducts(500, 0);
+      const inventory = await db.getAllInventory();
+      return products.map(product => ({
+        id: product.id,
+        name: product.name,
+        partNumber: product.partNumber,
+        imageUrl: product.imageUrl,
+        wholesalePrice: product.wholesalePrice,
+        wholesaleMinQty: product.wholesaleMinQty || 1,
+        quantityInStock: inventory.find(item => item.productId === product.id)?.quantityInStock || 0,
+      })).filter(product => product.wholesalePrice !== null && Number(product.wholesalePrice) > 0);
+    }),
+
+    create: deliveryProcedure
+      .input(z.object({
+        shopName: z.string().trim().min(2).max(255),
+        customerName: z.string().trim().min(2).max(255),
+        customerPhone: z.string().trim().min(8).max(20),
+        shippingAddress: z.string().trim().min(10).max(2000),
+        paymentMethod: z.enum(["upi", "bank_transfer", "card", "cod", "credit"]),
+        paymentStatus: z.enum(["pending", "completed"]).default("pending"),
+        notes: z.string().trim().max(1000).optional(),
+        items: z.array(z.object({ productId: z.number().int().positive(), quantity: z.number().int().positive() })).min(1),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        let totalAmount = 0;
+        const orderItemsData: Array<{ productId: number; quantity: number; unitPrice: string; totalPrice: string }> = [];
+        for (const line of input.items) {
+          const product = await db.getProductById(line.productId);
+          const inventory = await db.getInventoryByProductId(line.productId);
+          const wholesalePrice = Number(product?.wholesalePrice);
+          const minQty = product?.wholesaleMinQty || 1;
+          if (!product || !Number.isFinite(wholesalePrice) || wholesalePrice <= 0) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "A selected product has no wholesale price." });
+          }
+          if (line.quantity < minQty) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: `${product.name} has a minimum wholesale quantity of ${minQty}.` });
+          }
+          if ((inventory?.quantityInStock || 0) < line.quantity) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: `${product.name} does not have enough stock.` });
+          }
+          const lineTotal = wholesalePrice * line.quantity;
+          totalAmount += lineTotal;
+          orderItemsData.push({ productId: product.id, quantity: line.quantity, unitPrice: String(wholesalePrice), totalPrice: String(lineTotal) });
+        }
+        const orderNumber = `SLS-${Date.now()}`;
+        const orderId = await db.createOrder({
+          orderNumber,
+          // The salesman is the authenticated operator. Shop details below are
+          // the actual buyer and do not create a customer website account.
+          userId: ctx.user.id,
+          shopName: input.shopName,
+          customerName: input.customerName,
+          customerPhone: input.customerPhone,
+          createdBySalesRepId: ctx.user.id,
+          totalAmount: String(totalAmount), gstAmount: "0", shippingCost: "0",
+          shippingAddress: input.shippingAddress, shippingMethod: "salesman_booking",
+          paymentMethod: input.paymentMethod, paymentStatus: input.paymentStatus,
+          orderStatus: "pending", notes: input.notes || "Salesman-booked wholesale order",
+        });
+        if (!orderId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Order could not be saved." });
+        await db.addOrderItems(orderId, orderItemsData);
+        return { success: true, orderId, orderNumber, totalAmount };
+      }),
+  }),
+
   orders: router({
     list: protectedProcedure.query(async ({ ctx }) => {
   return db.getOrdersByUserId(ctx.user.id);
@@ -904,7 +977,8 @@ export const appRouter = router({
             const product = await db.getProductById(item.productId);
             return { ...item, productName: product?.name, partNumber: product?.partNumber, productImage: product?.imageUrl, basePrice: product?.basePrice };
           }));
-          return { ...order, userName: user?.name || user?.email || 'Unknown', items: itemsWithProduct };
+          const salesman = order.createdBySalesRepId ? await db.getUserById(order.createdBySalesRepId) : null;
+          return { ...order, userName: order.customerName || user?.name || user?.email || 'Unknown', salesmanName: salesman?.name || null, items: itemsWithProduct };
         }));
         return result;
       }),
