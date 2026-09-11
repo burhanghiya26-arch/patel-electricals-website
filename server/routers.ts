@@ -1286,6 +1286,10 @@ export const appRouter = router({
       .input(z.object({ limit: z.number().default(10) }))
       .query(async ({ input }) => db.getTopProducts(input.limit)),
 
+    profit: adminProcedure
+      .input(z.object({ days: z.number().int().min(1).max(3650).nullable().default(30) }))
+      .query(async ({ input }) => db.getProfitDashboard(input.days)),
+
     orderStatusBreakdown: adminProcedure.query(async () => db.getOrderStatusBreakdown()),
 
     paymentMethodBreakdown: adminProcedure.query(async () => db.getPaymentMethodBreakdown()),
@@ -1704,4 +1708,3 @@ export const appRouter = router({
 
 });
 export type AppRouter = typeof appRouter;
-
