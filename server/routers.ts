@@ -778,17 +778,23 @@ export const appRouter = router({
 
   salesmanOrders: router({
     products: salesmanProcedure.query(async () => {
-      const products = await db.getAllProducts(500, 0);
+      // Use the staff catalog so wholesale-only products stay hidden from
+      // normal customers but are visible to a logged-in salesman.
+      const products = await db.getAllProductsAdmin(500, 0);
       const inventory = await db.getAllInventory();
-      return products.map(product => ({
+      return Promise.all(products.map(async product => {
+        const category = await db.getCategoryById(product.categoryId);
+        return {
         id: product.id,
         name: product.name,
         partNumber: product.partNumber,
         imageUrl: product.imageUrl,
+        categoryName: category?.name || "General",
         wholesalePrice: product.wholesalePrice,
         wholesaleMinQty: product.wholesaleMinQty || 1,
         quantityInStock: inventory.find(item => item.productId === product.id)?.quantityInStock || 0,
-      })).filter(product => product.wholesalePrice !== null && Number(product.wholesalePrice) > 0);
+        };
+      })).then(items => items.filter(product => product.wholesalePrice !== null && Number(product.wholesalePrice) > 0));
     }),
 
     create: salesmanProcedure
