@@ -93,6 +93,7 @@ async function prepareOrderFromCart(userId: number, shippingPincode: string) {
     quantity: number;
     unitPrice: string;
     totalPrice: string;
+    purchaseCost?: string;
     selectedColor?: string;
     selectedSize?: string;
   }> = [];
@@ -116,6 +117,7 @@ async function prepareOrderFromCart(userId: number, shippingPincode: string) {
       quantity: item.quantity,
       unitPrice: String(Number(product.basePrice)),
       totalPrice: String(itemTotal),
+      purchaseCost: product.purchaseCost !== null && product.purchaseCost !== undefined ? String(Number(product.purchaseCost)) : undefined,
       selectedColor: item.selectedColor || undefined,
       selectedSize: item.selectedSize || undefined,
     });
@@ -687,6 +689,9 @@ export const appRouter = router({
         // The first database write for an online order happens only after the
         // payment is captured and independently verified with Razorpay.
         const orderNumber = `ORD-${Date.now()}`;
+        const razorpayFee = Number.isFinite(Number(payment?.fee)) && Number(payment.fee) >= 0
+          ? String(Number(payment.fee) / 100)
+          : null;
         const orderId = await db.createOrder({
           orderNumber,
           userId: ctx.user.id,
@@ -699,6 +704,7 @@ export const appRouter = router({
           paymentStatus: "completed",
           razorpayOrderId: input.razorpayOrderId,
           razorpayPaymentId: input.razorpayPaymentId,
+          razorpayFee,
           orderStatus: "pending",
           notes: "Online payment captured by Razorpay",
         });
@@ -813,7 +819,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         let totalAmount = 0;
-        const orderItemsData: Array<{ productId: number; quantity: number; unitPrice: string; totalPrice: string }> = [];
+        const orderItemsData: Array<{ productId: number; quantity: number; unitPrice: string; totalPrice: string; purchaseCost?: string }> = [];
         for (const line of input.items) {
           const product = await db.getProductById(line.productId);
           const inventory = await db.getInventoryByProductId(line.productId);
@@ -830,7 +836,13 @@ export const appRouter = router({
           }
           const lineTotal = wholesalePrice * line.quantity;
           totalAmount += lineTotal;
-          orderItemsData.push({ productId: product.id, quantity: line.quantity, unitPrice: String(wholesalePrice), totalPrice: String(lineTotal) });
+          orderItemsData.push({
+            productId: product.id,
+            quantity: line.quantity,
+            unitPrice: String(wholesalePrice),
+            totalPrice: String(lineTotal),
+            purchaseCost: product.purchaseCost !== null && product.purchaseCost !== undefined ? String(Number(product.purchaseCost)) : undefined,
+          });
         }
         const orderNumber = `SLS-${Date.now()}`;
         const orderId = await db.createOrder({
@@ -925,6 +937,7 @@ export const appRouter = router({
             quantity: item.quantity,
             unitPrice: String(Number(product.basePrice)),
             totalPrice: String(itemTotal),
+            purchaseCost: product.purchaseCost !== null && product.purchaseCost !== undefined ? String(Number(product.purchaseCost)) : undefined,
             selectedColor: item.selectedColor || undefined,
             selectedSize: item.selectedSize || undefined,
           });
