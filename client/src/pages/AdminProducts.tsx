@@ -29,7 +29,7 @@ export default function AdminProducts() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [form, setForm] = useState({
     partNumber: '', name: '', description: '', categoryName: 'General',
-    basePrice: '', shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [] as string[],
+    basePrice: '', wholesalePrice: '', wholesaleMinQty: '1', shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [] as string[],
     colorOptions: '', sizeOptions: '',
     keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '',
   });
@@ -100,7 +100,7 @@ const uploadImage = trpc.upload.image.useMutation({
   });
 
   const resetForm = () => {
-    setForm({ partNumber: '', name: '', description: '', categoryName: 'General', basePrice: '', shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [], colorOptions: '', sizeOptions: '', keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '' });
+    setForm({ partNumber: '', name: '', description: '', categoryName: 'General', basePrice: '', wholesalePrice: '', wholesaleMinQty: '1', shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [], colorOptions: '', sizeOptions: '', keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '' });
     setImagePreview(null);
     setProductImageGallery([]);
     setShowForm(false);
@@ -137,9 +137,14 @@ const uploadImage = trpc.upload.image.useMutation({
       return;
     }
     const price = parseFloat(form.basePrice);
+    const wholesalePrice = parseFloat(form.wholesalePrice);
     const shippingWeightKg = parseFloat(form.shippingWeightKg);
     if (isNaN(price) || price <= 0) {
       toast.error("Valid price daalo!");
+      return;
+    }
+    if (form.wholesalePrice && (isNaN(wholesalePrice) || wholesalePrice <= 0 || wholesalePrice >= price)) {
+      toast.error("Wholesale price retail price se kam aur valid hona chahiye!");
       return;
     }
     if (isNaN(shippingWeightKg) || shippingWeightKg <= 0) {
@@ -169,6 +174,8 @@ const uploadImage = trpc.upload.image.useMutation({
           seoMetaDescription: form.seoMetaDescription.trim() || undefined,
           seoKeywords: form.seoKeywords.trim() || undefined,
           basePrice: price,
+          wholesalePrice: form.wholesalePrice ? wholesalePrice : null,
+          wholesaleMinQty: parseInt(form.wholesaleMinQty) || 1,
           shippingWeightKg,
           categoryName: form.categoryName || 'General',
           imageUrl: form.imageUrl,
@@ -190,6 +197,8 @@ const uploadImage = trpc.upload.image.useMutation({
         seoKeywords: form.seoKeywords.trim() || undefined,
         categoryName: form.categoryName || 'General',
         basePrice: price,
+        wholesalePrice: form.wholesalePrice ? wholesalePrice : undefined,
+        wholesaleMinQty: parseInt(form.wholesaleMinQty) || 1,
         shippingWeightKg,
         stock: form.stock ? parseInt(form.stock) : 0,
         moq: form.moq ? parseInt(form.moq) : 1,
@@ -218,6 +227,8 @@ const uploadImage = trpc.upload.image.useMutation({
       description: product.description || '',
       categoryName: product.categoryName || 'General',
       basePrice: String(Number(product.basePrice)),
+      wholesalePrice: product.wholesalePrice ? String(Number(product.wholesalePrice)) : '',
+      wholesaleMinQty: String(product.wholesaleMinQty || 1),
       shippingWeightKg: product.shippingWeightKg ? String(Number(product.shippingWeightKg)) : '',
       stock: String(product.inventory?.quantityInStock || 0),
       moq: String(product.inventory?.minimumOrderQuantity || 1),
@@ -399,6 +410,14 @@ const uploadImage = trpc.upload.image.useMutation({
                     onChange={(e) => setForm(prev => ({ ...prev, stock: e.target.value }))}
                     className="mt-1"
                   />
+                </div>
+                <div>
+                  <Label>Wholesale Price (₹)</Label>
+                  <Input type="number" min="0" step="0.01" placeholder="Dealer / salesman rate" value={form.wholesalePrice} onChange={(e) => setForm(prev => ({ ...prev, wholesalePrice: e.target.value }))} className="mt-1" />
+                </div>
+                <div>
+                  <Label>Wholesale Min Qty</Label>
+                  <Input type="number" min="1" value={form.wholesaleMinQty} onChange={(e) => setForm(prev => ({ ...prev, wholesaleMinQty: e.target.value }))} className="mt-1" />
                 </div>
                 <div>
                   <Label>Shipping Weight (kg) *</Label>
