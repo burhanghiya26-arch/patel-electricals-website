@@ -62,3 +62,13 @@ export const deliveryProcedure = t.procedure.use(
     });
   }),
 );
+
+export const salesmanProcedure = t.procedure.use(
+  t.middleware(async opts => {
+    const { ctx, next } = opts;
+    if (!ctx.user || ctx.user.role !== "sales_rep" || ctx.user.loginMethod !== "salesman_portal") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Salesman access required" });
+    }
+    return next({ ctx: { ...ctx, user: ctx.user } });
+  }),
+);
