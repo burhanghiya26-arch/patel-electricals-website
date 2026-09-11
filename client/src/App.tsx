@@ -32,6 +32,7 @@ import AdminDelivery from "./pages/AdminDelivery";
 import DeliveryOtpNotice from "./components/DeliveryOtpNotice";
 import GoogleAnalytics from "./components/GoogleAnalytics";
 import Categories from "./pages/Categories";
+import SalesmanOrderBooking from "./pages/SalesmanOrderBooking";
 
 function Router() {
   return (
@@ -50,6 +51,7 @@ function Router() {
       <Route path="/customer/dashboard" component={CustomerDashboard} />
       <Route path="/customer/orders/:id" component={CustomerOrderDetails} />
       <Route path="/delivery" component={DeliveryPortal} />
+      <Route path="/salesman" component={SalesmanOrderBooking} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/products" component={AdminProducts} />
