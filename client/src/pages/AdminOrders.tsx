@@ -132,9 +132,12 @@ const shippingLabelMutation = trpc.orders.generateShippingLabel.useMutation({
                           <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Order Items</p>
                           <div className="space-y-1">
                             {order.items.map((item: any, idx: number) => {
-                              const unitPrice = Number(item.basePrice || item.price || 0);
+                              // Order items keep the price at the time the order was placed.
+                              // For salesman orders this is the wholesale price, while
+                              // basePrice is the current website/retail price.
+                              const unitPrice = Number(item.unitPrice || item.price || item.basePrice || 0);
                               const qty = Number(item.quantity || 1);
-                              const subtotal = unitPrice * qty;
+                              const subtotal = Number(item.totalPrice || unitPrice * qty);
                               return (
                                 <div key={idx} className="text-xs space-y-0.5 flex gap-2">
                                   {item.productImage && (
