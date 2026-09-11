@@ -102,6 +102,7 @@ export const products = mysqlTable("products", {
   basePrice: decimal("basePrice", { precision: 12, scale: 2 }).notNull(),
   wholesalePrice: decimal("wholesalePrice", { precision: 12, scale: 2 }),
   wholesaleMinQty: int("wholesaleMinQty").default(1).notNull(),
+  wholesaleOnly: boolean("wholesaleOnly").default(false).notNull(),
   // Packed product weight in kg. This is only used for Shiprocket quotes
   // outside the local Surat delivery zone.
   shippingWeightKg: decimal("shippingWeightKg", { precision: 8, scale: 3 }),
