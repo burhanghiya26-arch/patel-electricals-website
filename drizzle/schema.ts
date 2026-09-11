@@ -98,9 +98,11 @@ export const products = mysqlTable("products", {
   
   // Pricing
   // basePrice remains the retail/customer price. Wholesale price is visible
-  // only in the salesman booking panel.
+  // only in the salesman booking panel. purchaseCost is the per-unit buying
+  // cost and is used by the admin profit dashboard.
   basePrice: decimal("basePrice", { precision: 12, scale: 2 }).notNull(),
   wholesalePrice: decimal("wholesalePrice", { precision: 12, scale: 2 }),
+  purchaseCost: decimal("purchaseCost", { precision: 12, scale: 2 }),
   wholesaleMinQty: int("wholesaleMinQty").default(1).notNull(),
   wholesaleOnly: boolean("wholesaleOnly").default(false).notNull(),
   // Packed product weight in kg. This is only used for Shiprocket quotes
