@@ -607,7 +607,7 @@ export async function createDeliveryStaff(input: {
   return { id: Number((result as any)[0]?.insertId || (result as any).insertId) };
 }
 
-export async function createSalesman(input: { name: string; email: string; phone?: string; password: string }) {
+export async function createSalesman(input: { name: string; email: string; phone?: string; password: string; commissionRate?: number }) {
   const database = await getDb();
   if (!database) throw new Error("Database not available");
   if (await getUserByEmail(input.email)) throw new Error("This email is already in use");
@@ -617,6 +617,7 @@ export async function createSalesman(input: { name: string; email: string; phone
     openId: `salesman_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
     name: input.name, email: input.email, businessPhone: input.phone || null, passwordHash,
     loginMethod: "salesman_portal", role: "sales_rep", isVerified: true, lastSignedIn: new Date(),
+    commissionRate: String(input.commissionRate || 0),
   } as any);
   return { id: Number((result as any)[0]?.insertId || (result as any).insertId) };
 }
@@ -624,8 +625,17 @@ export async function createSalesman(input: { name: string; email: string; phone
 export async function getSalesmen() {
   const database = await getDb();
   if (!database) return [];
-  return database.select({ id: users.id, name: users.name, email: users.email, phone: users.businessPhone, isActive: users.isVerified })
+  return database.select({ id: users.id, name: users.name, email: users.email, phone: users.businessPhone, isActive: users.isVerified, commissionRate: users.commissionRate })
     .from(users).where(eq(users.loginMethod, "salesman_portal")).orderBy(asc(users.name));
+}
+
+export async function updateSalesmanCommissionRate(salesmanId: number, commissionRate: number) {
+  const database = await getDb();
+  if (!database) throw new Error("Database not available");
+  await database.update(users)
+    .set({ commissionRate: String(commissionRate), updatedAt: new Date() } as any)
+    .where(and(eq(users.id, salesmanId), eq(users.loginMethod, "salesman_portal")));
+  return true;
 }
 
 export async function authenticateSalesman(email: string, password: string) {
