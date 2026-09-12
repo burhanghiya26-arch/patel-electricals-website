@@ -881,6 +881,9 @@ export const appRouter = router({
     logout: publicProcedure.mutation(({ ctx }) => { ctx.res.clearCookie("customer_session"); return { success: true }; }),
     me: salesmanProcedure.query(({ ctx }) => ({ id: ctx.user.id, name: ctx.user.name, email: ctx.user.email })),
     list: adminProcedure.query(() => db.getSalesmen()),
+    commissionReport: adminProcedure
+      .input(z.object({ days: z.number().int().min(1).max(3650).nullable().default(30) }))
+      .query(({ input }) => db.getSalesmanCommissionReport(input.days)),
     create: adminProcedure.input(z.object({ name: z.string().trim().min(2), email: z.string().email(), phone: z.string().trim().min(6).max(20).optional(), password: z.string().min(6), commissionRate: z.number().min(0).max(100).optional() })).mutation(async ({ input }) => {
       try { const salesman = await db.createSalesman(input); return { success: true, salesmanId: salesman.id }; }
       catch (error: any) { throw new TRPCError({ code: "BAD_REQUEST", message: error.message || "Could not create salesman" }); }
