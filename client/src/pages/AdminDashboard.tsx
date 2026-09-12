@@ -34,6 +34,7 @@ function AdminNav({ current }: { current: string }) {
     { label: "Categories", path: "/admin/categories" },
     { label: "Inventory", path: "/admin/inventory" },
     { label: "Orders", path: "/admin/orders" },
+    { label: "Profit", path: "/admin/profit" },
     { label: "Customers", path: "/admin/customers" },
     { label: "Dealers", path: "/admin/dealers" },
     { label: "Salesmen", path: "/admin/salesmen" },
