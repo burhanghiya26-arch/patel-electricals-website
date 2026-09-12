@@ -72,11 +72,14 @@ async function ensureSalesmanBookingColumns(): Promise<void> {
     { table: "products", name: "purchaseCost", definition: "DECIMAL(12,2) NULL" },
     { table: "products", name: "wholesaleMinQty", definition: "INT NOT NULL DEFAULT 1" },
     { table: "products", name: "wholesaleOnly", definition: "BOOLEAN NOT NULL DEFAULT FALSE" },
+    { table: "users", name: "commissionRate", definition: "DECIMAL(5,2) NOT NULL DEFAULT 0" },
     { table: "orders", name: "shopName", definition: "VARCHAR(255) NULL" },
     { table: "orders", name: "customerName", definition: "VARCHAR(255) NULL" },
     { table: "orders", name: "customerPhone", definition: "VARCHAR(20) NULL" },
     { table: "orders", name: "createdBySalesRepId", definition: "INT NULL" },
     { table: "orders", name: "razorpayFee", definition: "DECIMAL(12,2) NULL" },
+    { table: "orders", name: "salesmanCommissionRate", definition: "DECIMAL(5,2) NULL" },
+    { table: "orders", name: "salesmanCommissionAmount", definition: "DECIMAL(12,2) NULL" },
     { table: "order_items", name: "purchaseCost", definition: "DECIMAL(12,2) NULL" },
   ];
   try {
