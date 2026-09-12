@@ -12,6 +12,9 @@ export const users = mysqlTable("users", {
   loginMethod: varchar("loginMethod", { length: 64 }),
 passwordHash: text("passwordHash"),
   role: mysqlEnum("role", ["user", "dealer", "sales_rep", "admin"]).default("user").notNull(),
+  // Used only for salesman_portal staff. This is the commission percentage
+  // for new orders; the order itself stores a permanent snapshot of it.
+  commissionRate: decimal("commissionRate", { precision: 5, scale: 2 }).default("0").notNull(),
   
   // Dealer-specific fields
   businessName: text("businessName"),
@@ -232,6 +235,10 @@ export const orders = mysqlTable("orders", {
   customerName: varchar("customerName", { length: 255 }),
   customerPhone: varchar("customerPhone", { length: 20 }),
   createdBySalesRepId: int("createdBySalesRepId"),
+  // Commission snapshot for a salesman-booked order. It is paid/countable
+  // only after this order is delivered.
+  salesmanCommissionRate: decimal("salesmanCommissionRate", { precision: 5, scale: 2 }),
+  salesmanCommissionAmount: decimal("salesmanCommissionAmount", { precision: 12, scale: 2 }),
   
   // Payment
   paymentMethod: mysqlEnum("paymentMethod", ["upi", "bank_transfer", "card", "cod", "razorpay", "credit"]).notNull(),
