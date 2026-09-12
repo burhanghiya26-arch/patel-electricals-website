@@ -1319,6 +1319,53 @@ export async function getProfitDashboard(days: number | null = 30) {
   };
 }
 
+export async function getSalesmanCommissionReport(days: number | null = 30) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable");
+
+  const startDate = days === null ? null : new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const conditions = [eq(orders.orderStatus, "delivered")];
+  if (startDate) conditions.push(gte(orders.deliveredAt, startDate));
+  const rows = await db.select({
+    salesmanId: orders.createdBySalesRepId,
+    salesmanName: users.name,
+    salesmanEmail: users.email,
+    orderNumber: orders.orderNumber,
+    orderAmount: orders.totalAmount,
+    commissionRate: orders.salesmanCommissionRate,
+    commissionAmount: orders.salesmanCommissionAmount,
+  }).from(orders).leftJoin(users, eq(orders.createdBySalesRepId, users.id)).where(and(...conditions));
+
+  const report = new Map<number, { salesmanId: number; name: string; email: string | null; deliveredOrders: number; salesAmount: number; commissionAmount: number; rates: Set<string> }>();
+  for (const row of rows) {
+    if (!row.salesmanId || row.commissionAmount === null || row.commissionAmount === undefined) continue;
+    const existing = report.get(row.salesmanId) || {
+      salesmanId: row.salesmanId,
+      name: row.salesmanName || "Unknown salesman",
+      email: row.salesmanEmail || null,
+      deliveredOrders: 0,
+      salesAmount: 0,
+      commissionAmount: 0,
+      rates: new Set<string>(),
+    };
+    existing.deliveredOrders += 1;
+    existing.salesAmount += Number(row.orderAmount || 0);
+    existing.commissionAmount += Number(row.commissionAmount || 0);
+    if (row.commissionRate !== null && row.commissionRate !== undefined) existing.rates.add(String(row.commissionRate));
+    report.set(row.salesmanId, existing);
+  }
+
+  const salesmen = Array.from(report.values()).map(person => ({
+    ...person,
+    commissionRates: Array.from(person.rates).join(", "),
+  })).map(({ rates, ...person }) => person).sort((a, b) => b.commissionAmount - a.commissionAmount);
+  return {
+    periodDays: days,
+    totalCommission: salesmen.reduce((sum, person) => sum + person.commissionAmount, 0),
+    salesmen,
+  };
+}
+
 export async function getOrderStatusBreakdown() {
   const db = await getDb();
   if (!db) return {};
