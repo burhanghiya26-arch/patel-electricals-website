@@ -845,6 +845,9 @@ export const appRouter = router({
           });
         }
         const orderNumber = `SLS-${Date.now()}`;
+        const salesman = await db.getUserById(ctx.user.id);
+        const commissionRate = Math.min(100, Math.max(0, Number(salesman?.commissionRate || 0)));
+        const commissionAmount = totalAmount * (commissionRate / 100);
         const orderId = await db.createOrder({
           orderNumber,
           // The salesman is the authenticated operator. Shop details below are
@@ -854,6 +857,8 @@ export const appRouter = router({
           customerName: input.customerName,
           customerPhone: input.customerPhone,
           createdBySalesRepId: ctx.user.id,
+          salesmanCommissionRate: String(commissionRate),
+          salesmanCommissionAmount: String(commissionAmount),
           totalAmount: String(totalAmount), gstAmount: "0", shippingCost: "0",
           shippingAddress: input.shippingAddress, shippingMethod: "salesman_booking",
           paymentMethod: input.paymentMethod, paymentStatus: input.paymentStatus,
@@ -876,9 +881,13 @@ export const appRouter = router({
     logout: publicProcedure.mutation(({ ctx }) => { ctx.res.clearCookie("customer_session"); return { success: true }; }),
     me: salesmanProcedure.query(({ ctx }) => ({ id: ctx.user.id, name: ctx.user.name, email: ctx.user.email })),
     list: adminProcedure.query(() => db.getSalesmen()),
-    create: adminProcedure.input(z.object({ name: z.string().trim().min(2), email: z.string().email(), phone: z.string().trim().min(6).max(20).optional(), password: z.string().min(6) })).mutation(async ({ input }) => {
+    create: adminProcedure.input(z.object({ name: z.string().trim().min(2), email: z.string().email(), phone: z.string().trim().min(6).max(20).optional(), password: z.string().min(6), commissionRate: z.number().min(0).max(100).optional() })).mutation(async ({ input }) => {
       try { const salesman = await db.createSalesman(input); return { success: true, salesmanId: salesman.id }; }
       catch (error: any) { throw new TRPCError({ code: "BAD_REQUEST", message: error.message || "Could not create salesman" }); }
+    }),
+    updateCommissionRate: adminProcedure.input(z.object({ salesmanId: z.number().int().positive(), commissionRate: z.number().min(0).max(100) })).mutation(async ({ input }) => {
+      await db.updateSalesmanCommissionRate(input.salesmanId, input.commissionRate);
+      return { success: true };
     }),
   }),
 
