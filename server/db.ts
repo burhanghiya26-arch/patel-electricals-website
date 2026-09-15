@@ -1366,6 +1366,51 @@ export async function getSalesmanCommissionReport(days: number | null = 30) {
   };
 }
 
+/**
+ * Returns every salesman-booked order with its commission snapshot.  This is
+ * deliberately separate from the summary report: the salesman can only ask
+ * for their own rows through the router, while an admin can view all rows.
+ */
+export async function getSalesmanCommissionOrders(input: { salesmanId?: number; days?: number | null } = {}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable");
+
+  const days = input.days === undefined ? null : input.days;
+  const startDate = days === null ? null : new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const conditions = [sql`${orders.createdBySalesRepId} IS NOT NULL`];
+  if (input.salesmanId) conditions.push(eq(orders.createdBySalesRepId, input.salesmanId));
+  if (startDate) conditions.push(gte(orders.createdAt, startDate));
+
+  const rows = await db.select({
+    id: orders.id,
+    orderNumber: orders.orderNumber,
+    shopName: orders.shopName,
+    customerName: orders.customerName,
+    customerPhone: orders.customerPhone,
+    orderAmount: orders.totalAmount,
+    orderStatus: orders.orderStatus,
+    createdAt: orders.createdAt,
+    deliveredAt: orders.deliveredAt,
+    salesmanId: orders.createdBySalesRepId,
+    salesmanName: users.name,
+    salesmanEmail: users.email,
+    commissionRate: orders.salesmanCommissionRate,
+    commissionAmount: orders.salesmanCommissionAmount,
+  }).from(orders)
+    .leftJoin(users, eq(orders.createdBySalesRepId, users.id))
+    .where(and(...conditions))
+    .orderBy(desc(orders.createdAt));
+
+  return rows.map((order) => ({
+    ...order,
+    commissionStatus: order.orderStatus === "delivered"
+      ? "payable"
+      : order.orderStatus === "cancelled"
+        ? "cancelled"
+        : "pending",
+  }));
+}
+
 export async function getOrderStatusBreakdown() {
   const db = await getDb();
   if (!db) return {};
