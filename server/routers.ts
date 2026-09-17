@@ -785,6 +785,23 @@ export const appRouter = router({
       }),
   }),
 
+  salesmanShops: router({
+    list: salesmanProcedure.query(() => db.getSalesmanShops()),
+    save: salesmanProcedure
+      .input(z.object({
+        id: z.number().int().positive().optional(),
+        shopName: z.string().trim().min(2).max(255),
+        customerName: z.string().trim().min(2).max(255),
+        customerPhone: z.string().trim().min(8).max(20),
+        shippingAddress: z.string().trim().min(10).max(2000),
+        notes: z.string().trim().max(1000).optional(),
+      }))
+      .mutation(({ ctx, input }) => db.saveSalesmanShop({ ...input, salesmanId: ctx.user.id })),
+    history: salesmanProcedure
+      .input(z.object({ shopId: z.number().int().positive() }))
+      .query(({ ctx, input }) => db.getSalesmanShopOrderHistory(input.shopId, ctx.user.id)),
+  }),
+
   salesmanOrders: router({
     products: salesmanProcedure.query(async () => {
       // Use the staff catalog so wholesale-only products stay hidden from
@@ -812,6 +829,7 @@ export const appRouter = router({
         customerName: z.string().trim().min(2).max(255),
         customerPhone: z.string().trim().min(8).max(20),
         shippingAddress: z.string().trim().min(10).max(2000),
+        shopId: z.number().int().positive().optional(),
         paymentMethod: z.enum(["upi", "bank_transfer", "card", "cod", "credit"]),
         paymentStatus: z.enum(["pending", "completed"]).default("pending"),
         notes: z.string().trim().max(1000).optional(),
@@ -848,25 +866,31 @@ export const appRouter = router({
         const salesman = await db.getUserById(ctx.user.id);
         const commissionRate = Math.min(100, Math.max(0, Number(salesman?.commissionRate || 0)));
         const commissionAmount = totalAmount * (commissionRate / 100);
+        const savedShop = input.shopId
+          ? await db.getSalesmanShopById(input.shopId)
+          : await db.saveSalesmanShop({ ...input, salesmanId: ctx.user.id });
+        if (!savedShop) throw new TRPCError({ code: "NOT_FOUND", message: "Saved shop not found." });
         const orderId = await db.createOrder({
           orderNumber,
           // The salesman is the authenticated operator. Shop details below are
           // the actual buyer and do not create a customer website account.
           userId: ctx.user.id,
-          shopName: input.shopName,
-          customerName: input.customerName,
-          customerPhone: input.customerPhone,
+          shopName: savedShop.shopName,
+          customerName: savedShop.customerName,
+          customerPhone: savedShop.customerPhone,
+          salesmanShopId: savedShop.id,
           createdBySalesRepId: ctx.user.id,
           salesmanCommissionRate: String(commissionRate),
           salesmanCommissionAmount: String(commissionAmount),
           totalAmount: String(totalAmount), gstAmount: "0", shippingCost: "0",
-          shippingAddress: input.shippingAddress, shippingMethod: "salesman_booking",
+          shippingAddress: savedShop.shippingAddress, shippingMethod: "salesman_booking",
           paymentMethod: input.paymentMethod, paymentStatus: input.paymentStatus,
-          orderStatus: "pending", notes: input.notes || "Salesman-booked wholesale order",
+          orderStatus: "pending", notes: input.notes || savedShop.notes || "Salesman-booked wholesale order",
         });
         if (!orderId) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Order could not be saved." });
         await db.addOrderItems(orderId, orderItemsData);
-        return { success: true, orderId, orderNumber, totalAmount };
+        await db.markSalesmanShopBooked(savedShop.id, ctx.user.id);
+        return { success: true, orderId, orderNumber, totalAmount, shopId: savedShop.id };
       }),
   }),
 
