@@ -52,6 +52,20 @@ export default function SalesmanOrderBooking() {
     },
     onError: error => toast.error(error.message),
   });
+  const logout = trpc.salesman.logout.useMutation({
+    onSuccess: async () => {
+      toast.success("Salesman logout successful");
+      setCart([]);
+      setSelectedShopId(null);
+      await Promise.all([
+        utils.salesman.me.invalidate(),
+        utils.salesmanOrders.products.invalidate(),
+        utils.salesman.myCommissionOrders.invalidate(),
+        utils.salesmanShops.list.invalidate(),
+      ]);
+    },
+    onError: error => toast.error(error.message),
+  });
   const placeOrder = trpc.salesmanOrders.create.useMutation({
     onSuccess: async result => {
       toast.success(`Wholesale order ${result.orderNumber} saved`);
@@ -132,7 +146,7 @@ export default function SalesmanOrderBooking() {
 
   return <div className="min-h-screen bg-slate-50 p-4 pb-28">
     <div className="mx-auto max-w-6xl space-y-5">
-      <div><p className="text-sm text-slate-500">Logged in: {staff.data.name}</p><h1 className="text-2xl font-bold">Salesman Order Booking</h1><p className="text-sm text-slate-600">Shop account ki zarurat nahi. Wholesale rate par order book karein.</p></div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-sm text-slate-500">Logged in: {staff.data.name}</p><h1 className="text-2xl font-bold">Salesman Order Booking</h1><p className="text-sm text-slate-600">Shop account ki zarurat nahi. Wholesale rate par order book karein.</p></div><div className="flex gap-2"><Button type="button" variant="outline" onClick={() => window.location.assign("/")}>← Back to Website</Button><Button type="button" variant="outline" disabled={logout.isPending} onClick={() => logout.mutate()}>{logout.isPending ? "Logging out..." : "Logout"}</Button></div></div>
       <Card><CardHeader><CardTitle>Shop Details</CardTitle><p className="text-sm text-muted-foreground">Saved shop select karein—naam, mobile aur address automatic aa jayega.</p></CardHeader><CardContent className="grid gap-3 md:grid-cols-2">
         <div className="md:col-span-2"><Label>Saved Shop Book</Label><Select value={selectedShopId ? String(selectedShopId) : "new"} onValueChange={selectSavedShop}><SelectTrigger><SelectValue placeholder="New shop ya saved shop select karein" /></SelectTrigger><SelectContent><SelectItem value="new">+ New Shop</SelectItem>{savedShops.data?.map(savedShop => <SelectItem key={savedShop.id} value={String(savedShop.id)}>{savedShop.shopName} · {savedShop.customerPhone}</SelectItem>)}</SelectContent></Select></div>
         <div><Label>Shop Name *</Label><Input value={shop.shopName} onChange={e => setShop(s => ({ ...s, shopName: e.target.value }))} /></div>
