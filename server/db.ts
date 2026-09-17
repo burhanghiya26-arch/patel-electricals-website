@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users, products, inventory, cartItems, orders, orderItems,
   quotations, categories, gstConfiguration, shippingRates, pinCodeZones, inventoryMovement,
-  customerNotes, customerSegments, reviews, orderTracking, returnRequests
+  customerNotes, customerSegments, reviews, orderTracking, returnRequests, salesmanShops
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -410,6 +410,118 @@ export async function getOrderById(id: number) {
   if (!db) return undefined;
   const result = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
   return result.length > 0 ? result[0] : undefined;
+}
+
+// ========================
+// SALESMAN SHOP BOOK
+// ========================
+
+export type SalesmanShopInput = {
+  id?: number;
+  shopName: string;
+  customerName: string;
+  customerPhone: string;
+  shippingAddress: string;
+  notes?: string;
+  salesmanId: number;
+};
+
+export async function getSalesmanShopById(shopId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(salesmanShops).where(eq(salesmanShops.id, shopId)).limit(1);
+  return rows[0];
+}
+
+export async function getSalesmanShops() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(salesmanShops)
+    .orderBy(desc(salesmanShops.lastBookedAt), desc(salesmanShops.updatedAt))
+    .limit(500);
+}
+
+/**
+ * A phone number represents one shop contact. New orders automatically save
+ * a profile, while an existing profile is reused so the salesman need not
+ * enter the shop details again.
+ */
+export async function saveSalesmanShop(input: SalesmanShopInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable");
+
+  const details = {
+    shopName: input.shopName,
+    customerName: input.customerName,
+    customerPhone: input.customerPhone,
+    shippingAddress: input.shippingAddress,
+    notes: input.notes || null,
+  };
+
+  if (input.id) {
+    const existing = await getSalesmanShopById(input.id);
+    if (!existing) throw new Error("Saved shop not found");
+    await db.update(salesmanShops).set({ ...details, updatedAt: new Date() }).where(eq(salesmanShops.id, input.id));
+    return { ...existing, ...details, updatedAt: new Date() };
+  }
+
+  const existing = await db.select().from(salesmanShops)
+    .where(eq(salesmanShops.customerPhone, input.customerPhone))
+    .limit(1);
+  if (existing[0]) {
+    await db.update(salesmanShops).set({ ...details, updatedAt: new Date() }).where(eq(salesmanShops.id, existing[0].id));
+    return { ...existing[0], ...details, updatedAt: new Date() };
+  }
+
+  const result = await db.insert(salesmanShops).values({
+    ...details,
+    createdBySalesRepId: input.salesmanId,
+  });
+  const shopId = Number((result as any)[0]?.insertId || (result as any).insertId);
+  const savedShop = await getSalesmanShopById(shopId);
+  if (!savedShop) throw new Error("Saved shop could not be created");
+  return savedShop;
+}
+
+export async function markSalesmanShopBooked(shopId: number, salesmanId: number) {
+  const db = await getDb();
+  if (!db) return;
+  const now = new Date();
+  await db.update(salesmanShops).set({
+    lastBookedBySalesRepId: salesmanId,
+    lastBookedAt: now,
+    updatedAt: now,
+  }).where(eq(salesmanShops.id, shopId));
+}
+
+export async function getSalesmanShopOrderHistory(shopId: number, salesmanId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const shop = await getSalesmanShopById(shopId);
+  if (!shop) throw new Error("Saved shop not found");
+
+  // The phone fallback includes salesman orders created before the Shop Book
+  // feature was added. New orders are also linked through salesmanShopId.
+  const shopOrders = await db.select().from(orders)
+    .where(and(
+      eq(orders.createdBySalesRepId, salesmanId),
+      or(eq(orders.salesmanShopId, shopId), eq(orders.customerPhone, shop.customerPhone)),
+    ))
+    .orderBy(desc(orders.createdAt))
+    .limit(50);
+
+  return Promise.all(shopOrders.map(async (order) => {
+    const items = await db.select({
+      productId: orderItems.productId,
+      quantity: orderItems.quantity,
+      unitPrice: orderItems.unitPrice,
+      productName: products.name,
+      partNumber: products.partNumber,
+    }).from(orderItems)
+      .leftJoin(products, eq(orderItems.productId, products.id))
+      .where(eq(orderItems.orderId, order.id));
+    return { ...order, items };
+  }));
 }
 
 export async function setRazorpayOrderId(orderId: number, razorpayOrderId: string) {
