@@ -234,6 +234,10 @@ export const orders = mysqlTable("orders", {
   shopName: varchar("shopName", { length: 255 }),
   customerName: varchar("customerName", { length: 255 }),
   customerPhone: varchar("customerPhone", { length: 20 }),
+  // The saved shop profile used for this salesman order. It makes repeat
+  // orders and shop-wise order history reliable without creating an account
+  // for the shop owner.
+  salesmanShopId: int("salesmanShopId"),
   createdBySalesRepId: int("createdBySalesRepId"),
   // Commission snapshot for a salesman-booked order. It is paid/countable
   // only after this order is delivered.
@@ -275,10 +279,37 @@ export const orders = mysqlTable("orders", {
   userIdx: index("order_user_idx").on(table.userId),
   statusIdx: index("order_status_idx").on(table.orderStatus),
   orderNumberIdx: index("order_number_idx").on(table.orderNumber),
+  salesmanShopIdx: index("order_salesman_shop_idx").on(table.salesmanShopId),
 }));
 
 export type Order = typeof orders.$inferSelect;
 export type InsertOrder = typeof orders.$inferInsert;
+
+/**
+ * Shops visited by the sales team. These are business contacts, not website
+ * customer accounts. A shop can be selected again to fill its details, view
+ * its past orders, or open its saved address in Maps.
+ */
+export const salesmanShops = mysqlTable("salesman_shops", {
+  id: int("id").autoincrement().primaryKey(),
+  shopName: varchar("shopName", { length: 255 }).notNull(),
+  customerName: varchar("customerName", { length: 255 }).notNull(),
+  customerPhone: varchar("customerPhone", { length: 20 }).notNull(),
+  shippingAddress: text("shippingAddress").notNull(),
+  notes: text("notes"),
+  createdBySalesRepId: int("createdBySalesRepId").notNull(),
+  lastBookedBySalesRepId: int("lastBookedBySalesRepId"),
+  lastBookedAt: timestamp("lastBookedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  shopNameIdx: index("salesman_shops_name_idx").on(table.shopName),
+  phoneIdx: index("salesman_shops_phone_idx").on(table.customerPhone),
+  lastBookedIdx: index("salesman_shops_last_booked_idx").on(table.lastBookedAt),
+}));
+
+export type SalesmanShop = typeof salesmanShops.$inferSelect;
+export type InsertSalesmanShop = typeof salesmanShops.$inferInsert;
 
 /**
  * Order Items (Line items in an order)
