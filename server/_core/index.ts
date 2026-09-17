@@ -76,6 +76,7 @@ async function ensureSalesmanBookingColumns(): Promise<void> {
     { table: "orders", name: "shopName", definition: "VARCHAR(255) NULL" },
     { table: "orders", name: "customerName", definition: "VARCHAR(255) NULL" },
     { table: "orders", name: "customerPhone", definition: "VARCHAR(20) NULL" },
+    { table: "orders", name: "salesmanShopId", definition: "INT NULL" },
     { table: "orders", name: "createdBySalesRepId", definition: "INT NULL" },
     { table: "orders", name: "razorpayFee", definition: "DECIMAL(12,2) NULL" },
     { table: "orders", name: "salesmanCommissionRate", definition: "DECIMAL(5,2) NULL" },
@@ -90,6 +91,31 @@ async function ensureSalesmanBookingColumns(): Promise<void> {
         if (error?.code !== "ER_DUP_FIELDNAME" && error?.errno !== 1060) throw error;
       }
     }
+  } finally {
+    await connection.end();
+  }
+}
+
+async function ensureSalesmanShopsTable(): Promise<void> {
+  if (!process.env.DATABASE_URL) return;
+  const connection = await mysql.createConnection(process.env.DATABASE_URL);
+  try {
+    await connection.execute(`CREATE TABLE IF NOT EXISTS \`salesman_shops\` (
+      \`id\` INT AUTO_INCREMENT PRIMARY KEY,
+      \`shopName\` VARCHAR(255) NOT NULL,
+      \`customerName\` VARCHAR(255) NOT NULL,
+      \`customerPhone\` VARCHAR(20) NOT NULL,
+      \`shippingAddress\` TEXT NOT NULL,
+      \`notes\` TEXT NULL,
+      \`createdBySalesRepId\` INT NOT NULL,
+      \`lastBookedBySalesRepId\` INT NULL,
+      \`lastBookedAt\` TIMESTAMP NULL,
+      \`createdAt\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      \`updatedAt\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX \`salesman_shops_name_idx\` (\`shopName\`),
+      INDEX \`salesman_shops_phone_idx\` (\`customerPhone\`),
+      INDEX \`salesman_shops_last_booked_idx\` (\`lastBookedAt\`)
+    )`);
   } finally {
     await connection.end();
   }
@@ -146,6 +172,7 @@ async function startServer() {
   await ensureProductContentColumns();
   await ensureReturnRequestsTable();
   await ensureSalesmanBookingColumns();
+  await ensureSalesmanShopsTable();
 
   // Initialize default admin account if needed
   await initializeDefaultAdmin().catch(err => {
