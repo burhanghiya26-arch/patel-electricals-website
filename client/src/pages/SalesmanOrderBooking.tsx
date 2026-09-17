@@ -53,16 +53,13 @@ export default function SalesmanOrderBooking() {
     onError: error => toast.error(error.message),
   });
   const logout = trpc.salesman.logout.useMutation({
-    onSuccess: async () => {
+    onSuccess: () => {
       toast.success("Salesman logout successful");
       setCart([]);
       setSelectedShopId(null);
-      await Promise.all([
-        utils.salesman.me.invalidate(),
-        utils.salesmanOrders.products.invalidate(),
-        utils.salesman.myCommissionOrders.invalidate(),
-        utils.salesmanShops.list.invalidate(),
-      ]);
+      // Reloading clears React Query's old logged-in data. The session cookie
+      // has already been removed by the server, so this opens the login card.
+      window.setTimeout(() => window.location.reload(), 300);
     },
     onError: error => toast.error(error.message),
   });
