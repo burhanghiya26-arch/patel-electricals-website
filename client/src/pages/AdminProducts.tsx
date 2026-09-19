@@ -29,7 +29,7 @@ export default function AdminProducts() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [form, setForm] = useState({
     partNumber: '', name: '', description: '', categoryName: 'General',
-    basePrice: '', purchaseCost: '', wholesalePrice: '', wholesaleMinQty: '1', wholesaleOnly: false, shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [] as string[],
+    basePrice: '', counterPrice: '', purchaseCost: '', wholesalePrice: '', wholesaleMinQty: '1', wholesaleOnly: false, shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [] as string[],
     colorOptions: '', sizeOptions: '',
     keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '',
   });
@@ -100,7 +100,7 @@ const uploadImage = trpc.upload.image.useMutation({
   });
 
   const resetForm = () => {
-    setForm({ partNumber: '', name: '', description: '', categoryName: 'General', basePrice: '', purchaseCost: '', wholesalePrice: '', wholesaleMinQty: '1', wholesaleOnly: false, shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [], colorOptions: '', sizeOptions: '', keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '' });
+    setForm({ partNumber: '', name: '', description: '', categoryName: 'General', basePrice: '', counterPrice: '', purchaseCost: '', wholesalePrice: '', wholesaleMinQty: '1', wholesaleOnly: false, shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [], colorOptions: '', sizeOptions: '', keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '' });
     setImagePreview(null);
     setProductImageGallery([]);
     setShowForm(false);
@@ -137,11 +137,16 @@ const uploadImage = trpc.upload.image.useMutation({
       return;
     }
     const price = parseFloat(form.basePrice);
+    const counterPrice = form.counterPrice === '' ? null : parseFloat(form.counterPrice);
     const purchaseCost = form.purchaseCost === '' ? null : parseFloat(form.purchaseCost);
     const wholesalePrice = parseFloat(form.wholesalePrice);
     const shippingWeightKg = parseFloat(form.shippingWeightKg);
     if (isNaN(price) || price <= 0) {
       toast.error("Valid price daalo!");
+      return;
+    }
+    if (counterPrice !== null && (isNaN(counterPrice) || counterPrice <= 0)) {
+      toast.error("Valid counter price daalo!");
       return;
     }
     if (purchaseCost !== null && (isNaN(purchaseCost) || purchaseCost < 0)) {
@@ -179,6 +184,7 @@ const uploadImage = trpc.upload.image.useMutation({
           seoMetaDescription: form.seoMetaDescription.trim() || undefined,
           seoKeywords: form.seoKeywords.trim() || undefined,
           basePrice: price,
+          counterPrice,
           purchaseCost,
           wholesalePrice: form.wholesalePrice ? wholesalePrice : null,
           wholesaleMinQty: parseInt(form.wholesaleMinQty) || 1,
@@ -204,6 +210,7 @@ const uploadImage = trpc.upload.image.useMutation({
         seoKeywords: form.seoKeywords.trim() || undefined,
         categoryName: form.categoryName || 'General',
         basePrice: price,
+        counterPrice: counterPrice === null ? undefined : counterPrice,
         purchaseCost: purchaseCost === null ? undefined : purchaseCost,
         wholesalePrice: form.wholesalePrice ? wholesalePrice : undefined,
         wholesaleMinQty: parseInt(form.wholesaleMinQty) || 1,
@@ -236,6 +243,7 @@ const uploadImage = trpc.upload.image.useMutation({
       description: product.description || '',
       categoryName: product.categoryName || 'General',
       basePrice: String(Number(product.basePrice)),
+      counterPrice: product.counterPrice !== null && product.counterPrice !== undefined ? String(Number(product.counterPrice)) : '',
       purchaseCost: product.purchaseCost !== null && product.purchaseCost !== undefined ? String(Number(product.purchaseCost)) : '',
       wholesalePrice: product.wholesalePrice ? String(Number(product.wholesalePrice)) : '',
       wholesaleMinQty: String(product.wholesaleMinQty || 1),
@@ -410,6 +418,19 @@ const uploadImage = trpc.upload.image.useMutation({
                     onChange={(e) => setForm(prev => ({ ...prev, basePrice: e.target.value }))}
                     className="mt-1"
                   />
+                </div>
+                <div>
+                  <Label>Counter Price (₹)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Walk-in customer rate"
+                    value={form.counterPrice}
+                    onChange={(e) => setForm(prev => ({ ...prev, counterPrice: e.target.value }))}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Counter bill ka default rate. Blank ho to website price use hoga.</p>
                 </div>
                 <div>
                   <Label>Purchase Cost (₹)</Label>
