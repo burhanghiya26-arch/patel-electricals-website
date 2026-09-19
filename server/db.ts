@@ -3,7 +3,8 @@ import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users, products, inventory, cartItems, orders, orderItems,
   quotations, categories, gstConfiguration, shippingRates, pinCodeZones, inventoryMovement,
-  customerNotes, customerSegments, reviews, orderTracking, returnRequests, salesmanShops
+  customerNotes, customerSegments, reviews, orderTracking, returnRequests, salesmanShops,
+  counterSales, counterSaleItems
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -246,6 +247,7 @@ export async function createProduct(data: any) {
     seoMetaDescription: data.seoMetaDescription || null,
     seoKeywords: data.seoKeywords || null,
     basePrice: String(data.basePrice || '0'),
+    counterPrice: data.counterPrice ? String(data.counterPrice) : null,
     wholesalePrice: data.wholesalePrice ? String(data.wholesalePrice) : null,
     purchaseCost: data.purchaseCost ? String(data.purchaseCost) : null,
     wholesaleMinQty: Number(data.wholesaleMinQty || 1),
@@ -410,6 +412,180 @@ export async function getOrderById(id: number) {
   if (!db) return undefined;
   const result = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
   return result.length > 0 ? result[0] : undefined;
+}
+
+// ========================
+// COUNTER / REPAIR / SITE BILLING
+// ========================
+
+type CounterBillItemDraft = {
+  productId?: number | null;
+  sourceType: "shop_stock" | "outside_material" | "repair_labour" | "fitting_charge";
+  description: string;
+  quantity: number;
+  listedRate: number;
+  unitPrice: number;
+  purchaseCost: number;
+};
+
+type CounterBillDraft = {
+  billNumber: string;
+  saleType: "counter" | "repair" | "site_work";
+  customerName?: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  workDescription?: string;
+  paymentMethod: "cash" | "upi" | "card" | "bank_transfer" | "credit";
+  amountPaid: number;
+  showDiscount: boolean;
+  notes?: string;
+  createdByUserId: number;
+  items: CounterBillItemDraft[];
+};
+
+const roundCounterMoney = (amount: number) => Math.round((amount + Number.EPSILON) * 100) / 100;
+
+export async function getCounterBillingProducts() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    id: products.id,
+    name: products.name,
+    partNumber: products.partNumber,
+    basePrice: products.basePrice,
+    counterPrice: products.counterPrice,
+    purchaseCost: products.purchaseCost,
+    imageUrl: products.imageUrl,
+    quantityInStock: inventory.quantityInStock,
+  }).from(products)
+    .leftJoin(inventory, eq(products.id, inventory.productId))
+    .where(eq(products.isActive, true))
+    .orderBy(asc(products.name))
+    .limit(500);
+}
+
+export async function getCounterSaleById(counterSaleId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const sales = await db.select().from(counterSales).where(eq(counterSales.id, counterSaleId)).limit(1);
+  if (!sales[0]) return undefined;
+  const items = await db.select().from(counterSaleItems)
+    .where(eq(counterSaleItems.counterSaleId, counterSaleId))
+    .orderBy(asc(counterSaleItems.id));
+  return { ...sales[0], items };
+}
+
+export async function getRecentCounterSales(limit = 30) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(counterSales).orderBy(desc(counterSales.createdAt)).limit(limit);
+}
+
+export async function getCounterSalesTodaySummary() {
+  const db = await getDb();
+  if (!db) return { billCount: 0, totalSales: 0, totalReceived: 0, totalDue: 0, totalProfit: 0 };
+  const rows = await db.select({
+    billCount: sql<number>`COUNT(*)`,
+    totalSales: sql<string>`COALESCE(SUM(${counterSales.totalAmount}), 0)`,
+    totalReceived: sql<string>`COALESCE(SUM(${counterSales.amountPaid}), 0)`,
+    totalDue: sql<string>`COALESCE(SUM(${counterSales.balanceDue}), 0)`,
+    totalProfit: sql<string>`COALESCE(SUM(${counterSales.grossProfit}), 0)`,
+  }).from(counterSales).where(sql`DATE(${counterSales.createdAt}) = CURDATE()`);
+  const today = rows[0];
+  return {
+    billCount: Number(today?.billCount || 0),
+    totalSales: Number(today?.totalSales || 0),
+    totalReceived: Number(today?.totalReceived || 0),
+    totalDue: Number(today?.totalDue || 0),
+    totalProfit: Number(today?.totalProfit || 0),
+  };
+}
+
+/**
+ * Stores the customer bill and all private cost/profit values. The invoice UI
+ * only reads description, quantity and final selling rate; sourceType and
+ * purchaseCost are intentionally never needed by the customer.
+ */
+export async function createCounterSale(input: CounterBillDraft) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable");
+
+  const items = input.items.map(item => {
+    const quantity = Math.max(1, Math.floor(Number(item.quantity)));
+    const listedRate = roundCounterMoney(Math.max(0, Number(item.listedRate)));
+    const unitPrice = roundCounterMoney(Math.max(0, Number(item.unitPrice)));
+    const purchaseCost = roundCounterMoney(Math.max(0, Number(item.purchaseCost)));
+    const totalPrice = roundCounterMoney(unitPrice * quantity);
+    const totalCost = roundCounterMoney(purchaseCost * quantity);
+    return { ...item, quantity, listedRate, unitPrice, purchaseCost, totalPrice, totalCost, profit: roundCounterMoney(totalPrice - totalCost) };
+  });
+
+  const listedAmount = roundCounterMoney(items.reduce((sum, item) => sum + item.listedRate * item.quantity, 0));
+  const totalAmount = roundCounterMoney(items.reduce((sum, item) => sum + item.totalPrice, 0));
+  const totalCost = roundCounterMoney(items.reduce((sum, item) => sum + item.totalCost, 0));
+  const grossProfit = roundCounterMoney(totalAmount - totalCost);
+  const amountPaid = roundCounterMoney(Math.min(Math.max(0, Number(input.amountPaid)), totalAmount));
+  const balanceDue = roundCounterMoney(totalAmount - amountPaid);
+  const paymentStatus = balanceDue <= 0 ? "paid" : amountPaid > 0 ? "partial" : "pending";
+
+  const result = await db.insert(counterSales).values({
+    billNumber: input.billNumber,
+    saleType: input.saleType,
+    customerName: input.customerName || null,
+    customerPhone: input.customerPhone || null,
+    customerAddress: input.customerAddress || null,
+    workDescription: input.workDescription || null,
+    listedAmount: String(listedAmount),
+    discountAmount: String(roundCounterMoney(Math.max(0, listedAmount - totalAmount))),
+    totalAmount: String(totalAmount),
+    totalCost: String(totalCost),
+    grossProfit: String(grossProfit),
+    amountPaid: String(amountPaid),
+    balanceDue: String(balanceDue),
+    paymentMethod: input.paymentMethod,
+    paymentStatus,
+    showDiscount: input.showDiscount,
+    notes: input.notes || null,
+    createdByUserId: input.createdByUserId,
+  });
+  const counterSaleId = Number((result as any)[0]?.insertId || (result as any).insertId);
+  if (!counterSaleId) throw new Error("Counter bill could not be saved");
+
+  await db.insert(counterSaleItems).values(items.map(item => ({
+    counterSaleId,
+    productId: item.productId || null,
+    sourceType: item.sourceType,
+    description: item.description,
+    quantity: item.quantity,
+    listedRate: String(item.listedRate),
+    unitPrice: String(item.unitPrice),
+    totalPrice: String(item.totalPrice),
+    purchaseCost: String(item.purchaseCost),
+    totalCost: String(item.totalCost),
+    profit: String(item.profit),
+  })));
+
+  // Only a product taken from the shop stock affects inventory. Outside
+  // material, labour and fitting are billing lines, not stock lines.
+  for (const item of items.filter(item => item.sourceType === "shop_stock" && item.productId)) {
+    const current = await db.select().from(inventory).where(eq(inventory.productId, item.productId!)).limit(1);
+    if (!current[0]) throw new Error(`${item.description} inventory was not found`);
+    if (current[0].quantityInStock < item.quantity) throw new Error(`${item.description} does not have enough stock`);
+    const newQuantity = current[0].quantityInStock - item.quantity;
+    await db.update(inventory).set({ quantityInStock: newQuantity, updatedAt: new Date() }).where(eq(inventory.id, current[0].id));
+    await db.insert(inventoryMovement).values({
+      productId: item.productId!,
+      quantityChanged: -item.quantity,
+      movementType: "sale",
+      reason: `Counter bill ${input.billNumber}`,
+      previousQuantity: current[0].quantityInStock,
+      newQuantity,
+      performedBy: input.createdByUserId,
+      notes: "Counter billing",
+    });
+  }
+
+  return getCounterSaleById(counterSaleId);
 }
 
 // ========================
