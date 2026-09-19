@@ -104,6 +104,9 @@ export const products = mysqlTable("products", {
   // only in the salesman booking panel. purchaseCost is the per-unit buying
   // cost and is used by the admin profit dashboard.
   basePrice: decimal("basePrice", { precision: 12, scale: 2 }).notNull(),
+  // Default price for a walk-in/counter customer. It can differ from the
+  // website price, while a bill may still use a one-time negotiated rate.
+  counterPrice: decimal("counterPrice", { precision: 12, scale: 2 }),
   wholesalePrice: decimal("wholesalePrice", { precision: 12, scale: 2 }),
   purchaseCost: decimal("purchaseCost", { precision: 12, scale: 2 }),
   wholesaleMinQty: int("wholesaleMinQty").default(1).notNull(),
@@ -334,6 +337,64 @@ export const orderItems = mysqlTable("order_items", {
 
 export type OrderItem = typeof orderItems.$inferSelect;
 export type InsertOrderItem = typeof orderItems.$inferInsert;
+
+/**
+ * Counter, repair and site-work bills. The customer's invoice uses only the
+ * item description and final rate. Source type and buying cost stay private
+ * for the owner so outside material can be included without exposing it.
+ */
+export const counterSales = mysqlTable("counter_sales", {
+  id: int("id").autoincrement().primaryKey(),
+  billNumber: varchar("billNumber", { length: 50 }).notNull().unique(),
+  saleType: mysqlEnum("saleType", ["counter", "repair", "site_work"]).notNull().default("counter"),
+  customerName: varchar("customerName", { length: 255 }),
+  customerPhone: varchar("customerPhone", { length: 20 }),
+  customerAddress: text("customerAddress"),
+  workDescription: text("workDescription"),
+  listedAmount: decimal("listedAmount", { precision: 12, scale: 2 }).notNull().default("0"),
+  discountAmount: decimal("discountAmount", { precision: 12, scale: 2 }).notNull().default("0"),
+  totalAmount: decimal("totalAmount", { precision: 12, scale: 2 }).notNull().default("0"),
+  totalCost: decimal("totalCost", { precision: 12, scale: 2 }).notNull().default("0"),
+  grossProfit: decimal("grossProfit", { precision: 12, scale: 2 }).notNull().default("0"),
+  amountPaid: decimal("amountPaid", { precision: 12, scale: 2 }).notNull().default("0"),
+  balanceDue: decimal("balanceDue", { precision: 12, scale: 2 }).notNull().default("0"),
+  paymentMethod: mysqlEnum("paymentMethod", ["cash", "upi", "card", "bank_transfer", "credit"]).notNull().default("cash"),
+  paymentStatus: mysqlEnum("paymentStatus", ["paid", "partial", "pending"]).notNull().default("paid"),
+  showDiscount: boolean("showDiscount").notNull().default(false),
+  notes: text("notes"),
+  createdByUserId: int("createdByUserId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  billNumberIdx: index("counter_sales_bill_number_idx").on(table.billNumber),
+  createdAtIdx: index("counter_sales_created_at_idx").on(table.createdAt),
+  customerPhoneIdx: index("counter_sales_customer_phone_idx").on(table.customerPhone),
+}));
+
+export const counterSaleItems = mysqlTable("counter_sale_items", {
+  id: int("id").autoincrement().primaryKey(),
+  counterSaleId: int("counterSaleId").notNull(),
+  productId: int("productId"),
+  // Internal-only classification; never printed on the customer bill.
+  sourceType: mysqlEnum("sourceType", ["shop_stock", "outside_material", "repair_labour", "fitting_charge"]).notNull(),
+  description: varchar("description", { length: 500 }).notNull(),
+  quantity: int("quantity").notNull().default(1),
+  listedRate: decimal("listedRate", { precision: 12, scale: 2 }).notNull().default("0"),
+  unitPrice: decimal("unitPrice", { precision: 12, scale: 2 }).notNull().default("0"),
+  totalPrice: decimal("totalPrice", { precision: 12, scale: 2 }).notNull().default("0"),
+  purchaseCost: decimal("purchaseCost", { precision: 12, scale: 2 }).notNull().default("0"),
+  totalCost: decimal("totalCost", { precision: 12, scale: 2 }).notNull().default("0"),
+  profit: decimal("profit", { precision: 12, scale: 2 }).notNull().default("0"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  saleIdx: index("counter_sale_items_sale_idx").on(table.counterSaleId),
+  productIdx: index("counter_sale_items_product_idx").on(table.productId),
+}));
+
+export type CounterSale = typeof counterSales.$inferSelect;
+export type InsertCounterSale = typeof counterSales.$inferInsert;
+export type CounterSaleItem = typeof counterSaleItems.$inferSelect;
+export type InsertCounterSaleItem = typeof counterSaleItems.$inferInsert;
 
 /**
  * Customer return requests. A request is reviewed by an admin before any
