@@ -482,6 +482,10 @@ export async function getRecentCounterSales(limit = 30) {
 }
 
 export async function getCounterSalesTodaySummary() {
+  return getCounterSalesSummaryByDate(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }));
+}
+
+export async function getCounterSalesSummaryByDate(date: string) {
   const db = await getDb();
   if (!db) return { billCount: 0, totalSales: 0, totalReceived: 0, totalDue: 0, totalProfit: 0 };
   const rows = await db.select({
@@ -490,14 +494,34 @@ export async function getCounterSalesTodaySummary() {
     totalReceived: sql<string>`COALESCE(SUM(${counterSales.amountPaid}), 0)`,
     totalDue: sql<string>`COALESCE(SUM(${counterSales.balanceDue}), 0)`,
     totalProfit: sql<string>`COALESCE(SUM(${counterSales.grossProfit}), 0)`,
-  }).from(counterSales).where(sql`DATE(${counterSales.createdAt}) = CURDATE()`);
-  const today = rows[0];
+  }).from(counterSales).where(sql`DATE(${counterSales.createdAt}) = ${date}`);
+  const selectedDate = rows[0];
   return {
-    billCount: Number(today?.billCount || 0),
-    totalSales: Number(today?.totalSales || 0),
-    totalReceived: Number(today?.totalReceived || 0),
-    totalDue: Number(today?.totalDue || 0),
-    totalProfit: Number(today?.totalProfit || 0),
+    billCount: Number(selectedDate?.billCount || 0),
+    totalSales: Number(selectedDate?.totalSales || 0),
+    totalReceived: Number(selectedDate?.totalReceived || 0),
+    totalDue: Number(selectedDate?.totalDue || 0),
+    totalProfit: Number(selectedDate?.totalProfit || 0),
+  };
+}
+
+export async function getCounterSalesSummaryByMonth(month: string) {
+  const db = await getDb();
+  if (!db) return { billCount: 0, totalSales: 0, totalReceived: 0, totalDue: 0, totalProfit: 0 };
+  const rows = await db.select({
+    billCount: sql<number>`COUNT(*)`,
+    totalSales: sql<string>`COALESCE(SUM(${counterSales.totalAmount}), 0)`,
+    totalReceived: sql<string>`COALESCE(SUM(${counterSales.amountPaid}), 0)`,
+    totalDue: sql<string>`COALESCE(SUM(${counterSales.balanceDue}), 0)`,
+    totalProfit: sql<string>`COALESCE(SUM(${counterSales.grossProfit}), 0)`,
+  }).from(counterSales).where(sql`DATE_FORMAT(${counterSales.createdAt}, '%Y-%m') = ${month}`);
+  const selectedMonth = rows[0];
+  return {
+    billCount: Number(selectedMonth?.billCount || 0),
+    totalSales: Number(selectedMonth?.totalSales || 0),
+    totalReceived: Number(selectedMonth?.totalReceived || 0),
+    totalDue: Number(selectedMonth?.totalDue || 0),
+    totalProfit: Number(selectedMonth?.totalProfit || 0),
   };
 }
 
@@ -586,6 +610,161 @@ export async function createCounterSale(input: CounterBillDraft) {
   }
 
   return getCounterSaleById(counterSaleId);
+}
+
+/**
+ * Updates a saved counter bill while keeping shop-stock quantities accurate.
+ * The earlier billed stock is returned first, then the edited lines are
+ * validated and deducted again. Outside material and labour never affect
+ * inventory.
+ */
+export async function updateCounterSale(counterSaleId: number, input: Omit<CounterBillDraft, "billNumber">) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable");
+
+  const existing = await getCounterSaleById(counterSaleId);
+  if (!existing) throw new Error("Bill was not found");
+
+  const items = input.items.map(item => {
+    const quantity = Math.max(1, Math.floor(Number(item.quantity)));
+    const listedRate = roundCounterMoney(Math.max(0, Number(item.listedRate)));
+    const unitPrice = roundCounterMoney(Math.max(0, Number(item.unitPrice)));
+    const purchaseCost = roundCounterMoney(Math.max(0, Number(item.purchaseCost)));
+    const totalPrice = roundCounterMoney(unitPrice * quantity);
+    const totalCost = roundCounterMoney(purchaseCost * quantity);
+    return { ...item, quantity, listedRate, unitPrice, purchaseCost, totalPrice, totalCost, profit: roundCounterMoney(totalPrice - totalCost) };
+  });
+
+  const listedAmount = roundCounterMoney(items.reduce((sum, item) => sum + item.listedRate * item.quantity, 0));
+  const totalAmount = roundCounterMoney(items.reduce((sum, item) => sum + item.totalPrice, 0));
+  const totalCost = roundCounterMoney(items.reduce((sum, item) => sum + item.totalCost, 0));
+  const grossProfit = roundCounterMoney(totalAmount - totalCost);
+  const amountPaid = roundCounterMoney(Math.min(Math.max(0, Number(input.amountPaid)), totalAmount));
+  const balanceDue = roundCounterMoney(totalAmount - amountPaid);
+  const paymentStatus = balanceDue <= 0 ? "paid" : amountPaid > 0 ? "partial" : "pending";
+
+  const returnedQuantity = new Map<number, number>();
+  for (const item of existing.items.filter(item => item.sourceType === "shop_stock" && item.productId)) {
+    const productId = item.productId!;
+    returnedQuantity.set(productId, (returnedQuantity.get(productId) || 0) + Number(item.quantity));
+  }
+  const requestedQuantity = new Map<number, number>();
+  for (const item of items.filter(item => item.sourceType === "shop_stock" && item.productId)) {
+    const productId = item.productId!;
+    requestedQuantity.set(productId, (requestedQuantity.get(productId) || 0) + item.quantity);
+  }
+
+  // Check availability as if the original bill has first been put back.
+  for (const [productId, quantity] of requestedQuantity) {
+    const current = await db.select().from(inventory).where(eq(inventory.productId, productId)).limit(1);
+    if (!current[0] || current[0].quantityInStock + (returnedQuantity.get(productId) || 0) < quantity) {
+      throw new Error("One or more edited items do not have enough stock");
+    }
+  }
+
+  for (const item of existing.items.filter(item => item.sourceType === "shop_stock" && item.productId)) {
+    const current = await db.select().from(inventory).where(eq(inventory.productId, item.productId!)).limit(1);
+    if (!current[0]) throw new Error(`${item.description} inventory was not found`);
+    const newQuantity = current[0].quantityInStock + Number(item.quantity);
+    await db.update(inventory).set({ quantityInStock: newQuantity, updatedAt: new Date() }).where(eq(inventory.id, current[0].id));
+    await db.insert(inventoryMovement).values({
+      productId: item.productId!,
+      quantityChanged: Number(item.quantity),
+      movementType: "adjustment",
+      reason: `Counter bill ${existing.billNumber} edited`,
+      previousQuantity: current[0].quantityInStock,
+      newQuantity,
+      performedBy: input.createdByUserId,
+      notes: "Previous counter bill quantity restored for edit",
+    });
+  }
+
+  await db.delete(counterSaleItems).where(eq(counterSaleItems.counterSaleId, counterSaleId));
+  await db.update(counterSales).set({
+    saleType: input.saleType,
+    customerName: input.customerName || null,
+    customerPhone: input.customerPhone || null,
+    customerAddress: input.customerAddress || null,
+    workDescription: input.workDescription || null,
+    listedAmount: String(listedAmount),
+    discountAmount: String(roundCounterMoney(Math.max(0, listedAmount - totalAmount))),
+    totalAmount: String(totalAmount),
+    totalCost: String(totalCost),
+    grossProfit: String(grossProfit),
+    amountPaid: String(amountPaid),
+    balanceDue: String(balanceDue),
+    paymentMethod: input.paymentMethod,
+    paymentStatus,
+    showDiscount: input.showDiscount,
+    notes: input.notes || null,
+    updatedAt: new Date(),
+  }).where(eq(counterSales.id, counterSaleId));
+  await db.insert(counterSaleItems).values(items.map(item => ({
+    counterSaleId,
+    productId: item.productId || null,
+    sourceType: item.sourceType,
+    description: item.description,
+    quantity: item.quantity,
+    listedRate: String(item.listedRate),
+    unitPrice: String(item.unitPrice),
+    totalPrice: String(item.totalPrice),
+    purchaseCost: String(item.purchaseCost),
+    totalCost: String(item.totalCost),
+    profit: String(item.profit),
+  })));
+
+  for (const item of items.filter(item => item.sourceType === "shop_stock" && item.productId)) {
+    const current = await db.select().from(inventory).where(eq(inventory.productId, item.productId!)).limit(1);
+    if (!current[0]) throw new Error(`${item.description} inventory was not found`);
+    const newQuantity = current[0].quantityInStock - item.quantity;
+    await db.update(inventory).set({ quantityInStock: newQuantity, updatedAt: new Date() }).where(eq(inventory.id, current[0].id));
+    await db.insert(inventoryMovement).values({
+      productId: item.productId!,
+      quantityChanged: -item.quantity,
+      movementType: "sale",
+      reason: `Counter bill ${existing.billNumber} edited`,
+      previousQuantity: current[0].quantityInStock,
+      newQuantity,
+      performedBy: input.createdByUserId,
+      notes: "Updated counter billing",
+    });
+  }
+
+  return getCounterSaleById(counterSaleId);
+}
+
+/**
+ * Deletes one counter bill. Any items that came from shop stock are returned
+ * to inventory first; outside material, labour and fitting have no stock to
+ * restore.
+ */
+export async function deleteCounterSale(counterSaleId: number, performedBy: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable");
+
+  const existing = await getCounterSaleById(counterSaleId);
+  if (!existing) throw new Error("Bill was not found");
+
+  for (const item of existing.items.filter(item => item.sourceType === "shop_stock" && item.productId)) {
+    const current = await db.select().from(inventory).where(eq(inventory.productId, item.productId!)).limit(1);
+    if (!current[0]) throw new Error(`${item.description} inventory was not found`);
+    const newQuantity = current[0].quantityInStock + Number(item.quantity);
+    await db.update(inventory).set({ quantityInStock: newQuantity, updatedAt: new Date() }).where(eq(inventory.id, current[0].id));
+    await db.insert(inventoryMovement).values({
+      productId: item.productId!,
+      quantityChanged: Number(item.quantity),
+      movementType: "adjustment",
+      reason: `Counter bill ${existing.billNumber} deleted`,
+      previousQuantity: current[0].quantityInStock,
+      newQuantity,
+      performedBy,
+      notes: "Stock restored after counter bill deletion",
+    });
+  }
+
+  await db.delete(counterSaleItems).where(eq(counterSaleItems.counterSaleId, counterSaleId));
+  await db.delete(counterSales).where(eq(counterSales.id, counterSaleId));
+  return { billNumber: existing.billNumber };
 }
 
 // ========================
