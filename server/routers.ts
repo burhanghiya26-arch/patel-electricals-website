@@ -942,6 +942,24 @@ export const appRouter = router({
     monthSummary: adminProcedure
       .input(z.object({ month: z.string().regex(/^\d{4}-\d{2}$/, "Select a valid month") }))
       .query(({ input }) => db.getCounterSalesSummaryByMonth(input.month)),
+    duePayments: adminProcedure
+      .input(z.object({ limit: z.number().int().min(1).max(200).default(100) }))
+      .query(({ input }) => db.getCounterSalesWithDue(input.limit)),
+    receivePayment: adminProcedure
+      .input(z.object({
+        billId: z.number().int().positive(),
+        amount: z.number().positive(),
+        paymentMethod: z.enum(["cash", "upi", "card", "bank_transfer", "credit"]),
+      }))
+      .mutation(async ({ input }) => {
+        try {
+          const bill = await db.receiveCounterSalePayment(input);
+          if (!bill) throw new Error("Payment could not be saved.");
+          return bill;
+        } catch (error: any) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: error?.message || "Payment could not be saved." });
+        }
+      }),
     recent: adminProcedure.input(z.object({ limit: z.number().int().min(1).max(100).default(30) })).query(({ input }) => db.getRecentCounterSales(input.limit)),
     getBill: adminProcedure.input(z.object({ billId: z.number().int().positive() })).query(({ input }) => db.getCounterSaleById(input.billId)),
     create: adminProcedure
