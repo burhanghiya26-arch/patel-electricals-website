@@ -481,6 +481,52 @@ export async function getRecentCounterSales(limit = 30) {
   return db.select().from(counterSales).orderBy(desc(counterSales.createdAt)).limit(limit);
 }
 
+/** Counter/repair/site bills where the customer still has money due. */
+export async function getCounterSalesWithDue(limit = 100) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(counterSales)
+    .where(sql`CAST(${counterSales.balanceDue} AS DECIMAL(12,2)) > 0`)
+    .orderBy(desc(counterSales.createdAt))
+    .limit(limit);
+}
+
+/**
+ * Adds a payment to a saved bill without ever allowing its received amount to
+ * exceed the bill total. The invoice switches to paid automatically when the
+ * remaining balance reaches zero.
+ */
+export async function receiveCounterSalePayment(input: {
+  billId: number;
+  amount: number;
+  paymentMethod: "cash" | "upi" | "card" | "bank_transfer" | "credit";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable");
+  const bill = await getCounterSaleById(input.billId);
+  if (!bill) throw new Error("Bill was not found");
+
+  const due = roundCounterMoney(Number(bill.balanceDue || 0));
+  const amount = roundCounterMoney(Number(input.amount));
+  if (due <= 0) throw new Error("This bill is already paid.");
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error("Enter a valid received amount.");
+  if (amount > due) throw new Error(`Received amount cannot be more than the due amount (${due}).`);
+
+  const totalAmount = roundCounterMoney(Number(bill.totalAmount || 0));
+  const amountPaid = roundCounterMoney(Number(bill.amountPaid || 0) + amount);
+  const balanceDue = roundCounterMoney(Math.max(0, totalAmount - amountPaid));
+  const paymentStatus = balanceDue <= 0 ? "paid" : "partial";
+  await db.update(counterSales).set({
+    amountPaid: String(amountPaid),
+    balanceDue: String(balanceDue),
+    paymentStatus,
+    paymentMethod: input.paymentMethod,
+    updatedAt: new Date(),
+  }).where(eq(counterSales.id, input.billId));
+
+  return getCounterSaleById(input.billId);
+}
+
 export async function getCounterSalesTodaySummary() {
   return getCounterSalesSummaryByDate(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }));
 }
