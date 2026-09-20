@@ -936,6 +936,12 @@ export const appRouter = router({
   counterBilling: router({
     products: adminProcedure.query(() => db.getCounterBillingProducts()),
     todaySummary: adminProcedure.query(() => db.getCounterSalesTodaySummary()),
+    dateSummary: adminProcedure
+      .input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Select a valid date") }))
+      .query(({ input }) => db.getCounterSalesSummaryByDate(input.date)),
+    monthSummary: adminProcedure
+      .input(z.object({ month: z.string().regex(/^\d{4}-\d{2}$/, "Select a valid month") }))
+      .query(({ input }) => db.getCounterSalesSummaryByMonth(input.month)),
     recent: adminProcedure.input(z.object({ limit: z.number().int().min(1).max(100).default(30) })).query(({ input }) => db.getRecentCounterSales(input.limit)),
     getBill: adminProcedure.input(z.object({ billId: z.number().int().positive() })).query(({ input }) => db.getCounterSaleById(input.billId)),
     create: adminProcedure
@@ -1024,6 +1030,97 @@ export const appRouter = router({
         });
         if (!bill) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Bill could not be saved." });
         return bill;
+      }),
+    update: adminProcedure
+      .input(z.object({
+        billId: z.number().int().positive(),
+        saleType: z.enum(["counter", "repair", "site_work"]),
+        customerName: z.string().trim().max(255).optional(),
+        customerPhone: z.string().trim().max(20).optional(),
+        customerAddress: z.string().trim().max(2000).optional(),
+        workDescription: z.string().trim().max(2000).optional(),
+        paymentMethod: z.enum(["cash", "upi", "card", "bank_transfer", "credit"]),
+        amountPaid: z.number().nonnegative(),
+        showDiscount: z.boolean().default(false),
+        notes: z.string().trim().max(2000).optional(),
+        items: z.array(z.object({
+          productId: z.number().int().positive().nullable().optional(),
+          sourceType: z.enum(["shop_stock", "outside_material", "repair_labour", "fitting_charge"]),
+          description: z.string().trim().max(500).optional(),
+          quantity: z.number().int().positive(),
+          unitPrice: z.number().nonnegative(),
+          listedRate: z.number().nonnegative().optional(),
+          purchaseCost: z.number().nonnegative().optional(),
+        })).min(1),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const preparedItems: Array<{
+          productId?: number | null;
+          sourceType: "shop_stock" | "outside_material" | "repair_labour" | "fitting_charge";
+          description: string;
+          quantity: number;
+          listedRate: number;
+          unitPrice: number;
+          purchaseCost: number;
+        }> = [];
+        for (const item of input.items) {
+          if (item.sourceType === "shop_stock") {
+            if (!item.productId) throw new TRPCError({ code: "BAD_REQUEST", message: "Select a shop product." });
+            const product = await db.getProductById(item.productId);
+            if (!product || !product.isActive) throw new TRPCError({ code: "NOT_FOUND", message: "Selected product is unavailable." });
+            preparedItems.push({
+              productId: product.id,
+              sourceType: "shop_stock",
+              description: product.name,
+              quantity: item.quantity,
+              listedRate: item.listedRate ?? Number(product.counterPrice ?? product.basePrice),
+              unitPrice: item.unitPrice,
+              purchaseCost: item.purchaseCost ?? Number(product.purchaseCost || 0),
+            });
+            continue;
+          }
+          if (!item.description) throw new TRPCError({ code: "BAD_REQUEST", message: "Enter the item or work description." });
+          preparedItems.push({
+            productId: null,
+            sourceType: item.sourceType,
+            description: item.description,
+            quantity: item.quantity,
+            listedRate: item.listedRate ?? item.unitPrice,
+            unitPrice: item.unitPrice,
+            purchaseCost: item.purchaseCost ?? 0,
+          });
+        }
+        const expectedTotal = preparedItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+        if (input.amountPaid > expectedTotal) throw new TRPCError({ code: "BAD_REQUEST", message: "Received amount cannot be more than the bill total." });
+        try {
+          const bill = await db.updateCounterSale(input.billId, {
+            saleType: input.saleType,
+            customerName: input.customerName,
+            customerPhone: input.customerPhone,
+            customerAddress: input.customerAddress,
+            workDescription: input.workDescription,
+            paymentMethod: input.paymentMethod,
+            amountPaid: input.amountPaid,
+            showDiscount: input.showDiscount,
+            notes: input.notes,
+            createdByUserId: ctx.user.id,
+            items: preparedItems,
+          });
+          if (!bill) throw new Error("Bill could not be updated.");
+          return bill;
+        } catch (error: any) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: error?.message || "Bill could not be updated." });
+        }
+      }),
+    delete: adminProcedure
+      .input(z.object({ billId: z.number().int().positive() }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          const deleted = await db.deleteCounterSale(input.billId, ctx.user.id);
+          return { success: true, ...deleted };
+        } catch (error: any) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: error?.message || "Bill could not be deleted." });
+        }
       }),
   }),
 
