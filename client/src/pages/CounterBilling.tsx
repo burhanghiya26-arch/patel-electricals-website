@@ -375,22 +375,13 @@ export default function CounterBilling() {
     const rawPhone = String(bill.customerPhone || "").replace(/\D/g, "");
     if (!rawPhone) return toast.error("WhatsApp bhejne ke liye customer mobile number zaroori hai.");
     const phone = rawPhone.length === 10 ? `91${rawPhone}` : rawPhone;
-    const message = `Patel Electricals\nBill: ${bill.billNumber}\nTotal: ${money(Number(bill.totalAmount))}\nReceived: ${money(Number(bill.amountPaid))}\nDue: ${money(Number(bill.balanceDue))}\nDhanyavaad.`;
-    try {
-      const pdf = await buildBillPdf(bill);
-      const file = new File([pdf.output("blob")], `${bill.billNumber || "Invoice"}.pdf`, { type: "application/pdf" });
-      if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
-        await navigator.share({ title: `Invoice ${bill.billNumber}`, text: message, files: [file] });
-        return;
-      }
-      pdf.save(`${bill.billNumber || "Patel-Electricals-Invoice"}.pdf`);
-      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
-      toast.message("PDF download ho gaya. WhatsApp mein attachment se PDF select karke send karein.");
-    } catch (error: any) {
-      if (error?.name === "AbortError") return;
-      console.error("WhatsApp invoice share failed", error);
-      toast.error("WhatsApp invoice share nahi hua.");
-    }
+    const message = `Patel Electricals\nBill No: ${bill.billNumber}\nTotal: ${money(Number(bill.totalAmount))}\nReceived: ${money(Number(bill.amountPaid))}\nBalance Due: ${money(Number(bill.balanceDue))}\nDhanyavaad.`;
+    // Open WhatsApp immediately from the button click. Some Android browsers
+    // reject an async file-share and WhatsApp then shows an empty-message error.
+    const whatsappUrl = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+    const whatsappWindow = window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    if (!whatsappWindow) window.location.assign(whatsappUrl);
+    toast.message("WhatsApp message ready hai. PDF bhejne ke liye Download PDF karke attachment se select karein.");
   };
   const openMobileBill = (bill: any) => {
     const popup = window.open("", "_blank", "width=430,height=760");
