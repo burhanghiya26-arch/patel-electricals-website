@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { Eye, FileDown, Minus, Pencil, Plus, Printer, ReceiptText, Search, Trash2, X } from "lucide-react";
+import { Eye, FileDown, MessageCircle, Minus, Pencil, Plus, Printer, ReceiptText, Search, Smartphone, Trash2, X } from "lucide-react";
 import { AdminNav } from "./AdminDashboard";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
@@ -47,6 +47,7 @@ export default function CounterBilling() {
   const products = trpc.counterBilling.products.useQuery(undefined, { enabled });
   const summary = trpc.counterBilling.todaySummary.useQuery(undefined, { enabled });
   const recent = trpc.counterBilling.recent.useQuery({ limit: 20 }, { enabled });
+  const duePayments = trpc.counterBilling.duePayments.useQuery({ limit: 100 }, { enabled });
   const [reportDate, setReportDate] = useState(indiaDate);
   const [reportMonth, setReportMonth] = useState(() => indiaDate().slice(0, 7));
   const dateSummary = trpc.counterBilling.dateSummary.useQuery({ date: reportDate }, { enabled });
@@ -62,10 +63,13 @@ export default function CounterBilling() {
   const [lines, setLines] = useState<BillLine[]>([]);
   const [search, setSearch] = useState("");
   const [lastBill, setLastBill] = useState<any | null>(null);
+  const [receiveAmounts, setReceiveAmounts] = useState<Record<number, string>>({});
+  const [receiveMethods, setReceiveMethods] = useState<Record<number, PaymentMethod>>({});
 
   const visibleProducts = useMemo(() => (products.data || []).filter(product =>
     `${product.name} ${product.partNumber}`.toLowerCase().includes(search.toLowerCase()),
   ).slice(0, 12), [products.data, search]);
+  const totalDueAmount = useMemo(() => (duePayments.data || []).reduce((sum, bill) => sum + Number(bill.balanceDue || 0), 0), [duePayments.data]);
   const listedAmount = rounded(lines.reduce((sum, line) => sum + line.normalRate * line.quantity, 0));
   const totalAmount = rounded(lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0));
   const totalCost = rounded(lines.reduce((sum, line) => sum + line.purchaseCost * line.quantity, 0));
@@ -87,6 +91,9 @@ export default function CounterBilling() {
       await Promise.all([
         utils.counterBilling.products.invalidate(),
         utils.counterBilling.todaySummary.invalidate(),
+        utils.counterBilling.dateSummary.invalidate(),
+        utils.counterBilling.monthSummary.invalidate(),
+        utils.counterBilling.duePayments.invalidate(),
         utils.counterBilling.recent.invalidate(),
       ]);
     },
@@ -109,6 +116,7 @@ export default function CounterBilling() {
         utils.counterBilling.todaySummary.invalidate(),
         utils.counterBilling.dateSummary.invalidate(),
         utils.counterBilling.monthSummary.invalidate(),
+        utils.counterBilling.duePayments.invalidate(),
         utils.counterBilling.recent.invalidate(),
         utils.counterBilling.getBill.invalidate(),
       ]);
@@ -129,6 +137,24 @@ export default function CounterBilling() {
       toast.success(`Invoice ${bill.billNumber} deleted; shop stock restored.`);
       await Promise.all([
         utils.counterBilling.products.invalidate(),
+        utils.counterBilling.todaySummary.invalidate(),
+        utils.counterBilling.dateSummary.invalidate(),
+        utils.counterBilling.monthSummary.invalidate(),
+        utils.counterBilling.duePayments.invalidate(),
+        utils.counterBilling.recent.invalidate(),
+        utils.counterBilling.getBill.invalidate(),
+      ]);
+    },
+    onError: error => toast.error(error.message),
+  });
+  const receivePayment = trpc.counterBilling.receivePayment.useMutation({
+    onSuccess: async bill => {
+      setReceiveAmounts(current => ({ ...current, [bill.id]: "" }));
+      toast.success(`${bill.billNumber}: payment saved. Remaining due ${money(Number(bill.balanceDue))}`);
+      setSelectedBillId(bill.id);
+      setLastBill(bill);
+      await Promise.all([
+        utils.counterBilling.duePayments.invalidate(),
         utils.counterBilling.todaySummary.invalidate(),
         utils.counterBilling.dateSummary.invalidate(),
         utils.counterBilling.monthSummary.invalidate(),
@@ -211,6 +237,16 @@ export default function CounterBilling() {
     }));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+  const receiveDuePayment = (bill: any) => {
+    const entered = receiveAmounts[bill.id];
+    const amount = Number(entered === undefined || entered === "" ? bill.balanceDue : entered);
+    if (!Number.isFinite(amount) || amount <= 0) return toast.error("Received amount enter karein.");
+    receivePayment.mutate({
+      billId: bill.id,
+      amount,
+      paymentMethod: receiveMethods[bill.id] || "cash",
+    });
+  };
   const saveBill = () => {
     if (!lines.length) return toast.error("Bill mein kam se kam ek item add karein.");
     if (lines.some(line => !line.description.trim() || line.quantity < 1 || line.unitPrice < 0)) return toast.error("Har bill line ki details sahi bharein.");
@@ -251,11 +287,10 @@ export default function CounterBilling() {
     const discountRows = bill.showDiscount && discount > 0
       ? `<div class="row"><span>Subtotal</span><span>${money(Number(bill.listedAmount))}</span></div><div class="row"><span>Discount</span><span>− ${money(discount)}</span></div>`
       : "";
-    popup.document.write(`<!doctype html><html><head><title>${escapeHtml(bill.billNumber)}</title><style>body{font-family:Arial,sans-serif;color:#172033;margin:32px;max-width:760px}header{border-bottom:4px solid #d59c25;padding-bottom:15px}h1{margin:0;color:#143e69;font-size:28px}.muted{color:#667085;font-size:13px}.row{display:flex;justify-content:space-between;gap:20px}.box{border:1px solid #d8e0e8;border-radius:8px;padding:13px;margin-top:20px}table{width:100%;border-collapse:collapse;margin-top:22px}th{background:#143e69;color:white;text-align:left;padding:10px;font-size:13px}td{padding:10px;border-bottom:1px solid #e4e7ec;font-size:14px}th:last-child,td:last-child{text-align:right}.total{margin-left:auto;width:320px;margin-top:20px}.total .row{padding:7px 0}.grand{border-top:2px solid #143e69;color:#143e69;font-size:20px;font-weight:bold;padding-top:10px!important}@media print{body{margin:18px}}</style></head><body><header><div class="row"><div><h1>PATEL ELECTRICALS</h1><p class="muted">Electricals • Spare Parts • Repairing • Fitting Service</p></div><div style="text-align:right"><b>${escapeHtml(bill.saleType === "repair" ? "REPAIR BILL" : bill.saleType === "site_work" ? "SITE WORK BILL" : "COUNTER BILL")}</b><br><span class="muted">Bill No: ${escapeHtml(bill.billNumber)}<br>Date: ${new Date(bill.createdAt).toLocaleDateString("en-IN")}</span></div></div></header><div class="box"><b>Customer:</b> ${escapeHtml(bill.customerName || "Walk-in Customer")} ${bill.customerPhone ? `· ${escapeHtml(bill.customerPhone)}` : ""}${bill.customerAddress ? `<br><span class="muted">${escapeHtml(bill.customerAddress)}</span>` : ""}${bill.workDescription ? `<br><br><b>Work:</b> ${escapeHtml(bill.workDescription)}` : ""}</div><table><thead><tr><th>#</th><th>Description</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${invoiceItemRows}</tbody></table><div class="total">${discountRows}<div class="row"><span>Amount Received</span><span>${money(Number(bill.amountPaid))}</span></div><div class="row"><span>Balance Due</span><span>${money(Number(bill.balanceDue))}</span></div><div class="row grand"><span>Total</span><span>${money(Number(bill.totalAmount))}</span></div></div><p class="muted" style="margin-top:50px">Thank you for choosing Patel Electricals.<br>Computer-generated bill — no signature required.</p><script>window.onload=()=>window.print()</script></body></html>`);
+    popup.document.write(`<!doctype html><html><head><title>${escapeHtml(bill.billNumber)}</title><style>@page{size:A4;margin:12mm}body{font-family:Arial,sans-serif;color:#172033;margin:32px;max-width:760px}header{border-bottom:4px solid #d59c25;padding-bottom:15px}h1{margin:0;color:#143e69;font-size:28px}.muted{color:#667085;font-size:13px}.row{display:flex;justify-content:space-between;gap:20px}.box{border:1px solid #d8e0e8;border-radius:8px;padding:13px;margin-top:20px}table{width:100%;border-collapse:collapse;margin-top:22px}th{background:#143e69;color:white;text-align:left;padding:10px;font-size:13px}td{padding:10px;border-bottom:1px solid #e4e7ec;font-size:14px}th:last-child,td:last-child{text-align:right}.total{margin-left:auto;width:320px;margin-top:20px}.total .row{padding:7px 0}.grand{border-top:2px solid #143e69;color:#143e69;font-size:20px;font-weight:bold;padding-top:10px!important}@media print{body{margin:18px}}</style></head><body><header><div class="row"><div><h1>PATEL ELECTRICALS</h1><p class="muted">Electricals • Spare Parts • Repairing • Fitting Service</p></div><div style="text-align:right"><b>${escapeHtml(bill.saleType === "repair" ? "REPAIR BILL" : bill.saleType === "site_work" ? "SITE WORK BILL" : "COUNTER BILL")}</b><br><span class="muted">Bill No: ${escapeHtml(bill.billNumber)}<br>Date: ${new Date(bill.createdAt).toLocaleDateString("en-IN")}</span></div></div></header><div class="box"><b>Customer:</b> ${escapeHtml(bill.customerName || "Walk-in Customer")} ${bill.customerPhone ? `· ${escapeHtml(bill.customerPhone)}` : ""}${bill.customerAddress ? `<br><span class="muted">${escapeHtml(bill.customerAddress)}</span>` : ""}${bill.workDescription ? `<br><br><b>Work:</b> ${escapeHtml(bill.workDescription)}` : ""}</div><table><thead><tr><th>#</th><th>Description</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${invoiceItemRows}</tbody></table><div class="total">${discountRows}<div class="row"><span>Amount Received</span><span>${money(Number(bill.amountPaid))}</span></div><div class="row"><span>Balance Due</span><span>${money(Number(bill.balanceDue))}</span></div><div class="row grand"><span>Total</span><span>${money(Number(bill.totalAmount))}</span></div></div><p class="muted" style="margin-top:50px">Thank you for choosing Patel Electricals.<br>Computer-generated bill — no signature required.</p><script>window.onload=()=>window.print()</script></body></html>`);
     popup.document.close();
   };
-  const downloadBill = async (bill: any) => {
-    try {
+  const buildBillPdf = async (bill: any) => {
       const { jsPDF } = await import("jspdf");
       const pdf = new jsPDF({ unit: "mm", format: "a4" });
       const pageWidth = pdf.internal.pageSize.getWidth();
@@ -325,11 +360,44 @@ export default function CounterBilling() {
       pdf.setFontSize(8);
       pdf.setTextColor(92, 102, 120);
       pdf.text("Thank you for choosing Patel Electricals. Computer-generated bill — no signature required.", 14, 284);
+      return pdf;
+  };
+  const downloadBill = async (bill: any) => {
+    try {
+      const pdf = await buildBillPdf(bill);
       pdf.save(`${bill.billNumber || "Patel-Electricals-Invoice"}.pdf`);
     } catch (error) {
       console.error("Invoice download failed", error);
       toast.error("Invoice download nahi hua. Print option use karein.");
     }
+  };
+  const shareBillOnWhatsApp = async (bill: any) => {
+    const rawPhone = String(bill.customerPhone || "").replace(/\D/g, "");
+    if (!rawPhone) return toast.error("WhatsApp bhejne ke liye customer mobile number zaroori hai.");
+    const phone = rawPhone.length === 10 ? `91${rawPhone}` : rawPhone;
+    const message = `Patel Electricals\nBill: ${bill.billNumber}\nTotal: ${money(Number(bill.totalAmount))}\nReceived: ${money(Number(bill.amountPaid))}\nDue: ${money(Number(bill.balanceDue))}\nDhanyavaad.`;
+    try {
+      const pdf = await buildBillPdf(bill);
+      const file = new File([pdf.output("blob")], `${bill.billNumber || "Invoice"}.pdf`, { type: "application/pdf" });
+      if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+        await navigator.share({ title: `Invoice ${bill.billNumber}`, text: message, files: [file] });
+        return;
+      }
+      pdf.save(`${bill.billNumber || "Patel-Electricals-Invoice"}.pdf`);
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+      toast.message("PDF download ho gaya. WhatsApp mein attachment se PDF select karke send karein.");
+    } catch (error: any) {
+      if (error?.name === "AbortError") return;
+      console.error("WhatsApp invoice share failed", error);
+      toast.error("WhatsApp invoice share nahi hua.");
+    }
+  };
+  const openMobileBill = (bill: any) => {
+    const popup = window.open("", "_blank", "width=430,height=760");
+    if (!popup) return toast.error("Mobile bill window open nahi hui. Browser popup allow karein.");
+    const rows = (bill.items || []).map((item: any) => `<div class="item"><span>${escapeHtml(item.description)}<small>${item.quantity} × ${money(Number(bill.showDiscount ? item.listedRate : item.unitPrice))}</small></span><b>${money(Number(bill.showDiscount ? Number(item.listedRate) * Number(item.quantity) : item.totalPrice))}</b></div>`).join("");
+    popup.document.write(`<!doctype html><html><head><title>${escapeHtml(bill.billNumber)}</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{font-family:Arial,sans-serif;background:#edf1f5;color:#172033;margin:0}.bill{max-width:430px;margin:auto;background:white;min-height:100vh}.head{background:#143e69;color:white;padding:24px 20px}.head h1{font-size:20px;margin:0}.head p{margin:6px 0 0;font-size:12px;opacity:.85}.content{padding:18px}.muted{color:#667085;font-size:13px}.item{display:flex;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid #e6eaf0;font-size:14px}.item small{display:block;color:#667085;margin-top:4px}.total{display:flex;justify-content:space-between;margin-top:20px;padding-top:16px;border-top:2px solid #143e69;color:#143e69;font-size:21px;font-weight:bold}.payment{background:#f5f8fb;border-radius:10px;padding:12px;margin-top:16px;font-size:14px;line-height:1.7}</style></head><body><div class="bill"><div class="head"><h1>PATEL ELECTRICALS</h1><p>${escapeHtml(bill.saleType === "repair" ? "REPAIR BILL" : bill.saleType === "site_work" ? "SITE WORK BILL" : "COUNTER BILL")} · ${escapeHtml(bill.billNumber)}</p></div><div class="content"><b>${escapeHtml(bill.customerName || "Walk-in Customer")}</b>${bill.customerPhone ? `<p class="muted">${escapeHtml(bill.customerPhone)}</p>` : ""}<p class="muted">${new Date(bill.createdAt).toLocaleString("en-IN")}</p>${rows}<div class="payment">Received: <b>${money(Number(bill.amountPaid))}</b><br>Balance Due: <b>${money(Number(bill.balanceDue))}</b></div><div class="total"><span>Total</span><span>${money(Number(bill.totalAmount))}</span></div><p class="muted" style="text-align:center;margin-top:35px">Thank you for choosing Patel Electricals</p></div></div></body></html>`);
+    popup.document.close();
   };
   const billToPrint = lastBill || savedBill.data;
 
@@ -348,7 +416,9 @@ export default function CounterBilling() {
 
       <Card><CardHeader><CardTitle>Profit Report</CardTitle></CardHeader><CardContent className="grid gap-4 lg:grid-cols-2"><div className="rounded-lg border p-4"><Label>Selected Date</Label><Input className="mt-2" type="date" value={reportDate} onChange={event => setReportDate(event.target.value)} /><div className="mt-4 grid grid-cols-2 gap-3"><ReportValue label="Bills" value={String(dateSummary.data?.billCount || 0)} /><ReportValue label="Sale" value={money(dateSummary.data?.totalSales || 0)} /><ReportValue label="Received" value={money(dateSummary.data?.totalReceived || 0)} /><ReportValue label="Profit" value={money(dateSummary.data?.totalProfit || 0)} /></div></div><div className="rounded-lg border p-4"><Label>Selected Month</Label><Input className="mt-2" type="month" value={reportMonth} onChange={event => setReportMonth(event.target.value)} /><div className="mt-4 grid grid-cols-2 gap-3"><ReportValue label="Bills" value={String(monthSummary.data?.billCount || 0)} /><ReportValue label="Sale" value={money(monthSummary.data?.totalSales || 0)} /><ReportValue label="Received" value={money(monthSummary.data?.totalReceived || 0)} /><ReportValue label="Profit" value={money(monthSummary.data?.totalProfit || 0)} /></div></div></CardContent></Card>
 
-      {selectedBillId && <Card><CardHeader><CardTitle>Open Invoice</CardTitle></CardHeader><CardContent>{savedBill.isLoading && <p className="text-sm text-muted-foreground">Invoice open ho raha hai...</p>}{savedBill.data && <div className="space-y-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-lg font-bold">{savedBill.data.billNumber}</p><p className="text-sm text-muted-foreground">{savedBill.data.customerName || "Walk-in Customer"}{savedBill.data.customerPhone ? ` · ${savedBill.data.customerPhone}` : ""} · {new Date(savedBill.data.createdAt).toLocaleString("en-IN")}</p></div><p className="text-xl font-bold">{money(Number(savedBill.data.totalAmount))}</p></div><div className="overflow-x-auto rounded-md border"><table className="w-full min-w-[540px] text-sm"><thead className="bg-muted text-left"><tr><th className="p-3">Item</th><th className="p-3 text-right">Qty</th><th className="p-3 text-right">Rate</th><th className="p-3 text-right">Amount</th></tr></thead><tbody>{savedBill.data.items.map((item: any) => <tr key={item.id} className="border-t"><td className="p-3">{item.description}</td><td className="p-3 text-right">{item.quantity}</td><td className="p-3 text-right">{money(Number(savedBill.data.showDiscount ? item.listedRate : item.unitPrice))}</td><td className="p-3 text-right font-medium">{money(Number(savedBill.data.showDiscount ? Number(item.listedRate) * Number(item.quantity) : item.totalPrice))}</td></tr>)}</tbody></table></div><div className="grid gap-2 sm:grid-cols-3"><SummaryRow label="Received" value={money(Number(savedBill.data.amountPaid))} /><SummaryRow label="Balance" value={money(Number(savedBill.data.balanceDue))} /><SummaryRow label="Private Profit" value={money(Number(savedBill.data.grossProfit))} /></div><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => printBill(savedBill.data)}><Printer className="mr-2 h-4 w-4" /> Print</Button><Button type="button" variant="outline" onClick={() => downloadBill(savedBill.data)}><FileDown className="mr-2 h-4 w-4" /> Download PDF</Button><Button type="button" variant="outline" onClick={() => editBill(savedBill.data)}><Pencil className="mr-2 h-4 w-4" /> Edit Bill</Button><Button type="button" variant="destructive" disabled={deleteBill.isPending} onClick={() => { if (window.confirm(`Delete invoice ${savedBill.data.billNumber}? Shop-stock items will be returned to inventory.`)) deleteBill.mutate({ billId: savedBill.data.id }); }}><Trash2 className="mr-2 h-4 w-4" /> {deleteBill.isPending ? "Deleting..." : "Delete Invoice"}</Button></div></div>}</CardContent></Card>}
+      {selectedBillId && <Card><CardHeader><CardTitle>Open Invoice</CardTitle></CardHeader><CardContent>{savedBill.isLoading && <p className="text-sm text-muted-foreground">Invoice open ho raha hai...</p>}{savedBill.data && <div className="space-y-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-lg font-bold">{savedBill.data.billNumber}</p><p className="text-sm text-muted-foreground">{savedBill.data.customerName || "Walk-in Customer"}{savedBill.data.customerPhone ? ` · ${savedBill.data.customerPhone}` : ""} · {new Date(savedBill.data.createdAt).toLocaleString("en-IN")}</p></div><p className="text-xl font-bold">{money(Number(savedBill.data.totalAmount))}</p></div><div className="overflow-x-auto rounded-md border"><table className="w-full min-w-[540px] text-sm"><thead className="bg-muted text-left"><tr><th className="p-3">Item</th><th className="p-3 text-right">Qty</th><th className="p-3 text-right">Rate</th><th className="p-3 text-right">Amount</th></tr></thead><tbody>{savedBill.data.items.map((item: any) => <tr key={item.id} className="border-t"><td className="p-3">{item.description}</td><td className="p-3 text-right">{item.quantity}</td><td className="p-3 text-right">{money(Number(savedBill.data.showDiscount ? item.listedRate : item.unitPrice))}</td><td className="p-3 text-right font-medium">{money(Number(savedBill.data.showDiscount ? Number(item.listedRate) * Number(item.quantity) : item.totalPrice))}</td></tr>)}</tbody></table></div><div className="grid gap-2 sm:grid-cols-3"><SummaryRow label="Received" value={money(Number(savedBill.data.amountPaid))} /><SummaryRow label="Balance" value={money(Number(savedBill.data.balanceDue))} /><SummaryRow label="Private Profit" value={money(Number(savedBill.data.grossProfit))} /></div><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => printBill(savedBill.data)}><Printer className="mr-2 h-4 w-4" /> Print A4</Button><Button type="button" variant="outline" onClick={() => downloadBill(savedBill.data)}><FileDown className="mr-2 h-4 w-4" /> Download PDF</Button><Button type="button" variant="outline" onClick={() => shareBillOnWhatsApp(savedBill.data)}><MessageCircle className="mr-2 h-4 w-4" /> WhatsApp Bill</Button><Button type="button" variant="outline" onClick={() => openMobileBill(savedBill.data)}><Smartphone className="mr-2 h-4 w-4" /> Mobile Bill</Button><Button type="button" variant="outline" onClick={() => editBill(savedBill.data)}><Pencil className="mr-2 h-4 w-4" /> Edit Bill</Button><Button type="button" variant="destructive" disabled={deleteBill.isPending} onClick={() => { if (window.confirm(`Delete invoice ${savedBill.data.billNumber}? Shop-stock items will be returned to inventory.`)) deleteBill.mutate({ billId: savedBill.data.id }); }}><Trash2 className="mr-2 h-4 w-4" /> {deleteBill.isPending ? "Deleting..." : "Delete Invoice"}</Button></div></div>}</CardContent></Card>}
+
+      <Card><CardHeader><div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"><CardTitle>Pending / Due Payments</CardTitle><p className="font-bold text-orange-700">Total Due: {money(totalDueAmount)}</p></div></CardHeader><CardContent className="space-y-3">{duePayments.isLoading && <p className="text-sm text-muted-foreground">Due payments load ho rahe hain...</p>}{!duePayments.isLoading && !duePayments.data?.length && <p className="rounded-md bg-emerald-50 p-3 text-sm text-emerald-800">Koi pending payment nahi hai.</p>}{duePayments.data?.map(bill => <div key={bill.id} className="grid gap-3 rounded-lg border p-4 lg:grid-cols-[1.2fr_0.7fr_0.7fr_auto]"><button type="button" className="min-w-0 text-left" onClick={() => { setSelectedBillId(bill.id); setLastBill(null); }}><p className="font-bold">{bill.customerName || "Walk-in Customer"}</p><p className="text-sm text-muted-foreground">{bill.billNumber} · {bill.customerPhone || "No mobile"} · {new Date(bill.createdAt).toLocaleDateString("en-IN")}</p><p className="mt-1 text-sm">Bill: {money(Number(bill.totalAmount))} · Received: {money(Number(bill.amountPaid))}</p><p className="mt-1 font-bold text-orange-700">Due: {money(Number(bill.balanceDue))}</p></button><div><Label>Received Now</Label><Input className="mt-1" type="number" min="0.01" max={Number(bill.balanceDue)} step="0.01" placeholder={String(bill.balanceDue)} value={receiveAmounts[bill.id] ?? ""} onChange={event => setReceiveAmounts(current => ({ ...current, [bill.id]: event.target.value }))} /></div><div><Label>Payment Method</Label><Select value={receiveMethods[bill.id] || "cash"} onValueChange={value => setReceiveMethods(current => ({ ...current, [bill.id]: value as PaymentMethod }))}><SelectTrigger className="mt-1"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cash">Cash</SelectItem><SelectItem value="upi">UPI</SelectItem><SelectItem value="card">Card</SelectItem><SelectItem value="bank_transfer">Bank Transfer</SelectItem></SelectContent></Select></div><Button type="button" className="self-end" disabled={receivePayment.isPending} onClick={() => receiveDuePayment(bill)}>{receivePayment.isPending ? "Saving..." : "Receive Payment"}</Button></div>)}</CardContent></Card>
 
       <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
         <div className="space-y-6">
