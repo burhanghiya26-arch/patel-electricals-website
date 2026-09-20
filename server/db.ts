@@ -481,6 +481,18 @@ export async function getRecentCounterSales(limit = 30) {
   return db.select().from(counterSales).orderBy(desc(counterSales.createdAt)).limit(limit);
 }
 
+/**
+ * Counter invoices use a short, easy-to-read running number. MySQL's numeric
+ * id never repeats, so a deleted bill cannot make a later bill reuse a number.
+ */
+export async function getNextCounterBillNumber() {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable");
+  const rows = await db.select({ latestId: sql<number>`COALESCE(MAX(${counterSales.id}), 0)` }).from(counterSales);
+  const nextNumber = Number(rows[0]?.latestId || 0) + 1;
+  return `CNT-${String(nextNumber).padStart(4, "0")}`;
+}
+
 /** Counter/repair/site bills where the customer still has money due. */
 export async function getCounterSalesWithDue(limit = 100) {
   const db = await getDb();
