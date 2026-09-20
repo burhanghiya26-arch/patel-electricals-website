@@ -69,6 +69,7 @@ async function ensureSalesmanBookingColumns(): Promise<void> {
   const connection = await mysql.createConnection(process.env.DATABASE_URL);
   const changes = [
     { table: "products", name: "wholesalePrice", definition: "DECIMAL(12,2) NULL" },
+    { table: "products", name: "counterPrice", definition: "DECIMAL(12,2) NULL" },
     { table: "products", name: "purchaseCost", definition: "DECIMAL(12,2) NULL" },
     { table: "products", name: "wholesaleMinQty", definition: "INT NOT NULL DEFAULT 1" },
     { table: "products", name: "wholesaleOnly", definition: "BOOLEAN NOT NULL DEFAULT FALSE" },
@@ -91,6 +92,57 @@ async function ensureSalesmanBookingColumns(): Promise<void> {
         if (error?.code !== "ER_DUP_FIELDNAME" && error?.errno !== 1060) throw error;
       }
     }
+  } finally {
+    await connection.end();
+  }
+}
+
+async function ensureCounterBillingTables(): Promise<void> {
+  if (!process.env.DATABASE_URL) return;
+  const connection = await mysql.createConnection(process.env.DATABASE_URL);
+  try {
+    await connection.execute(`CREATE TABLE IF NOT EXISTS \`counter_sales\` (
+      \`id\` INT AUTO_INCREMENT PRIMARY KEY,
+      \`billNumber\` VARCHAR(50) NOT NULL UNIQUE,
+      \`saleType\` ENUM('counter', 'repair', 'site_work') NOT NULL DEFAULT 'counter',
+      \`customerName\` VARCHAR(255) NULL,
+      \`customerPhone\` VARCHAR(20) NULL,
+      \`customerAddress\` TEXT NULL,
+      \`workDescription\` TEXT NULL,
+      \`listedAmount\` DECIMAL(12,2) NOT NULL DEFAULT 0,
+      \`discountAmount\` DECIMAL(12,2) NOT NULL DEFAULT 0,
+      \`totalAmount\` DECIMAL(12,2) NOT NULL DEFAULT 0,
+      \`totalCost\` DECIMAL(12,2) NOT NULL DEFAULT 0,
+      \`grossProfit\` DECIMAL(12,2) NOT NULL DEFAULT 0,
+      \`amountPaid\` DECIMAL(12,2) NOT NULL DEFAULT 0,
+      \`balanceDue\` DECIMAL(12,2) NOT NULL DEFAULT 0,
+      \`paymentMethod\` ENUM('cash', 'upi', 'card', 'bank_transfer', 'credit') NOT NULL DEFAULT 'cash',
+      \`paymentStatus\` ENUM('paid', 'partial', 'pending') NOT NULL DEFAULT 'paid',
+      \`showDiscount\` BOOLEAN NOT NULL DEFAULT FALSE,
+      \`notes\` TEXT NULL,
+      \`createdByUserId\` INT NOT NULL,
+      \`createdAt\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      \`updatedAt\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX \`counter_sales_created_at_idx\` (\`createdAt\`),
+      INDEX \`counter_sales_customer_phone_idx\` (\`customerPhone\`)
+    )`);
+    await connection.execute(`CREATE TABLE IF NOT EXISTS \`counter_sale_items\` (
+      \`id\` INT AUTO_INCREMENT PRIMARY KEY,
+      \`counterSaleId\` INT NOT NULL,
+      \`productId\` INT NULL,
+      \`sourceType\` ENUM('shop_stock', 'outside_material', 'repair_labour', 'fitting_charge') NOT NULL,
+      \`description\` VARCHAR(500) NOT NULL,
+      \`quantity\` INT NOT NULL DEFAULT 1,
+      \`listedRate\` DECIMAL(12,2) NOT NULL DEFAULT 0,
+      \`unitPrice\` DECIMAL(12,2) NOT NULL DEFAULT 0,
+      \`totalPrice\` DECIMAL(12,2) NOT NULL DEFAULT 0,
+      \`purchaseCost\` DECIMAL(12,2) NOT NULL DEFAULT 0,
+      \`totalCost\` DECIMAL(12,2) NOT NULL DEFAULT 0,
+      \`profit\` DECIMAL(12,2) NOT NULL DEFAULT 0,
+      \`createdAt\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX \`counter_sale_items_sale_idx\` (\`counterSaleId\`),
+      INDEX \`counter_sale_items_product_idx\` (\`productId\`)
+    )`);
   } finally {
     await connection.end();
   }
@@ -173,6 +225,7 @@ async function startServer() {
   await ensureReturnRequestsTable();
   await ensureSalesmanBookingColumns();
   await ensureSalesmanShopsTable();
+  await ensureCounterBillingTables();
 
   // Initialize default admin account if needed
   await initializeDefaultAdmin().catch(err => {
