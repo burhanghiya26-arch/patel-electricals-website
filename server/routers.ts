@@ -1033,7 +1033,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Received amount cannot be more than the bill total." });
         }
         const bill = await db.createCounterSale({
-          billNumber: `CNT-${Date.now()}`,
+          billNumber: await db.getNextCounterBillNumber(),
           saleType: input.saleType,
           customerName: input.customerName,
           customerPhone: input.customerPhone,
