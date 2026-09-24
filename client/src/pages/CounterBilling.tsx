@@ -60,6 +60,7 @@ export default function CounterBilling() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [amountPaid, setAmountPaid] = useState("0");
   const [showDiscount, setShowDiscount] = useState(false);
+  const [isQuickSale, setIsQuickSale] = useState(false);
   const [lines, setLines] = useState<BillLine[]>([]);
   const [search, setSearch] = useState("");
   const [lastBill, setLastBill] = useState<any | null>(null);
@@ -79,15 +80,22 @@ export default function CounterBilling() {
 
   const createBill = trpc.counterBilling.create.useMutation({
     onSuccess: async bill => {
-      setLastBill(bill);
-      setSelectedBillId(bill.id);
-      toast.success(`Bill ${bill.billNumber} saved`);
+      if (isQuickSale) {
+        setLastBill(null);
+        setSelectedBillId(null);
+        toast.success(`Quick sale ${bill.billNumber} saved. Stock and profit updated.`);
+      } else {
+        setLastBill(bill);
+        setSelectedBillId(bill.id);
+        toast.success(`Bill ${bill.billNumber} saved`);
+      }
       setLines([]);
       setCustomer({ name: "", phone: "", address: "", workDescription: "", notes: "" });
       setSaleType("counter");
       setPaymentMethod("cash");
       setAmountPaid("0");
       setShowDiscount(false);
+      setIsQuickSale(false);
       await Promise.all([
         utils.counterBilling.products.invalidate(),
         utils.counterBilling.todaySummary.invalidate(),
@@ -110,6 +118,7 @@ export default function CounterBilling() {
       setPaymentMethod("cash");
       setAmountPaid("0");
       setShowDiscount(false);
+      setIsQuickSale(false);
       toast.success(`Bill ${bill.billNumber} updated`);
       await Promise.all([
         utils.counterBilling.products.invalidate(),
@@ -134,6 +143,7 @@ export default function CounterBilling() {
       setPaymentMethod("cash");
       setAmountPaid("0");
       setShowDiscount(false);
+      setIsQuickSale(false);
       toast.success(`Invoice ${bill.billNumber} deleted; shop stock restored.`);
       await Promise.all([
         utils.counterBilling.products.invalidate(),
@@ -203,6 +213,7 @@ export default function CounterBilling() {
     setPaymentMethod("cash");
     setAmountPaid("0");
     setShowDiscount(false);
+    setIsQuickSale(false);
   };
   const editBill = (bill: any) => {
     const catalog = products.data || [];
@@ -210,6 +221,7 @@ export default function CounterBilling() {
     setSelectedBillId(bill.id);
     setLastBill(null);
     setSaleType(bill.saleType as SaleType);
+    setIsQuickSale(String(bill.notes || "").includes("[quick-stock-sale]"));
     setCustomer({
       name: bill.customerName || "",
       phone: bill.customerPhone || "",
@@ -252,15 +264,15 @@ export default function CounterBilling() {
     if (lines.some(line => !line.description.trim() || line.quantity < 1 || line.unitPrice < 0)) return toast.error("Har bill line ki details sahi bharein.");
     if (paid > totalAmount) return toast.error("Received amount bill total se zyada nahi ho sakta.");
     const billDetails = {
-      saleType,
-      customerName: customer.name.trim() || undefined,
-      customerPhone: customer.phone.trim() || undefined,
-      customerAddress: customer.address.trim() || undefined,
-      workDescription: customer.workDescription.trim() || undefined,
-      paymentMethod,
-      amountPaid: paid,
+      saleType: isQuickSale ? "counter" as const : saleType,
+      customerName: isQuickSale ? "Quick Stock Sale" : customer.name.trim() || undefined,
+      customerPhone: isQuickSale ? undefined : customer.phone.trim() || undefined,
+      customerAddress: isQuickSale ? undefined : customer.address.trim() || undefined,
+      workDescription: isQuickSale ? undefined : customer.workDescription.trim() || undefined,
+      paymentMethod: isQuickSale && paymentMethod === "credit" ? "cash" : paymentMethod,
+      amountPaid: isQuickSale ? totalAmount : paid,
       showDiscount,
-      notes: customer.notes.trim() || undefined,
+      notes: isQuickSale ? `[quick-stock-sale] ${customer.notes.trim()}`.trim() : customer.notes.trim() || undefined,
       items: lines.map(line => ({
         productId: line.productId || null,
         sourceType: line.sourceType,
@@ -413,13 +425,17 @@ export default function CounterBilling() {
 
       <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
         <div className="space-y-6">
-          <Card><CardHeader><CardTitle>Bill Details</CardTitle></CardHeader><CardContent className="grid gap-3 md:grid-cols-2">
-            <div><Label>Bill Type</Label><Select value={saleType} onValueChange={value => setSaleType(value as SaleType)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="counter">Counter Sale</SelectItem><SelectItem value="repair">Repair Bill</SelectItem><SelectItem value="site_work">Site Work Bill</SelectItem></SelectContent></Select></div>
-            <div><Label>Payment Method</Label><Select value={paymentMethod} onValueChange={value => setPaymentMethod(value as PaymentMethod)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cash">Cash</SelectItem><SelectItem value="upi">UPI</SelectItem><SelectItem value="card">Card</SelectItem><SelectItem value="bank_transfer">Bank Transfer</SelectItem><SelectItem value="credit">Credit / Due</SelectItem></SelectContent></Select></div>
-            <div><Label>Customer Name</Label><Input placeholder="Walk-in customer ke liye blank rakhein" value={customer.name} onChange={event => setCustomer(current => ({ ...current, name: event.target.value }))} /></div>
-            <div><Label>Mobile Number</Label><Input inputMode="tel" value={customer.phone} onChange={event => setCustomer(current => ({ ...current, phone: event.target.value }))} /></div>
-            <div className="md:col-span-2"><Label>Site / Customer Address</Label><Input value={customer.address} onChange={event => setCustomer(current => ({ ...current, address: event.target.value }))} /></div>
-            {(saleType === "repair" || saleType === "site_work") && <div className="md:col-span-2"><Label>Work Description</Label><Textarea placeholder="Example: Mixer repair and fitting" value={customer.workDescription} onChange={event => setCustomer(current => ({ ...current, workDescription: event.target.value }))} /></div>}
+          <Card><CardHeader><CardTitle>{isQuickSale ? "Quick Stock Sale" : "Customer Invoice Details"}</CardTitle></CardHeader><CardContent className="grid gap-3 md:grid-cols-2">
+            {!editingBillId && <div className="md:col-span-2 grid grid-cols-2 gap-2 rounded-lg bg-muted p-2"><Button type="button" variant={!isQuickSale ? "default" : "outline"} onClick={() => setIsQuickSale(false)}>Customer Invoice</Button><Button type="button" variant={isQuickSale ? "default" : "outline"} onClick={() => { setIsQuickSale(true); setCustomer({ name: "", phone: "", address: "", workDescription: "", notes: "" }); setSaleType("counter"); setAmountPaid(String(totalAmount)); }}>Quick Stock Sale</Button></div>}
+            {isQuickSale ? <><div className="md:col-span-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Customer details aur customer invoice ki zaroorat nahi. Product add karo, final rate bharo aur save karo — stock kam hoga aur profit report update hogi.</div><div><Label>Payment Method</Label><Select value={paymentMethod === "credit" ? "cash" : paymentMethod} onValueChange={value => setPaymentMethod(value as PaymentMethod)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cash">Cash</SelectItem><SelectItem value="upi">UPI</SelectItem><SelectItem value="card">Card</SelectItem><SelectItem value="bank_transfer">Bank Transfer</SelectItem></SelectContent></Select></div></> : <>
+              <div><Label>Bill Type</Label><Select value={saleType} onValueChange={value => setSaleType(value as SaleType)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="counter">Counter Sale</SelectItem><SelectItem value="repair">Repair Bill</SelectItem><SelectItem value="site_work">Site Work Bill</SelectItem></SelectContent></Select></div>
+              <div><Label>Payment Method</Label><Select value={paymentMethod} onValueChange={value => setPaymentMethod(value as PaymentMethod)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="cash">Cash</SelectItem><SelectItem value="upi">UPI</SelectItem><SelectItem value="card">Card</SelectItem><SelectItem value="bank_transfer">Bank Transfer</SelectItem><SelectItem value="credit">Credit / Due</SelectItem></SelectContent></Select></div>
+              <div><Label>Customer Name</Label><Input placeholder="Walk-in customer ke liye blank rakhein" value={customer.name} onChange={event => setCustomer(current => ({ ...current, name: event.target.value }))} /></div>
+              <div><Label>Mobile Number</Label><Input inputMode="tel" value={customer.phone} onChange={event => setCustomer(current => ({ ...current, phone: event.target.value }))} /></div>
+              <div className="md:col-span-2"><Label>Site / Customer Address</Label><Input value={customer.address} onChange={event => setCustomer(current => ({ ...current, address: event.target.value }))} /></div>
+              {(saleType === "repair" || saleType === "site_work") && <div className="md:col-span-2"><Label>Work Description</Label><Textarea placeholder="Example: Mixer repair and fitting" value={customer.workDescription} onChange={event => setCustomer(current => ({ ...current, workDescription: event.target.value }))} /></div>}
+            </>}
+            {isQuickSale && <div className="md:col-span-2"><Label>Private Note (optional)</Label><Input placeholder="Example: Counter par 2 switch sale" value={customer.notes} onChange={event => setCustomer(current => ({ ...current, notes: event.target.value }))} /></div>}
           </CardContent></Card>
 
           <Card><CardHeader><CardTitle>Add Shop Product</CardTitle></CardHeader><CardContent className="space-y-3"><div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input className="pl-9" placeholder="Product ya part number search karein" value={search} onChange={event => setSearch(event.target.value)} /></div><div className="grid gap-2 sm:grid-cols-2">{visibleProducts.map(product => <button key={product.id} type="button" className="flex items-center justify-between rounded-lg border p-3 text-left hover:bg-muted disabled:opacity-50" disabled={Number(product.quantityInStock || 0) < 1} onClick={() => addProduct(product)}><span><span className="block font-medium">{product.name}</span><span className="text-xs text-muted-foreground">#{product.partNumber} · Stock: {product.quantityInStock || 0}</span></span><span className="font-semibold text-emerald-700">{money(Number(product.counterPrice ?? product.basePrice))}</span></button>)}</div>{search && !visibleProducts.length && <p className="text-sm text-muted-foreground">Product nahi mila.</p>}<div className="flex flex-wrap gap-2 border-t pt-3"><Button type="button" variant="outline" onClick={() => addCustomLine("outside_material")}>+ Outside Material</Button><Button type="button" variant="outline" onClick={() => addCustomLine("repair_labour")}>+ Repair Labour</Button><Button type="button" variant="outline" onClick={() => addCustomLine("fitting_charge")}>+ Fitting Charge</Button></div></CardContent></Card>
@@ -427,7 +443,7 @@ export default function CounterBilling() {
           <Card><CardHeader><CardTitle>Bill Items</CardTitle></CardHeader><CardContent className="space-y-3">{!lines.length && <p className="py-5 text-center text-sm text-muted-foreground">Product ya work charge add karke bill banayein.</p>}{lines.map(line => { const lineTotal = rounded(line.unitPrice * line.quantity); const belowCost = line.unitPrice < line.purchaseCost; return <div key={line.id} className="rounded-lg border p-3"><div className="mb-3 flex items-start justify-between gap-2"><div><p className="text-xs text-muted-foreground">{sourceLabel[line.sourceType]}</p>{line.sourceType === "shop_stock" && <p className="text-xs text-muted-foreground">Normal counter rate: {money(line.normalRate)} · Available stock: {line.stock}</p>}</div><Button type="button" variant="ghost" size="icon" onClick={() => setLines(current => current.filter(item => item.id !== line.id))} aria-label="Remove item"><Trash2 className="h-4 w-4" /></Button></div><div className="grid gap-3 sm:grid-cols-12"><div className="sm:col-span-4"><Label>Description</Label><Input disabled={line.sourceType === "shop_stock"} value={line.description} onChange={event => updateLine(line.id, { description: event.target.value })} /></div><div className="sm:col-span-2"><Label>Qty</Label><div className="flex"><Button type="button" variant="outline" size="icon" className="shrink-0" onClick={() => updateLine(line.id, { quantity: Math.max(1, line.quantity - 1) })}><Minus className="h-4 w-4" /></Button><Input className="rounded-none text-center" type="number" min="1" max={line.stock || undefined} value={line.quantity} onChange={event => updateLine(line.id, { quantity: Math.max(1, Math.min(line.stock || Infinity, Number(event.target.value) || 1)) })} /><Button type="button" variant="outline" size="icon" className="shrink-0" disabled={line.stock !== undefined && line.quantity >= line.stock} onClick={() => updateLine(line.id, { quantity: line.quantity + 1 })}><Plus className="h-4 w-4" /></Button></div></div><div className="sm:col-span-2"><Label>Final Rate</Label><Input type="number" min="0" step="0.01" value={line.unitPrice} onChange={event => updateLine(line.id, { unitPrice: Math.max(0, Number(event.target.value) || 0) })} /></div><div className="sm:col-span-2"><Label>Cost (private)</Label><Input type="number" min="0" step="0.01" value={line.purchaseCost} onChange={event => updateLine(line.id, { purchaseCost: Math.max(0, Number(event.target.value) || 0) })} /></div><div className="sm:col-span-2"><Label>Total</Label><p className={`mt-2 text-lg font-bold ${belowCost ? "text-red-600" : ""}`}>{money(lineTotal)}</p>{belowCost && <p className="text-xs text-red-600">Loss warning</p>}</div></div></div>;})}</CardContent></Card>
         </div>
 
-        <div className="space-y-6"><Card className="xl:sticky xl:top-4"><CardHeader><CardTitle className="flex items-center gap-2"><ReceiptText className="h-5 w-5" /> {editingBillId ? "Edit Bill" : "Bill Summary"}</CardTitle></CardHeader><CardContent className="space-y-3">{editingBillId && <div className="flex items-center justify-between rounded-md bg-amber-50 p-3 text-sm text-amber-800"><span>Editing saved invoice. Stock will update safely.</span><Button type="button" variant="ghost" size="sm" onClick={clearDraft}><X className="mr-1 h-4 w-4" /> Cancel</Button></div>}<SummaryRow label="Normal counter value" value={money(listedAmount)} />{listedAmount > totalAmount && <SummaryRow label="Negotiated discount" value={`− ${money(listedAmount - totalAmount)}`} tone="text-orange-600" />}<SummaryRow label="Bill total" value={money(totalAmount)} bold /><div className="border-t pt-3"><Label>Amount Received</Label><Input type="number" min="0" max={totalAmount} step="0.01" value={amountPaid} onChange={event => setAmountPaid(event.target.value)} /><Button type="button" variant="link" className="h-auto px-0 text-xs" onClick={() => setAmountPaid(String(totalAmount))}>Mark full payment</Button></div><SummaryRow label="Balance due" value={money(balance)} tone={balance > 0 ? "text-orange-600" : "text-emerald-700"} bold /><div className="rounded-md bg-slate-50 p-3"><p className="text-xs font-medium text-slate-700">Private Profit</p><p className={`text-lg font-bold ${profit < 0 ? "text-red-600" : "text-emerald-700"}`}>{money(profit)}</p><p className="text-xs text-muted-foreground">Customer invoice mein cost/profit nahi dikhega.</p></div><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showDiscount} onChange={event => setShowDiscount(event.target.checked)} /> Customer bill par discount dikhayein</label><div><Label>Private Note</Label><Textarea placeholder="Customer ko print bill mein nahi dikhega" value={customer.notes} onChange={event => setCustomer(current => ({ ...current, notes: event.target.value }))} /></div><Button className="min-h-12 w-full text-base" disabled={createBill.isPending || updateBill.isPending || !lines.length} onClick={saveBill}>{editingBillId ? (updateBill.isPending ? "Updating Bill..." : "Update Bill & Stock") : (createBill.isPending ? "Saving Bill..." : "Save Bill & Update Stock")}</Button></CardContent></Card>
+        <div className="space-y-6"><Card className="xl:sticky xl:top-4"><CardHeader><CardTitle className="flex items-center gap-2"><ReceiptText className="h-5 w-5" /> {editingBillId ? "Edit Bill" : isQuickSale ? "Quick Sale Summary" : "Bill Summary"}</CardTitle></CardHeader><CardContent className="space-y-3">{editingBillId && <div className="flex items-center justify-between rounded-md bg-amber-50 p-3 text-sm text-amber-800"><span>Editing saved invoice. Stock will update safely.</span><Button type="button" variant="ghost" size="sm" onClick={clearDraft}><X className="mr-1 h-4 w-4" /> Cancel</Button></div>}<SummaryRow label="Normal counter value" value={money(listedAmount)} />{listedAmount > totalAmount && <SummaryRow label="Negotiated discount" value={`− ${money(listedAmount - totalAmount)}`} tone="text-orange-600" />}<SummaryRow label="Bill total" value={money(totalAmount)} bold />{isQuickSale ? <div className="rounded-md bg-emerald-50 p-3 text-sm text-emerald-800">Quick sale is fully paid automatically. Customer invoice nahi banega.</div> : <><div className="border-t pt-3"><Label>Amount Received</Label><Input type="number" min="0" max={totalAmount} step="0.01" value={amountPaid} onChange={event => setAmountPaid(event.target.value)} /><Button type="button" variant="link" className="h-auto px-0 text-xs" onClick={() => setAmountPaid(String(totalAmount))}>Mark full payment</Button></div><SummaryRow label="Balance due" value={money(balance)} tone={balance > 0 ? "text-orange-600" : "text-emerald-700"} bold /></>}<div className="rounded-md bg-slate-50 p-3"><p className="text-xs font-medium text-slate-700">Private Profit</p><p className={`text-lg font-bold ${profit < 0 ? "text-red-600" : "text-emerald-700"}`}>{money(profit)}</p><p className="text-xs text-muted-foreground">Customer invoice mein cost/profit nahi dikhega.</p></div>{!isQuickSale && <><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showDiscount} onChange={event => setShowDiscount(event.target.checked)} /> Customer bill par discount dikhayein</label><div><Label>Private Note</Label><Textarea placeholder="Customer ko print bill mein nahi dikhega" value={customer.notes} onChange={event => setCustomer(current => ({ ...current, notes: event.target.value }))} /></div></>}<Button className="min-h-12 w-full text-base" disabled={createBill.isPending || updateBill.isPending || !lines.length} onClick={saveBill}>{editingBillId ? (updateBill.isPending ? "Updating Bill..." : "Update Bill & Stock") : (createBill.isPending ? "Saving..." : isQuickSale ? "Save Quick Sale & Update Stock" : "Save Bill & Update Stock")}</Button></CardContent></Card>
           <Card><CardHeader><CardTitle>Recent Bills</CardTitle></CardHeader><CardContent className="space-y-2">{!recent.data?.length && <p className="text-sm text-muted-foreground">Abhi counter bill nahi bana.</p>}{recent.data?.map(bill => <div key={bill.id} className={`flex items-center justify-between gap-3 rounded-md border p-3 ${selectedBillId === bill.id ? "border-primary bg-primary/5" : ""}`}><button type="button" onClick={() => { setSelectedBillId(bill.id); setLastBill(null); }} className="min-w-0 flex-1 text-left"><span className="block truncate font-medium">{bill.billNumber}</span><span className="block truncate text-xs text-muted-foreground">{bill.customerName || "Walk-in Customer"} · {new Date(bill.createdAt).toLocaleDateString("en-IN")}</span><span className="font-semibold">{money(Number(bill.totalAmount))}</span></button><Button type="button" size="sm" variant="outline" onClick={() => { setSelectedBillId(bill.id); setLastBill(null); }}><Eye className="mr-1 h-4 w-4" /> Open</Button></div>)}</CardContent></Card>
         </div>
       </div>
