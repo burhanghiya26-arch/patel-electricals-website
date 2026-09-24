@@ -7,7 +7,7 @@ import * as db from "./db";
 import { TRPCError } from "@trpc/server";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
-import { sendOrderConfirmationWhatsApp, sendOrderTrackingWhatsApp } from "./_core/whatsappNotification";
+import { sendOrderConfirmationWhatsApp, sendOrderTrackingWhatsApp, sendWhatsAppInvoice } from "./_core/whatsappNotification";
 import { generateInvoicePDF } from "./_core/invoiceGenerator";
 import { generateShippingLabel } from "./_core/shippingLabelGenerator";
 import { getShiprocketShippingQuote } from "./_core/shiprocket";
@@ -656,6 +656,7 @@ export const appRouter = router({
         razorpaySignature: z.string().min(1),
         shippingAddress: z.string().min(10),
         shippingPincode: z.string().regex(/^\d{6}$/, "Enter a valid 6-digit pincode"),
+        customerPhone: z.string().trim().min(8).max(20),
       }))
       .mutation(async ({ ctx, input }) => {
         const alreadyUsed = await db.getOrderByRazorpayPaymentId(input.razorpayPaymentId);
@@ -717,21 +718,33 @@ export const appRouter = router({
         await db.addOrderItems(orderId, prepared.orderItemsData);
         await db.clearCart(ctx.user.id);
 
-        const user = await db.getUserById(ctx.user.id);
-        const items = await db.getOrderItems(orderId);
-        sendOrderConfirmationWhatsApp({
-          customerPhone: user?.businessPhone || "",
-          customerName: user?.name || "Valued Customer",
-          orderId: String(orderId),
-          orderNumber,
-          totalAmount: prepared.totalAmount,
-          items: items.map(item => ({
-            name: `Product #${item.productId}`,
-            quantity: item.quantity,
-            price: Number(item.unitPrice),
-          })),
-          shippingAddress: input.shippingAddress,
-        }).catch(error => console.error("Failed to send Razorpay order WhatsApp notification:", error));
+        // A prepaid website order can send one invoice PDF automatically. A
+        // missing or invalid WhatsApp setup must never affect a captured payment.
+        Promise.resolve().then(async () => {
+          const user = await db.getUserById(ctx.user.id);
+          const items = await db.getOrderItems(orderId);
+          const invoiceItems = await Promise.all(items.map(async item => {
+            const product = await db.getProductById(item.productId);
+            return { name: product?.name || `Product #${item.productId}`, quantity: item.quantity, price: Number(item.unitPrice), total: Number(item.totalPrice) };
+          }));
+          const pdf = await generateInvoicePDF({
+            orderId,
+            orderNumber,
+            customerName: user?.name || "Valued Customer",
+            customerEmail: user?.email || "",
+            customerPhone: input.customerPhone,
+            shippingAddress: input.shippingAddress,
+            items: invoiceItems,
+            subtotal: prepared.subtotal,
+            tax: 0,
+            total: prepared.totalAmount,
+            orderDate: new Date(),
+            paymentMethod: "Online payment",
+            orderStatus: "Payment completed",
+          });
+          const result = await sendWhatsAppInvoice({ customerPhone: input.customerPhone, customerName: user?.name || "Customer", invoiceNumber: orderNumber, totalAmount: prepared.totalAmount, pdf });
+          if (!result.sent) console.warn(`WhatsApp invoice for ${orderNumber} was not sent: ${result.reason}`);
+        }).catch(error => console.error("Failed to prepare online WhatsApp invoice:", error));
 
         return { orderNumber, totalAmount: prepared.totalAmount, orderId };
       }),
@@ -962,6 +975,35 @@ export const appRouter = router({
       }),
     recent: adminProcedure.input(z.object({ limit: z.number().int().min(1).max(100).default(30) })).query(({ input }) => db.getRecentCounterSales(input.limit)),
     getBill: adminProcedure.input(z.object({ billId: z.number().int().positive() })).query(({ input }) => db.getCounterSaleById(input.billId)),
+    sendWhatsAppInvoice: adminProcedure
+      .input(z.object({ billId: z.number().int().positive() }))
+      .mutation(async ({ input }) => {
+        const bill = await db.getCounterSaleById(input.billId);
+        if (!bill) throw new TRPCError({ code: "NOT_FOUND", message: "Invoice was not found." });
+        if (!bill.customerPhone) throw new TRPCError({ code: "BAD_REQUEST", message: "Customer mobile number is required to send WhatsApp invoice." });
+        try {
+          const pdf = await generateInvoicePDF({
+            orderId: bill.id,
+            orderNumber: bill.billNumber,
+            customerName: bill.customerName || "Customer",
+            customerEmail: "",
+            customerPhone: bill.customerPhone,
+            shippingAddress: bill.customerAddress || "",
+            items: bill.items.map(item => ({ name: item.description, quantity: Number(item.quantity), price: Number(item.unitPrice), total: Number(item.totalPrice) })),
+            subtotal: Number(bill.totalAmount),
+            tax: 0,
+            total: Number(bill.totalAmount),
+            orderDate: new Date(bill.createdAt),
+            paymentMethod: bill.paymentMethod,
+            orderStatus: bill.paymentStatus,
+          });
+          const result = await sendWhatsAppInvoice({ customerPhone: bill.customerPhone, customerName: bill.customerName || "Customer", invoiceNumber: bill.billNumber, totalAmount: Number(bill.totalAmount), pdf });
+          if (!result.sent) throw new Error(result.reason);
+          return result;
+        } catch (error: any) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: error?.message || "WhatsApp invoice could not be sent." });
+        }
+      }),
     create: adminProcedure
       .input(z.object({
         saleType: z.enum(["counter", "repair", "site_work"]),
