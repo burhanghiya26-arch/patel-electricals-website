@@ -123,3 +123,90 @@ Patel Electricals
 export function getWhatsAppLink(message: string, phoneNumber: string = WHATSAPP_NUMBER): string {
   return `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
 }
+
+type WhatsAppInvoiceData = {
+  customerPhone: string;
+  customerName: string;
+  invoiceNumber: string;
+  totalAmount: number;
+  pdf: Buffer;
+};
+
+function getCloudApiConfig() {
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN?.trim();
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID?.trim();
+  return {
+    accessToken,
+    phoneNumberId,
+    graphVersion: process.env.WHATSAPP_GRAPH_VERSION?.trim() || "v23.0",
+    templateName: process.env.WHATSAPP_INVOICE_TEMPLATE_NAME?.trim() || "patel_invoice",
+    templateLanguage: process.env.WHATSAPP_TEMPLATE_LANGUAGE?.trim() || "en_US",
+  };
+}
+
+function normalizeWhatsAppPhone(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 10) return `91${digits}`;
+  return digits;
+}
+
+/**
+ * Sends one approved Utility template containing the invoice PDF. It is
+ * deliberately disabled until the Meta Cloud API variables are added in
+ * Railway, so an incomplete setup can never block a paid order.
+ */
+export async function sendWhatsAppInvoice(data: WhatsAppInvoiceData) {
+  const config = getCloudApiConfig();
+  if (!config.accessToken || !config.phoneNumberId) {
+    return { sent: false, reason: "WhatsApp API is not configured yet." };
+  }
+
+  const phone = normalizeWhatsAppPhone(data.customerPhone);
+  if (phone.length < 10) return { sent: false, reason: "Customer WhatsApp number is missing or invalid." };
+
+  const apiUrl = `https://graph.facebook.com/${config.graphVersion}/${config.phoneNumberId}`;
+  const headers = { Authorization: `Bearer ${config.accessToken}` };
+  const fileName = `${data.invoiceNumber}.pdf`;
+
+  try {
+    const form = new FormData();
+    form.append("messaging_product", "whatsapp");
+    form.append("file", new Blob([new Uint8Array(data.pdf)], { type: "application/pdf" }), fileName);
+
+    const uploadResponse = await fetch(`${apiUrl}/media`, { method: "POST", headers, body: form });
+    const uploadJson = await uploadResponse.json() as { id?: string; error?: { message?: string } };
+    if (!uploadResponse.ok || !uploadJson.id) {
+      throw new Error(uploadJson.error?.message || "Invoice PDF could not be uploaded to WhatsApp.");
+    }
+
+    const sendResponse = await fetch(`${apiUrl}/messages`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: phone,
+        type: "template",
+        template: {
+          name: config.templateName,
+          language: { code: config.templateLanguage },
+          components: [
+            { type: "header", parameters: [{ type: "document", document: { id: uploadJson.id, filename: fileName } }] },
+            { type: "body", parameters: [
+              { type: "text", text: data.customerName || "Customer" },
+              { type: "text", text: data.invoiceNumber },
+              { type: "text", text: `₹${Number(data.totalAmount || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}` },
+            ] },
+          ],
+        },
+      }),
+    });
+    const sendJson = await sendResponse.json() as { messages?: Array<{ id: string }>; error?: { message?: string } };
+    if (!sendResponse.ok || !sendJson.messages?.[0]?.id) {
+      throw new Error(sendJson.error?.message || "WhatsApp did not accept the invoice message.");
+    }
+    return { sent: true, messageId: sendJson.messages[0].id };
+  } catch (error: any) {
+    console.error("WhatsApp invoice send failed:", error);
+    return { sent: false, reason: error?.message || "WhatsApp invoice could not be sent." };
+  }
+}
