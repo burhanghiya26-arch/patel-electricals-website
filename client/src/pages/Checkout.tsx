@@ -265,6 +265,7 @@ export default function Checkout() {
               razorpaySignature: response.razorpay_signature,
               shippingAddress: fullAddress,
               shippingPincode: address.pincode,
+              customerPhone: address.phone,
             });
 
             await finishOrder(completedOrder);
@@ -633,6 +634,7 @@ export default function Checkout() {
                   ? `Pay Online - ₹${Math.round(total).toLocaleString()}`
                   : `Place Order - ₹${Math.round(total).toLocaleString()}`}
             </Button>
+            <p className="px-1 text-center text-xs text-muted-foreground">Order place karne par aap Patel Electricals se WhatsApp par order update aur paid-invoice paane ke liye sahmat hain.</p>
           </div>
 
           <div className="lg:col-span-1">
