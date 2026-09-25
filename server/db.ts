@@ -1,4 +1,4 @@
-import { eq, and, like, desc, asc, sql, or, lte, gte, getTableColumns } from "drizzle-orm";
+import { eq, and, like, desc, asc, sql, or, lte, gte, lt, getTableColumns } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users, products, inventory, cartItems, orders, orderItems,
@@ -539,20 +539,54 @@ export async function receiveCounterSalePayment(input: {
   return getCounterSaleById(input.billId);
 }
 
+function indiaDateString(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(date);
+  const get = (type: string) => parts.find(part => part.type === type)?.value || "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+/** Start/end timestamps for one India calendar day. Database timestamps are
+ * stored in UTC, so DATE(createdAt) was incorrectly using the server date. */
+function indiaDateRange(date: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!match) throw new Error("Invalid report date");
+  const year = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const start = new Date(Date.UTC(year, month, day, 0, 0, 0) - (5.5 * 60 * 60 * 1000));
+  return { start, end: new Date(start.getTime() + (24 * 60 * 60 * 1000)) };
+}
+
+function indiaMonthRange(month: string) {
+  const match = /^(\d{4})-(\d{2})$/.exec(month);
+  if (!match) throw new Error("Invalid report month");
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const start = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0) - (5.5 * 60 * 60 * 1000));
+  const end = new Date(Date.UTC(year, monthIndex + 1, 1, 0, 0, 0) - (5.5 * 60 * 60 * 1000));
+  return { start, end };
+}
+
 export async function getCounterSalesTodaySummary() {
-  return getCounterSalesSummaryByDate(new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }));
+  return getCounterSalesSummaryByDate(indiaDateString());
 }
 
 export async function getCounterSalesSummaryByDate(date: string) {
   const db = await getDb();
   if (!db) return { billCount: 0, totalSales: 0, totalReceived: 0, totalDue: 0, totalProfit: 0 };
+  const range = indiaDateRange(date);
   const rows = await db.select({
     billCount: sql<number>`COUNT(*)`,
     totalSales: sql<string>`COALESCE(SUM(${counterSales.totalAmount}), 0)`,
     totalReceived: sql<string>`COALESCE(SUM(${counterSales.amountPaid}), 0)`,
     totalDue: sql<string>`COALESCE(SUM(${counterSales.balanceDue}), 0)`,
     totalProfit: sql<string>`COALESCE(SUM(${counterSales.grossProfit}), 0)`,
-  }).from(counterSales).where(sql`DATE(${counterSales.createdAt}) = ${date}`);
+  }).from(counterSales).where(and(
+    gte(counterSales.createdAt, range.start),
+    lt(counterSales.createdAt, range.end),
+  ));
   const selectedDate = rows[0];
   return {
     billCount: Number(selectedDate?.billCount || 0),
@@ -566,13 +600,17 @@ export async function getCounterSalesSummaryByDate(date: string) {
 export async function getCounterSalesSummaryByMonth(month: string) {
   const db = await getDb();
   if (!db) return { billCount: 0, totalSales: 0, totalReceived: 0, totalDue: 0, totalProfit: 0 };
+  const range = indiaMonthRange(month);
   const rows = await db.select({
     billCount: sql<number>`COUNT(*)`,
     totalSales: sql<string>`COALESCE(SUM(${counterSales.totalAmount}), 0)`,
     totalReceived: sql<string>`COALESCE(SUM(${counterSales.amountPaid}), 0)`,
     totalDue: sql<string>`COALESCE(SUM(${counterSales.balanceDue}), 0)`,
     totalProfit: sql<string>`COALESCE(SUM(${counterSales.grossProfit}), 0)`,
-  }).from(counterSales).where(sql`DATE_FORMAT(${counterSales.createdAt}, '%Y-%m') = ${month}`);
+  }).from(counterSales).where(and(
+    gte(counterSales.createdAt, range.start),
+    lt(counterSales.createdAt, range.end),
+  ));
   const selectedMonth = rows[0];
   return {
     billCount: Number(selectedMonth?.billCount || 0),
