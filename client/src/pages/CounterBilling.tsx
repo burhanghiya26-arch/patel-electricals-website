@@ -37,7 +37,13 @@ const sourceLabel: Record<SourceType, string> = {
   fitting_charge: "Fitting / installation",
 };
 const escapeHtml = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, char => htmlEntities[char] || char);
-const indiaDate = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+const indiaDate = () => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find(part => part.type === type)?.value || "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+};
 
 export default function CounterBilling() {
   const { user, isAuthenticated } = useAuth();
