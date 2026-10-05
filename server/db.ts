@@ -422,6 +422,7 @@ type CounterBillItemDraft = {
   productId?: number | null;
   sourceType: "shop_stock" | "outside_material" | "repair_labour" | "fitting_charge";
   description: string;
+  unit: string;
   quantity: number;
   listedRate: number;
   unitPrice: number;
@@ -434,7 +435,10 @@ type CounterBillDraft = {
   customerName?: string;
   customerPhone?: string;
   customerAddress?: string;
+  customerEmail?: string;
   workDescription?: string;
+  deliveryDate?: string;
+  quotationNumber?: string;
   paymentMethod: "cash" | "upi" | "card" | "bank_transfer" | "credit";
   amountPaid: number;
   showDiscount: boolean;
@@ -654,7 +658,10 @@ export async function createCounterSale(input: CounterBillDraft) {
     customerName: input.customerName || null,
     customerPhone: input.customerPhone || null,
     customerAddress: input.customerAddress || null,
+    customerEmail: input.customerEmail || null,
     workDescription: input.workDescription || null,
+    deliveryDate: input.deliveryDate || null,
+    quotationNumber: input.quotationNumber || null,
     listedAmount: String(listedAmount),
     discountAmount: String(roundCounterMoney(Math.max(0, listedAmount - totalAmount))),
     totalAmount: String(totalAmount),
@@ -676,6 +683,7 @@ export async function createCounterSale(input: CounterBillDraft) {
     productId: item.productId || null,
     sourceType: item.sourceType,
     description: item.description,
+    unit: item.unit || "piece",
     quantity: item.quantity,
     listedRate: String(item.listedRate),
     unitPrice: String(item.unitPrice),
@@ -781,7 +789,10 @@ export async function updateCounterSale(counterSaleId: number, input: Omit<Count
     customerName: input.customerName || null,
     customerPhone: input.customerPhone || null,
     customerAddress: input.customerAddress || null,
+    customerEmail: input.customerEmail || null,
     workDescription: input.workDescription || null,
+    deliveryDate: input.deliveryDate || null,
+    quotationNumber: input.quotationNumber || null,
     listedAmount: String(listedAmount),
     discountAmount: String(roundCounterMoney(Math.max(0, listedAmount - totalAmount))),
     totalAmount: String(totalAmount),
@@ -800,6 +811,7 @@ export async function updateCounterSale(counterSaleId: number, input: Omit<Count
     productId: item.productId || null,
     sourceType: item.sourceType,
     description: item.description,
+    unit: item.unit || "piece",
     quantity: item.quantity,
     listedRate: String(item.listedRate),
     unitPrice: String(item.unitPrice),
