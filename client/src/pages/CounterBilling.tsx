@@ -31,6 +31,8 @@ type BillLine = {
 
 const money = (amount: number) => `₹${Number(amount || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 const rounded = (amount: number) => Math.round((amount + Number.EPSILON) * 100) / 100;
+const SHOP_UPI_ID = "burhanghiya26-1@oksbi";
+const SHOP_UPI_NAME = "Patel Electricals";
 const htmlEntities: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 const sourceLabel: Record<SourceType, string> = {
   shop_stock: "Shop product",
@@ -45,6 +47,24 @@ const indiaDate = () => {
   }).formatToParts(new Date());
   const get = (type: string) => parts.find(part => part.type === type)?.value || "";
   return `${get("year")}-${get("month")}-${get("day")}`;
+};
+const upiPaymentLink = (bill: any) => {
+  const pendingAmount = Math.max(0, Number(bill.balanceDue || 0));
+  const params = new URLSearchParams({ pa: SHOP_UPI_ID, pn: SHOP_UPI_NAME, cu: "INR", tn: `Bill ${bill.billNumber || ""}`.trim() });
+  if (pendingAmount > 0) params.set("am", pendingAmount.toFixed(2));
+  return `upi://pay?${params.toString()}`;
+};
+const qrImageUrl = (paymentLink: string) => `https://api.qrserver.com/v1/create-qr-code/?size=220x220&format=png&data=${encodeURIComponent(paymentLink)}`;
+const loadImageDataUrl = async (url: string) => {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("QR image could not be loaded");
+  const blob = await response.blob();
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
 };
 
 export default function CounterBilling() {
@@ -326,7 +346,11 @@ export default function CounterBilling() {
     const discountRows = bill.showDiscount && discount > 0
       ? `<div class="row"><span>Subtotal</span><span>${money(Number(bill.listedAmount))}</span></div><div class="row"><span>Discount</span><span>− ${money(discount)}</span></div>`
       : "";
-    popup.document.write(`<!doctype html><html><head><title>${escapeHtml(bill.billNumber)}</title><style>@page{size:A4;margin:12mm}body{font-family:Arial,sans-serif;color:#172033;margin:32px;max-width:760px}header{border-bottom:4px solid #d59c25;padding-bottom:15px}h1{margin:0;color:#143e69;font-size:28px}.muted{color:#667085;font-size:13px}.row{display:flex;justify-content:space-between;gap:20px}.box{border:1px solid #d8e0e8;border-radius:8px;padding:13px;margin-top:20px}table{width:100%;border-collapse:collapse;margin-top:22px}th{background:#143e69;color:white;text-align:left;padding:10px;font-size:13px}td{padding:10px;border-bottom:1px solid #e4e7ec;font-size:14px}th:last-child,td:last-child{text-align:right}.total{margin-left:auto;width:320px;margin-top:20px}.total .row{padding:7px 0}.grand{border-top:2px solid #143e69;color:#143e69;font-size:20px;font-weight:bold;padding-top:10px!important}@media print{body{margin:18px}}</style></head><body><header><div class="row"><div><h1>PATEL ELECTRICALS</h1><p class="muted">Electricals • Spare Parts • Repairing • Fitting Service</p></div><div style="text-align:right"><b>${escapeHtml(bill.saleType === "repair" ? "REPAIR BILL" : bill.saleType === "site_work" ? "SITE WORK BILL" : "COUNTER BILL")}</b><br><span class="muted">Bill No: ${escapeHtml(bill.billNumber)}<br>Date: ${new Date(bill.createdAt).toLocaleDateString("en-IN")}</span></div></div></header><div class="box"><b>Customer:</b> ${escapeHtml(bill.customerName || "Walk-in Customer")} ${bill.customerPhone ? `· ${escapeHtml(bill.customerPhone)}` : ""}${bill.customerEmail ? `<br><span class="muted">Email: ${escapeHtml(bill.customerEmail)}</span>` : ""}${bill.customerAddress ? `<br><span class="muted">Address: ${escapeHtml(bill.customerAddress)}</span>` : ""}${bill.deliveryDate ? `<br><span class="muted">Delivery Date: ${escapeHtml(bill.deliveryDate)}</span>` : ""}${bill.quotationNumber ? `<br><span class="muted">Quotation No: ${escapeHtml(bill.quotationNumber)}</span>` : ""}${bill.workDescription ? `<br><br><b>Work:</b> ${escapeHtml(bill.workDescription)}` : ""}</div><table><thead><tr><th>#</th><th>Description</th><th>Unit</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${invoiceItemRows}</tbody></table><div class="total">${discountRows}<div class="row"><span>Amount Received</span><span>${money(Number(bill.amountPaid))}</span></div><div class="row"><span>Balance Due</span><span>${money(Number(bill.balanceDue))}</span></div><div class="row grand"><span>Total</span><span>${money(Number(bill.totalAmount))}</span></div></div><p class="muted" style="margin-top:50px">Thank you for choosing Patel Electricals.<br>Computer-generated bill — no signature required.</p><script>window.onload=()=>window.print()</script></body></html>`);
+    const pendingAmount = Math.max(0, Number(bill.balanceDue || 0));
+    const paymentQr = pendingAmount > 0
+      ? `<div class="qr"><img src="${qrImageUrl(upiPaymentLink(bill))}" alt="UPI payment QR"><span><b>Scan & Pay by UPI</b><br><small>UPI ID: ${SHOP_UPI_ID}<br>Payable: ${money(pendingAmount)}</small></span></div>`
+      : `<p class="paid">Payment received in full</p>`;
+    popup.document.write(`<!doctype html><html><head><title>${escapeHtml(bill.billNumber)}</title><style>@page{size:A4;margin:12mm}body{font-family:Arial,sans-serif;color:#172033;margin:32px;max-width:760px}header{border-bottom:4px solid #d59c25;padding-bottom:15px}h1{margin:0;color:#143e69;font-size:28px}.muted{color:#667085;font-size:13px}.row{display:flex;justify-content:space-between;gap:20px}.box{border:1px solid #d8e0e8;border-radius:8px;padding:13px;margin-top:20px}table{width:100%;border-collapse:collapse;margin-top:22px}th{background:#143e69;color:white;text-align:left;padding:10px;font-size:13px}td{padding:10px;border-bottom:1px solid #e4e7ec;font-size:14px}th:last-child,td:last-child{text-align:right}.total{margin-left:auto;width:320px;margin-top:20px}.total .row{padding:7px 0}.grand{border-top:2px solid #143e69;color:#143e69;font-size:20px;font-weight:bold;padding-top:10px!important}.qr{display:flex;align-items:center;gap:12px;margin-top:20px}.qr img{width:100px;height:100px}.paid{color:#047857;font-weight:bold;margin-top:20px}@media print{body{margin:18px}}</style></head><body><header><div class="row"><div><h1>PATEL ELECTRICALS</h1><p class="muted">Electricals • Spare Parts • Repairing • Fitting Service<br>Udhana Meera Nagar, Surat, Gujarat - 394210<br>Phone / WhatsApp: +91 8780657095 · www.patelspares.com</p></div><div style="text-align:right"><b>${escapeHtml(bill.saleType === "repair" ? "REPAIR BILL" : bill.saleType === "site_work" ? "SITE WORK BILL" : "COUNTER BILL")}</b><br><span class="muted">Bill No: ${escapeHtml(bill.billNumber)}<br>Date: ${new Date(bill.createdAt).toLocaleDateString("en-IN")}</span></div></div></header><div class="box"><b>Customer:</b> ${escapeHtml(bill.customerName || "Walk-in Customer")} ${bill.customerPhone ? `· ${escapeHtml(bill.customerPhone)}` : ""}${bill.customerEmail ? `<br><span class="muted">Email: ${escapeHtml(bill.customerEmail)}</span>` : ""}${bill.customerAddress ? `<br><span class="muted">Address: ${escapeHtml(bill.customerAddress)}</span>` : ""}${bill.deliveryDate ? `<br><span class="muted">Delivery Date: ${escapeHtml(bill.deliveryDate)}</span>` : ""}${bill.quotationNumber ? `<br><span class="muted">Quotation No: ${escapeHtml(bill.quotationNumber)}</span>` : ""}${bill.workDescription ? `<br><br><b>Work:</b> ${escapeHtml(bill.workDescription)}` : ""}</div><table><thead><tr><th>#</th><th>Description</th><th>Unit</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${invoiceItemRows}</tbody></table>${paymentQr}<div class="total">${discountRows}<div class="row"><span>Amount Received</span><span>${money(Number(bill.amountPaid))}</span></div><div class="row"><span>Balance Due</span><span>${money(Number(bill.balanceDue))}</span></div><div class="row grand"><span>Total</span><span>${money(Number(bill.totalAmount))}</span></div></div><p class="muted" style="margin-top:50px">Thank you for choosing Patel Electricals.<br>WhatsApp: +91 8780657095 · www.patelspares.com<br>Computer-generated bill — no signature required.</p><script>window.onload=()=>{const image=document.querySelector('.qr img');if(image&&!image.complete){image.onload=()=>window.print();image.onerror=()=>window.print();setTimeout(()=>window.print(),2500)}else window.print()}</script></body></html>`);
     popup.document.close();
   };
   const buildBillPdf = async (bill: any) => {
@@ -343,6 +367,9 @@ export default function CounterBilling() {
       pdf.setTextColor(80, 88, 105);
       pdf.setFont("helvetica", "normal");
       pdf.text("Electricals | Spare Parts | Repairing | Fitting Service", 14, y + 6);
+      pdf.setFontSize(8);
+      pdf.text("Udhana Meera Nagar, Surat, Gujarat - 394210", 14, y + 10);
+      pdf.text("Phone / WhatsApp: +91 8780657095 | www.patelspares.com", 14, y + 14);
       pdf.setTextColor(20, 32, 51);
       pdf.setFont("helvetica", "bold");
       pdf.text(bill.saleType === "repair" ? "REPAIR BILL" : bill.saleType === "site_work" ? "SITE WORK BILL" : "COUNTER BILL", pageWidth - 14, y, { align: "right" });
@@ -350,7 +377,7 @@ export default function CounterBilling() {
       pdf.setFontSize(9);
       pdf.text(`Bill No: ${bill.billNumber}`, pageWidth - 14, y + 6, { align: "right" });
       pdf.text(`Date: ${new Date(bill.createdAt).toLocaleDateString("en-IN")}`, pageWidth - 14, y + 11, { align: "right" });
-      y += 24;
+      y += 29;
       const customerLines = [
         `${bill.customerName || "Walk-in Customer"}${bill.customerPhone ? ` | ${bill.customerPhone}` : ""}`,
         ...(bill.customerEmail ? [`Email: ${bill.customerEmail}`] : []),
@@ -397,9 +424,12 @@ export default function CounterBilling() {
         y += rowHeight;
       }
       y += 8;
-      const totalRows = bill.showDiscount && Number(bill.discountAmount || 0) > 0
-        ? [["Subtotal", moneyText(bill.listedAmount)], ["Discount", `- ${moneyText(bill.discountAmount)}`], ["Total", moneyText(bill.totalAmount)]]
-        : [["Total", moneyText(bill.totalAmount)]];
+      const totalRows = [
+        ...(bill.showDiscount && Number(bill.discountAmount || 0) > 0 ? [["Subtotal", moneyText(bill.listedAmount)], ["Discount", `- ${moneyText(bill.discountAmount)}`]] : []),
+        ["Amount Received", moneyText(bill.amountPaid)],
+        ["Balance Due", moneyText(bill.balanceDue)],
+        ["Total", moneyText(bill.totalAmount)],
+      ];
       totalRows.forEach(([label, value], index) => {
         pdf.setFont("helvetica", index === totalRows.length - 1 ? "bold" : "normal");
         pdf.setFontSize(index === totalRows.length - 1 ? 13 : 10);
@@ -407,10 +437,35 @@ export default function CounterBilling() {
         pdf.text(value, pageWidth - 18, y, { align: "right" });
         y += 7;
       });
+      const pendingAmount = Math.max(0, Number(bill.balanceDue || 0));
+      if (pendingAmount > 0) {
+        if (y + 35 > 274) { pdf.addPage(); y = 20; }
+        try {
+          const qrDataUrl = await loadImageDataUrl(qrImageUrl(upiPaymentLink(bill)));
+          pdf.addImage(qrDataUrl, "PNG", 14, y, 30, 30);
+          pdf.setFont("helvetica", "bold");
+          pdf.setFontSize(10);
+          pdf.text("Scan & Pay by UPI", 50, y + 9);
+          pdf.setFont("helvetica", "normal");
+          pdf.setFontSize(8);
+          pdf.text(`UPI ID: ${SHOP_UPI_ID}`, 50, y + 15);
+          pdf.text(`Payable: ${moneyText(pendingAmount)}`, 50, y + 20);
+        } catch {
+          pdf.setFont("helvetica", "normal");
+          pdf.setFontSize(8);
+          pdf.text(`UPI: ${SHOP_UPI_ID} | Payable: ${moneyText(pendingAmount)}`, 14, y + 8);
+        }
+      } else {
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(9);
+        pdf.setTextColor(4, 120, 87);
+        pdf.text("Payment received in full", 14, y + 7);
+      }
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(8);
       pdf.setTextColor(92, 102, 120);
-      pdf.text("Thank you for choosing Patel Electricals. Computer-generated bill — no signature required.", 14, 284);
+      pdf.text("Thank you for choosing Patel Electricals | WhatsApp: +91 8780657095 | www.patelspares.com", 14, 280);
+      pdf.text("Computer-generated bill — no signature required.", 14, 284);
       return pdf;
   };
   const downloadBill = async (bill: any) => {
@@ -438,7 +493,9 @@ export default function CounterBilling() {
     const popup = window.open("", "_blank", "width=430,height=760");
     if (!popup) return toast.error("Mobile bill window open nahi hui. Browser popup allow karein.");
     const rows = (bill.items || []).map((item: any, index: number) => `<div class="item"><span><b>${index + 1}. ${escapeHtml(item.description)}</b><small>${item.quantity} ${escapeHtml(item.unit || "piece")} × ${money(Number(bill.showDiscount ? item.listedRate : item.unitPrice))}</small></span><b>${money(Number(bill.showDiscount ? Number(item.listedRate) * Number(item.quantity) : item.totalPrice))}</b></div>`).join("");
-    popup.document.write(`<!doctype html><html><head><title>${escapeHtml(bill.billNumber)}</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{font-family:Arial,sans-serif;background:#edf1f5;color:#172033;margin:0}.bill{max-width:430px;margin:auto;background:white;min-height:100vh}.head{background:#143e69;color:white;padding:24px 20px}.head h1{font-size:20px;margin:0}.head p{margin:6px 0 0;font-size:12px;opacity:.85}.content{padding:18px}.muted{color:#667085;font-size:13px}.item{display:flex;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid #e6eaf0;font-size:14px}.item small{display:block;color:#667085;margin-top:4px}.total{display:flex;justify-content:space-between;margin-top:20px;padding-top:16px;border-top:2px solid #143e69;color:#143e69;font-size:21px;font-weight:bold}.payment{background:#f5f8fb;border-radius:10px;padding:12px;margin-top:16px;font-size:14px;line-height:1.7}</style></head><body><div class="bill"><div class="head"><h1>PATEL ELECTRICALS</h1><p>${escapeHtml(bill.saleType === "repair" ? "REPAIR BILL" : bill.saleType === "site_work" ? "SITE WORK BILL" : "COUNTER BILL")} · ${escapeHtml(bill.billNumber)}</p></div><div class="content"><b>${escapeHtml(bill.customerName || "Walk-in Customer")}</b>${bill.customerPhone ? `<p class="muted">${escapeHtml(bill.customerPhone)}</p>` : ""}${bill.customerEmail ? `<p class="muted">${escapeHtml(bill.customerEmail)}</p>` : ""}${bill.customerAddress ? `<p class="muted">${escapeHtml(bill.customerAddress)}</p>` : ""}${bill.deliveryDate ? `<p class="muted">Delivery: ${escapeHtml(bill.deliveryDate)}</p>` : ""}${bill.quotationNumber ? `<p class="muted">Quotation: ${escapeHtml(bill.quotationNumber)}</p>` : ""}<p class="muted">${new Date(bill.createdAt).toLocaleString("en-IN")}</p>${rows}<div class="payment">Received: <b>${money(Number(bill.amountPaid))}</b><br>Balance Due: <b>${money(Number(bill.balanceDue))}</b></div><div class="total"><span>Total</span><span>${money(Number(bill.totalAmount))}</span></div><p class="muted" style="text-align:center;margin-top:35px">Thank you for choosing Patel Electricals</p></div></div></body></html>`);
+    const pendingAmount = Math.max(0, Number(bill.balanceDue || 0));
+    const paymentQr = pendingAmount > 0 ? `<div class="qr"><img src="${qrImageUrl(upiPaymentLink(bill))}" alt="UPI payment QR"><b>Scan & Pay ₹${pendingAmount.toLocaleString("en-IN")}</b><small>${SHOP_UPI_ID}</small></div>` : `<p class="paid">Payment received in full</p>`;
+    popup.document.write(`<!doctype html><html><head><title>${escapeHtml(bill.billNumber)}</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{font-family:Arial,sans-serif;background:#edf1f5;color:#172033;margin:0}.bill{max-width:430px;margin:auto;background:white;min-height:100vh}.head{background:#143e69;color:white;padding:24px 20px}.head h1{font-size:20px;margin:0}.head p{margin:6px 0 0;font-size:12px;opacity:.85}.content{padding:18px}.muted{color:#667085;font-size:13px}.item{display:flex;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid #e6eaf0;font-size:14px}.item small{display:block;color:#667085;margin-top:4px}.total{display:flex;justify-content:space-between;margin-top:20px;padding-top:16px;border-top:2px solid #143e69;color:#143e69;font-size:21px;font-weight:bold}.payment{background:#f5f8fb;border-radius:10px;padding:12px;margin-top:16px;font-size:14px;line-height:1.7}.qr{margin-top:18px;text-align:center;border:1px solid #dbe5ee;border-radius:10px;padding:12px}.qr img{display:block;width:150px;height:150px;margin:0 auto 8px}.qr small{display:block;color:#667085;margin-top:4px}.paid{text-align:center;color:#047857;font-weight:bold;margin-top:18px}</style></head><body><div class="bill"><div class="head"><h1>PATEL ELECTRICALS</h1><p>${escapeHtml(bill.saleType === "repair" ? "REPAIR BILL" : bill.saleType === "site_work" ? "SITE WORK BILL" : "COUNTER BILL")} · ${escapeHtml(bill.billNumber)}</p></div><div class="content"><b>${escapeHtml(bill.customerName || "Walk-in Customer")}</b>${bill.customerPhone ? `<p class="muted">${escapeHtml(bill.customerPhone)}</p>` : ""}${bill.customerEmail ? `<p class="muted">${escapeHtml(bill.customerEmail)}</p>` : ""}${bill.customerAddress ? `<p class="muted">${escapeHtml(bill.customerAddress)}</p>` : ""}${bill.deliveryDate ? `<p class="muted">Delivery: ${escapeHtml(bill.deliveryDate)}</p>` : ""}${bill.quotationNumber ? `<p class="muted">Quotation: ${escapeHtml(bill.quotationNumber)}</p>` : ""}<p class="muted">${new Date(bill.createdAt).toLocaleString("en-IN")}</p>${rows}<div class="payment">Received: <b>${money(Number(bill.amountPaid))}</b><br>Balance Due: <b>${money(Number(bill.balanceDue))}</b></div>${paymentQr}<div class="total"><span>Total</span><span>${money(Number(bill.totalAmount))}</span></div><p class="muted" style="text-align:center;margin-top:35px">Thank you for choosing Patel Electricals<br>WhatsApp: +91 8780657095 · www.patelspares.com</p></div></div></body></html>`);
     popup.document.close();
   };
   const billToPrint = lastBill || savedBill.data;
