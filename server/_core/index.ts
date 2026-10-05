@@ -108,7 +108,10 @@ async function ensureCounterBillingTables(): Promise<void> {
       \`customerName\` VARCHAR(255) NULL,
       \`customerPhone\` VARCHAR(20) NULL,
       \`customerAddress\` TEXT NULL,
+      \`customerEmail\` VARCHAR(255) NULL,
       \`workDescription\` TEXT NULL,
+      \`deliveryDate\` VARCHAR(10) NULL,
+      \`quotationNumber\` VARCHAR(100) NULL,
       \`listedAmount\` DECIMAL(12,2) NOT NULL DEFAULT 0,
       \`discountAmount\` DECIMAL(12,2) NOT NULL DEFAULT 0,
       \`totalAmount\` DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -132,6 +135,7 @@ async function ensureCounterBillingTables(): Promise<void> {
       \`productId\` INT NULL,
       \`sourceType\` ENUM('shop_stock', 'outside_material', 'repair_labour', 'fitting_charge') NOT NULL,
       \`description\` VARCHAR(500) NOT NULL,
+      \`unit\` VARCHAR(20) NOT NULL DEFAULT 'piece',
       \`quantity\` INT NOT NULL DEFAULT 1,
       \`listedRate\` DECIMAL(12,2) NOT NULL DEFAULT 0,
       \`unitPrice\` DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -143,6 +147,20 @@ async function ensureCounterBillingTables(): Promise<void> {
       INDEX \`counter_sale_items_sale_idx\` (\`counterSaleId\`),
       INDEX \`counter_sale_items_product_idx\` (\`productId\`)
     )`);
+    const counterBillingColumns = [
+      { table: "counter_sales", name: "customerEmail", definition: "VARCHAR(255) NULL" },
+      { table: "counter_sales", name: "deliveryDate", definition: "VARCHAR(10) NULL" },
+      { table: "counter_sales", name: "quotationNumber", definition: "VARCHAR(100) NULL" },
+      { table: "counter_sale_items", name: "unit", definition: "VARCHAR(20) NOT NULL DEFAULT 'piece'" },
+    ];
+    for (const column of counterBillingColumns) {
+      try {
+        await connection.execute(`ALTER TABLE \`${column.table}\` ADD COLUMN \`${column.name}\` ${column.definition}`);
+        console.log(`[Database] Added ${column.table}.${column.name}`);
+      } catch (error: any) {
+        if (error?.code !== "ER_DUP_FIELDNAME" && error?.errno !== 1060) throw error;
+      }
+    }
   } finally {
     await connection.end();
   }
