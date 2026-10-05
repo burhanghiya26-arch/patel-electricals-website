@@ -107,6 +107,9 @@ export const products = mysqlTable("products", {
   // Default price for a walk-in/counter customer. It can differ from the
   // website price, while a bill may still use a one-time negotiated rate.
   counterPrice: decimal("counterPrice", { precision: 12, scale: 2 }),
+  // This becomes the preselected unit whenever this product is added to a
+  // counter bill. Each individual bill can still change it if required.
+  defaultUnit: varchar("defaultUnit", { length: 20 }).notNull().default("piece"),
   wholesalePrice: decimal("wholesalePrice", { precision: 12, scale: 2 }),
   purchaseCost: decimal("purchaseCost", { precision: 12, scale: 2 }),
   wholesaleMinQty: int("wholesaleMinQty").default(1).notNull(),
@@ -350,7 +353,10 @@ export const counterSales = mysqlTable("counter_sales", {
   customerName: varchar("customerName", { length: 255 }),
   customerPhone: varchar("customerPhone", { length: 20 }),
   customerAddress: text("customerAddress"),
+  customerEmail: varchar("customerEmail", { length: 255 }),
   workDescription: text("workDescription"),
+  deliveryDate: varchar("deliveryDate", { length: 10 }),
+  quotationNumber: varchar("quotationNumber", { length: 100 }),
   listedAmount: decimal("listedAmount", { precision: 12, scale: 2 }).notNull().default("0"),
   discountAmount: decimal("discountAmount", { precision: 12, scale: 2 }).notNull().default("0"),
   totalAmount: decimal("totalAmount", { precision: 12, scale: 2 }).notNull().default("0"),
@@ -378,6 +384,7 @@ export const counterSaleItems = mysqlTable("counter_sale_items", {
   // Internal-only classification; never printed on the customer bill.
   sourceType: mysqlEnum("sourceType", ["shop_stock", "outside_material", "repair_labour", "fitting_charge"]).notNull(),
   description: varchar("description", { length: 500 }).notNull(),
+  unit: varchar("unit", { length: 20 }).notNull().default("piece"),
   quantity: int("quantity").notNull().default(1),
   listedRate: decimal("listedRate", { precision: 12, scale: 2 }).notNull().default("0"),
   unitPrice: decimal("unitPrice", { precision: 12, scale: 2 }).notNull().default("0"),
