@@ -51,7 +51,6 @@ export default function CounterBilling() {
   const utils = trpc.useUtils();
   const enabled = isAuthenticated && user?.role === "admin";
   const products = trpc.counterBilling.products.useQuery(undefined, { enabled });
-  const summary = trpc.counterBilling.todaySummary.useQuery(undefined, { enabled });
   const recent = trpc.counterBilling.recent.useQuery({ limit: 20 }, { enabled });
   const duePayments = trpc.counterBilling.duePayments.useQuery({ limit: 100 }, { enabled });
   const [reportDate, setReportDate] = useState(indiaDate);
@@ -69,6 +68,7 @@ export default function CounterBilling() {
   const [isQuickSale, setIsQuickSale] = useState(false);
   const [lines, setLines] = useState<BillLine[]>([]);
   const [search, setSearch] = useState("");
+  const [outsideMaterialRows, setOutsideMaterialRows] = useState("1");
   const [lastBill, setLastBill] = useState<any | null>(null);
   const [receiveAmounts, setReceiveAmounts] = useState<Record<number, string>>({});
   const [receiveMethods, setReceiveMethods] = useState<Record<number, PaymentMethod>>({});
@@ -104,7 +104,6 @@ export default function CounterBilling() {
       setIsQuickSale(false);
       await Promise.all([
         utils.counterBilling.products.invalidate(),
-        utils.counterBilling.todaySummary.invalidate(),
         utils.counterBilling.dateSummary.invalidate(),
         utils.counterBilling.monthSummary.invalidate(),
         utils.counterBilling.duePayments.invalidate(),
@@ -128,7 +127,6 @@ export default function CounterBilling() {
       toast.success(`Bill ${bill.billNumber} updated`);
       await Promise.all([
         utils.counterBilling.products.invalidate(),
-        utils.counterBilling.todaySummary.invalidate(),
         utils.counterBilling.dateSummary.invalidate(),
         utils.counterBilling.monthSummary.invalidate(),
         utils.counterBilling.duePayments.invalidate(),
@@ -153,7 +151,6 @@ export default function CounterBilling() {
       toast.success(`Invoice ${bill.billNumber} deleted; shop stock restored.`);
       await Promise.all([
         utils.counterBilling.products.invalidate(),
-        utils.counterBilling.todaySummary.invalidate(),
         utils.counterBilling.dateSummary.invalidate(),
         utils.counterBilling.monthSummary.invalidate(),
         utils.counterBilling.duePayments.invalidate(),
@@ -171,7 +168,6 @@ export default function CounterBilling() {
       setLastBill(bill);
       await Promise.all([
         utils.counterBilling.duePayments.invalidate(),
-        utils.counterBilling.todaySummary.invalidate(),
         utils.counterBilling.dateSummary.invalidate(),
         utils.counterBilling.monthSummary.invalidate(),
         utils.counterBilling.recent.invalidate(),
@@ -206,15 +202,24 @@ export default function CounterBilling() {
       }];
     });
   };
-  const addCustomLine = (sourceType: Exclude<SourceType, "shop_stock">) => setLines(current => [...current, {
-    id: `${sourceType}-${Date.now()}-${current.length}`,
-    sourceType,
-    description: sourceType === "repair_labour" ? "Repair Labour Charge" : sourceType === "fitting_charge" ? "Fitting / Installation Charge" : "",
-    quantity: 1,
-    normalRate: 0,
-    unitPrice: 0,
-    purchaseCost: 0,
-  }]);
+  const addCustomLine = (sourceType: Exclude<SourceType, "shop_stock">, count = 1) => setLines(current => {
+    const totalRows = Math.max(1, Math.min(50, Math.floor(count) || 1));
+    const timestamp = Date.now();
+    return [...current, ...Array.from({ length: totalRows }, (_, index) => ({
+      id: `${sourceType}-${timestamp}-${current.length + index}`,
+      sourceType,
+      description: sourceType === "repair_labour" ? "Repair Labour Charge" : sourceType === "fitting_charge" ? "Fitting / Installation Charge" : "",
+      quantity: 1,
+      normalRate: 0,
+      unitPrice: 0,
+      purchaseCost: 0,
+    }))];
+  });
+  const addOutsideMaterialRows = () => {
+    const count = Math.max(1, Math.min(50, Math.floor(Number(outsideMaterialRows)) || 1));
+    addCustomLine("outside_material", count);
+    setOutsideMaterialRows("1");
+  };
   const clearDraft = () => {
     setEditingBillId(null);
     setLines([]);
@@ -420,11 +425,11 @@ export default function CounterBilling() {
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between"><div><h1 className="text-2xl font-bold">Counter, Repair & Site Billing</h1><p className="text-sm text-muted-foreground">Customer bill par sirf final item/rate dikhega. Outside material aur cost/profit private rahenge.</p></div>{billToPrint && <Button variant="outline" onClick={() => printBill(billToPrint)}><Printer className="mr-2 h-4 w-4" /> Print Last Bill</Button>}</div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <Stat label="Today's Bills" value={String(summary.data?.billCount || 0)} />
-        <Stat label="Today's Sale" value={money(summary.data?.totalSales || 0)} />
-        <Stat label="Received" value={money(summary.data?.totalReceived || 0)} />
-        <Stat label="Balance Due" value={money(summary.data?.totalDue || 0)} />
-        <Stat label="Private Profit" value={money(summary.data?.totalProfit || 0)} />
+        <Stat label={reportDate === indiaDate() ? "Today's Bills" : "Selected Date Bills"} value={String(dateSummary.data?.billCount || 0)} />
+        <Stat label={reportDate === indiaDate() ? "Today's Sale" : "Selected Date Sale"} value={money(dateSummary.data?.totalSales || 0)} />
+        <Stat label="Received" value={money(dateSummary.data?.totalReceived || 0)} />
+        <Stat label="Balance Due" value={money(dateSummary.data?.totalDue || 0)} />
+        <Stat label="Private Profit" value={money(dateSummary.data?.totalProfit || 0)} />
       </div>
 
       <Card><CardHeader><CardTitle>Profit Report</CardTitle></CardHeader><CardContent className="grid gap-4 lg:grid-cols-2"><div className="rounded-lg border p-4"><Label>Selected Date</Label><Input className="mt-2" type="date" value={reportDate} onChange={event => setReportDate(event.target.value)} /><div className="mt-4 grid grid-cols-2 gap-3"><ReportValue label="Bills" value={String(dateSummary.data?.billCount || 0)} /><ReportValue label="Sale" value={money(dateSummary.data?.totalSales || 0)} /><ReportValue label="Received" value={money(dateSummary.data?.totalReceived || 0)} /><ReportValue label="Profit" value={money(dateSummary.data?.totalProfit || 0)} /></div></div><div className="rounded-lg border p-4"><Label>Selected Month</Label><Input className="mt-2" type="month" value={reportMonth} onChange={event => setReportMonth(event.target.value)} /><div className="mt-4 grid grid-cols-2 gap-3"><ReportValue label="Bills" value={String(monthSummary.data?.billCount || 0)} /><ReportValue label="Sale" value={money(monthSummary.data?.totalSales || 0)} /><ReportValue label="Received" value={money(monthSummary.data?.totalReceived || 0)} /><ReportValue label="Profit" value={money(monthSummary.data?.totalProfit || 0)} /></div></div></CardContent></Card>
@@ -448,7 +453,7 @@ export default function CounterBilling() {
             {isQuickSale && <div className="md:col-span-2"><Label>Private Note (optional)</Label><Input placeholder="Example: Counter par 2 switch sale" value={customer.notes} onChange={event => setCustomer(current => ({ ...current, notes: event.target.value }))} /></div>}
           </CardContent></Card>
 
-          <Card><CardHeader><CardTitle>Add Shop Product</CardTitle></CardHeader><CardContent className="space-y-3"><div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input className="pl-9" placeholder="Product ya part number search karein" value={search} onChange={event => setSearch(event.target.value)} /></div><div className="grid gap-2 sm:grid-cols-2">{visibleProducts.map(product => <button key={product.id} type="button" className="flex items-center justify-between rounded-lg border p-3 text-left hover:bg-muted disabled:opacity-50" disabled={Number(product.quantityInStock || 0) < 1} onClick={() => addProduct(product)}><span><span className="block font-medium">{product.name}</span><span className="text-xs text-muted-foreground">#{product.partNumber} · Stock: {product.quantityInStock || 0}</span></span><span className="font-semibold text-emerald-700">{money(Number(product.counterPrice ?? product.basePrice))}</span></button>)}</div>{search && !visibleProducts.length && <p className="text-sm text-muted-foreground">Product nahi mila.</p>}<div className="flex flex-wrap gap-2 border-t pt-3"><Button type="button" variant="outline" onClick={() => addCustomLine("outside_material")}>+ Outside Material</Button><Button type="button" variant="outline" onClick={() => addCustomLine("repair_labour")}>+ Repair Labour</Button><Button type="button" variant="outline" onClick={() => addCustomLine("fitting_charge")}>+ Fitting Charge</Button></div></CardContent></Card>
+          <Card><CardHeader><CardTitle>Add Shop Product</CardTitle></CardHeader><CardContent className="space-y-3"><div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input className="pl-9" placeholder="Product ya part number search karein" value={search} onChange={event => setSearch(event.target.value)} /></div><div className="grid gap-2 sm:grid-cols-2">{visibleProducts.map(product => <button key={product.id} type="button" className="flex items-center justify-between rounded-lg border p-3 text-left hover:bg-muted disabled:opacity-50" disabled={Number(product.quantityInStock || 0) < 1} onClick={() => addProduct(product)}><span><span className="block font-medium">{product.name}</span><span className="text-xs text-muted-foreground">#{product.partNumber} · Stock: {product.quantityInStock || 0}</span></span><span className="font-semibold text-emerald-700">{money(Number(product.counterPrice ?? product.basePrice))}</span></button>)}</div>{search && !visibleProducts.length && <p className="text-sm text-muted-foreground">Product nahi mila.</p>}<div className="flex flex-wrap gap-2 border-t pt-3"><div className="flex items-end gap-2 rounded-md border bg-muted/30 p-2"><div><Label className="text-xs">Outside material rows</Label><Input className="mt-1 h-9 w-20" type="number" min="1" max="50" value={outsideMaterialRows} onChange={event => setOutsideMaterialRows(event.target.value)} /></div><Button type="button" variant="outline" className="h-9" onClick={addOutsideMaterialRows}>+ Add Outside Material</Button></div><Button type="button" variant="outline" onClick={() => addCustomLine("repair_labour")}>+ Repair Labour</Button><Button type="button" variant="outline" onClick={() => addCustomLine("fitting_charge")}>+ Fitting Charge</Button></div></CardContent></Card>
 
           <Card><CardHeader><CardTitle>Bill Items</CardTitle></CardHeader><CardContent className="space-y-3">{!lines.length && <p className="py-5 text-center text-sm text-muted-foreground">Product ya work charge add karke bill banayein.</p>}{lines.map(line => { const lineTotal = rounded(line.unitPrice * line.quantity); const belowCost = line.unitPrice < line.purchaseCost; return <div key={line.id} className="rounded-lg border p-3"><div className="mb-3 flex items-start justify-between gap-2"><div><p className="text-xs text-muted-foreground">{sourceLabel[line.sourceType]}</p>{line.sourceType === "shop_stock" && <p className="text-xs text-muted-foreground">Normal counter rate: {money(line.normalRate)} · Available stock: {line.stock}</p>}</div><Button type="button" variant="ghost" size="icon" onClick={() => setLines(current => current.filter(item => item.id !== line.id))} aria-label="Remove item"><Trash2 className="h-4 w-4" /></Button></div><div className="grid gap-3 sm:grid-cols-12"><div className="sm:col-span-4"><Label>Description</Label><Input disabled={line.sourceType === "shop_stock"} value={line.description} onChange={event => updateLine(line.id, { description: event.target.value })} /></div><div className="sm:col-span-2"><Label>Qty</Label><div className="flex"><Button type="button" variant="outline" size="icon" className="shrink-0" onClick={() => updateLine(line.id, { quantity: Math.max(1, line.quantity - 1) })}><Minus className="h-4 w-4" /></Button><Input className="rounded-none text-center" type="number" min="1" max={line.stock || undefined} value={line.quantity} onChange={event => updateLine(line.id, { quantity: Math.max(1, Math.min(line.stock || Infinity, Number(event.target.value) || 1)) })} /><Button type="button" variant="outline" size="icon" className="shrink-0" disabled={line.stock !== undefined && line.quantity >= line.stock} onClick={() => updateLine(line.id, { quantity: line.quantity + 1 })}><Plus className="h-4 w-4" /></Button></div></div><div className="sm:col-span-2"><Label>Final Rate</Label><Input type="number" min="0" step="0.01" value={line.unitPrice} onChange={event => updateLine(line.id, { unitPrice: Math.max(0, Number(event.target.value) || 0) })} /></div><div className="sm:col-span-2"><Label>Cost (private)</Label><Input type="number" min="0" step="0.01" value={line.purchaseCost} onChange={event => updateLine(line.id, { purchaseCost: Math.max(0, Number(event.target.value) || 0) })} /></div><div className="sm:col-span-2"><Label>Total</Label><p className={`mt-2 text-lg font-bold ${belowCost ? "text-red-600" : ""}`}>{money(lineTotal)}</p>{belowCost && <p className="text-xs text-red-600">Loss warning</p>}</div></div></div>;})}</CardContent></Card>
         </div>
