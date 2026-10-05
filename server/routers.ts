@@ -1010,7 +1010,10 @@ export const appRouter = router({
         customerName: z.string().trim().max(255).optional(),
         customerPhone: z.string().trim().max(20).optional(),
         customerAddress: z.string().trim().max(2000).optional(),
+        customerEmail: z.string().trim().email().max(255).optional(),
         workDescription: z.string().trim().max(2000).optional(),
+        deliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        quotationNumber: z.string().trim().max(100).optional(),
         paymentMethod: z.enum(["cash", "upi", "card", "bank_transfer", "credit"]),
         amountPaid: z.number().nonnegative(),
         showDiscount: z.boolean().default(false),
@@ -1019,6 +1022,7 @@ export const appRouter = router({
           productId: z.number().int().positive().nullable().optional(),
           sourceType: z.enum(["shop_stock", "outside_material", "repair_labour", "fitting_charge"]),
           description: z.string().trim().max(500).optional(),
+          unit: z.enum(["piece", "meter", "roll", "box"]).default("piece"),
           quantity: z.number().int().positive(),
           unitPrice: z.number().nonnegative(),
           listedRate: z.number().nonnegative().optional(),
@@ -1030,6 +1034,7 @@ export const appRouter = router({
           productId?: number | null;
           sourceType: "shop_stock" | "outside_material" | "repair_labour" | "fitting_charge";
           description: string;
+          unit: "piece" | "meter" | "roll" | "box";
           quantity: number;
           listedRate: number;
           unitPrice: number;
@@ -1050,6 +1055,7 @@ export const appRouter = router({
               productId: product.id,
               sourceType: "shop_stock",
               description: product.name,
+              unit: item.unit,
               quantity: item.quantity,
               listedRate: normalRate,
               unitPrice: item.unitPrice,
@@ -1063,6 +1069,7 @@ export const appRouter = router({
             productId: null,
             sourceType: item.sourceType,
             description: item.description,
+            unit: item.unit,
             quantity: item.quantity,
             listedRate: item.listedRate ?? item.unitPrice,
             unitPrice: item.unitPrice,
@@ -1080,7 +1087,10 @@ export const appRouter = router({
           customerName: input.customerName,
           customerPhone: input.customerPhone,
           customerAddress: input.customerAddress,
+          customerEmail: input.customerEmail,
           workDescription: input.workDescription,
+          deliveryDate: input.deliveryDate,
+          quotationNumber: input.quotationNumber,
           paymentMethod: input.paymentMethod,
           amountPaid: input.amountPaid,
           showDiscount: input.showDiscount,
@@ -1098,7 +1108,10 @@ export const appRouter = router({
         customerName: z.string().trim().max(255).optional(),
         customerPhone: z.string().trim().max(20).optional(),
         customerAddress: z.string().trim().max(2000).optional(),
+        customerEmail: z.string().trim().email().max(255).optional(),
         workDescription: z.string().trim().max(2000).optional(),
+        deliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        quotationNumber: z.string().trim().max(100).optional(),
         paymentMethod: z.enum(["cash", "upi", "card", "bank_transfer", "credit"]),
         amountPaid: z.number().nonnegative(),
         showDiscount: z.boolean().default(false),
@@ -1107,6 +1120,7 @@ export const appRouter = router({
           productId: z.number().int().positive().nullable().optional(),
           sourceType: z.enum(["shop_stock", "outside_material", "repair_labour", "fitting_charge"]),
           description: z.string().trim().max(500).optional(),
+          unit: z.enum(["piece", "meter", "roll", "box"]).default("piece"),
           quantity: z.number().int().positive(),
           unitPrice: z.number().nonnegative(),
           listedRate: z.number().nonnegative().optional(),
@@ -1118,6 +1132,7 @@ export const appRouter = router({
           productId?: number | null;
           sourceType: "shop_stock" | "outside_material" | "repair_labour" | "fitting_charge";
           description: string;
+          unit: "piece" | "meter" | "roll" | "box";
           quantity: number;
           listedRate: number;
           unitPrice: number;
@@ -1132,6 +1147,7 @@ export const appRouter = router({
               productId: product.id,
               sourceType: "shop_stock",
               description: product.name,
+              unit: item.unit,
               quantity: item.quantity,
               listedRate: item.listedRate ?? Number(product.counterPrice ?? product.basePrice),
               unitPrice: item.unitPrice,
@@ -1144,6 +1160,7 @@ export const appRouter = router({
             productId: null,
             sourceType: item.sourceType,
             description: item.description,
+            unit: item.unit,
             quantity: item.quantity,
             listedRate: item.listedRate ?? item.unitPrice,
             unitPrice: item.unitPrice,
@@ -1158,7 +1175,10 @@ export const appRouter = router({
             customerName: input.customerName,
             customerPhone: input.customerPhone,
             customerAddress: input.customerAddress,
+            customerEmail: input.customerEmail,
             workDescription: input.workDescription,
+            deliveryDate: input.deliveryDate,
+            quotationNumber: input.quotationNumber,
             paymentMethod: input.paymentMethod,
             amountPaid: input.amountPaid,
             showDiscount: input.showDiscount,
