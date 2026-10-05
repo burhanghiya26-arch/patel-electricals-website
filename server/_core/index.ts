@@ -70,6 +70,7 @@ async function ensureSalesmanBookingColumns(): Promise<void> {
   const changes = [
     { table: "products", name: "wholesalePrice", definition: "DECIMAL(12,2) NULL" },
     { table: "products", name: "counterPrice", definition: "DECIMAL(12,2) NULL" },
+    { table: "products", name: "defaultUnit", definition: "VARCHAR(20) NOT NULL DEFAULT 'piece'" },
     { table: "products", name: "purchaseCost", definition: "DECIMAL(12,2) NULL" },
     { table: "products", name: "wholesaleMinQty", definition: "INT NOT NULL DEFAULT 1" },
     { table: "products", name: "wholesaleOnly", definition: "BOOLEAN NOT NULL DEFAULT FALSE" },
