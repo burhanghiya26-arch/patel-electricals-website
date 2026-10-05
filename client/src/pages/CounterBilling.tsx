@@ -216,7 +216,7 @@ export default function CounterBilling() {
         productId: product.id,
         sourceType: "shop_stock",
         description: product.name,
-        unit: "piece",
+        unit: (["piece", "meter", "roll", "box"].includes(product.defaultUnit) ? product.defaultUnit : "piece") as ItemUnit,
         quantity: 1,
         normalRate,
         unitPrice: normalRate,
