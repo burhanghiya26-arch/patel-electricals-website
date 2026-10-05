@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { AdminNav } from "./AdminDashboard";
@@ -29,7 +30,7 @@ export default function AdminProducts() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [form, setForm] = useState({
     partNumber: '', name: '', description: '', categoryName: 'General',
-    basePrice: '', counterPrice: '', purchaseCost: '', wholesalePrice: '', wholesaleMinQty: '1', wholesaleOnly: false, shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [] as string[],
+    basePrice: '', counterPrice: '', purchaseCost: '', defaultUnit: 'piece', wholesalePrice: '', wholesaleMinQty: '1', wholesaleOnly: false, shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [] as string[],
     colorOptions: '', sizeOptions: '',
     keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '',
   });
@@ -100,7 +101,7 @@ const uploadImage = trpc.upload.image.useMutation({
   });
 
   const resetForm = () => {
-    setForm({ partNumber: '', name: '', description: '', categoryName: 'General', basePrice: '', counterPrice: '', purchaseCost: '', wholesalePrice: '', wholesaleMinQty: '1', wholesaleOnly: false, shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [], colorOptions: '', sizeOptions: '', keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '' });
+    setForm({ partNumber: '', name: '', description: '', categoryName: 'General', basePrice: '', counterPrice: '', purchaseCost: '', defaultUnit: 'piece', wholesalePrice: '', wholesaleMinQty: '1', wholesaleOnly: false, shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [], colorOptions: '', sizeOptions: '', keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '' });
     setImagePreview(null);
     setProductImageGallery([]);
     setShowForm(false);
@@ -186,6 +187,7 @@ const uploadImage = trpc.upload.image.useMutation({
           basePrice: price,
           counterPrice,
           purchaseCost,
+          defaultUnit: form.defaultUnit as "piece" | "meter" | "roll" | "box",
           wholesalePrice: form.wholesalePrice ? wholesalePrice : null,
           wholesaleMinQty: parseInt(form.wholesaleMinQty) || 1,
           wholesaleOnly: form.wholesaleOnly,
@@ -212,6 +214,7 @@ const uploadImage = trpc.upload.image.useMutation({
         basePrice: price,
         counterPrice: counterPrice === null ? undefined : counterPrice,
         purchaseCost: purchaseCost === null ? undefined : purchaseCost,
+        defaultUnit: form.defaultUnit as "piece" | "meter" | "roll" | "box",
         wholesalePrice: form.wholesalePrice ? wholesalePrice : undefined,
         wholesaleMinQty: parseInt(form.wholesaleMinQty) || 1,
         wholesaleOnly: form.wholesaleOnly,
@@ -245,6 +248,7 @@ const uploadImage = trpc.upload.image.useMutation({
       basePrice: String(Number(product.basePrice)),
       counterPrice: product.counterPrice !== null && product.counterPrice !== undefined ? String(Number(product.counterPrice)) : '',
       purchaseCost: product.purchaseCost !== null && product.purchaseCost !== undefined ? String(Number(product.purchaseCost)) : '',
+      defaultUnit: product.defaultUnit || 'piece',
       wholesalePrice: product.wholesalePrice ? String(Number(product.wholesalePrice)) : '',
       wholesaleMinQty: String(product.wholesaleMinQty || 1),
       wholesaleOnly: Boolean(product.wholesaleOnly),
@@ -444,6 +448,19 @@ const uploadImage = trpc.upload.image.useMutation({
                     className="mt-1"
                   />
                   <p className="text-xs text-muted-foreground mt-1">Profit Dashboard ke liye.</p>
+                </div>
+                <div>
+                  <Label>Default Unit</Label>
+                  <Select value={form.defaultUnit} onValueChange={(value) => setForm(prev => ({ ...prev, defaultUnit: value }))}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="piece">Piece</SelectItem>
+                      <SelectItem value="meter">Meter</SelectItem>
+                      <SelectItem value="roll">Roll</SelectItem>
+                      <SelectItem value="box">Box</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">Counter bill mein ye unit automatically aayega.</p>
                 </div>
                 <div>
                   <Label>Stock Qty</Label>
