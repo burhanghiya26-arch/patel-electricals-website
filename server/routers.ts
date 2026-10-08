@@ -1023,7 +1023,7 @@ export const appRouter = router({
           productId: z.number().int().positive().nullable().optional(),
           sourceType: z.enum(["shop_stock", "outside_material", "repair_labour", "fitting_charge"]),
           description: z.string().trim().max(500).optional(),
-          unit: z.enum(["piece", "meter", "roll", "box"]).default("piece"),
+          unit: z.string().trim().min(1).max(30).default("piece"),
           quantity: z.number().int().positive(),
           unitPrice: z.number().nonnegative(),
           listedRate: z.number().nonnegative().optional(),
@@ -1035,7 +1035,7 @@ export const appRouter = router({
           productId?: number | null;
           sourceType: "shop_stock" | "outside_material" | "repair_labour" | "fitting_charge";
           description: string;
-          unit: "piece" | "meter" | "roll" | "box";
+          unit: string;
           quantity: number;
           listedRate: number;
           unitPrice: number;
@@ -1121,7 +1121,7 @@ export const appRouter = router({
           productId: z.number().int().positive().nullable().optional(),
           sourceType: z.enum(["shop_stock", "outside_material", "repair_labour", "fitting_charge"]),
           description: z.string().trim().max(500).optional(),
-          unit: z.enum(["piece", "meter", "roll", "box"]).default("piece"),
+          unit: z.string().trim().min(1).max(30).default("piece"),
           quantity: z.number().int().positive(),
           unitPrice: z.number().nonnegative(),
           listedRate: z.number().nonnegative().optional(),
@@ -1133,7 +1133,7 @@ export const appRouter = router({
           productId?: number | null;
           sourceType: "shop_stock" | "outside_material" | "repair_labour" | "fitting_charge";
           description: string;
-          unit: "piece" | "meter" | "roll" | "box";
+          unit: string;
           quantity: number;
           listedRate: number;
           unitPrice: number;
