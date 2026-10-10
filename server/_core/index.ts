@@ -162,6 +162,12 @@ async function ensureCounterBillingTables(): Promise<void> {
         if (error?.code !== "ER_DUP_FIELDNAME" && error?.errno !== 1060) throw error;
       }
     }
+    // Older internal quick-sales used CNT numbers, which made customer invoice
+    // numbers appear to jump. Move only those internal records to QCK numbers.
+    await connection.execute(`UPDATE \`counter_sales\`
+      SET \`billNumber\` = CONCAT('QCK-', LPAD(\`id\`, 4, '0'))
+      WHERE \`billNumber\` LIKE 'CNT-%'
+        AND \`notes\` LIKE '[quick-stock-sale]%'`);
   } finally {
     await connection.end();
   }
