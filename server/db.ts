@@ -488,15 +488,19 @@ export async function getRecentCounterSales(limit = 30) {
 }
 
 /**
- * Counter invoices use a short, easy-to-read running number. MySQL's numeric
- * id never repeats, so a deleted bill cannot make a later bill reuse a number.
+ * Customer invoices and internal quick stock sales use separate sequences.
+ * Quick sales should never create gaps in the customer-facing CNT series.
  */
-export async function getNextCounterBillNumber() {
+export async function getNextCounterBillNumber(isQuickSale = false) {
   const db = await getDb();
   if (!db) throw new Error("Database is unavailable");
-  const rows = await db.select({ latestId: sql<number>`COALESCE(MAX(${counterSales.id}), 0)` }).from(counterSales);
-  const nextNumber = Number(rows[0]?.latestId || 0) + 1;
-  return `CNT-${String(nextNumber).padStart(4, "0")}`;
+  if (isQuickSale) {
+    const rows = await db.select({ latestId: sql<number>`COALESCE(MAX(${counterSales.id}), 0)` }).from(counterSales);
+    return `QCK-${String(Number(rows[0]?.latestId || 0) + 1).padStart(4, "0")}`;
+  }
+  const rows = await db.select({ invoiceCount: sql<number>`COUNT(*)` }).from(counterSales)
+    .where(sql`${counterSales.billNumber} LIKE 'CNT-%' AND (${counterSales.notes} IS NULL OR ${counterSales.notes} NOT LIKE '[quick-stock-sale]%')`);
+  return `CNT-${String(Number(rows[0]?.invoiceCount || 0) + 1).padStart(4, "0")}`;
 }
 
 /** Counter/repair/site bills where the customer still has money due. */
@@ -2146,6 +2150,9 @@ export async function getAllInventoryWithStatus() {
     productId: inventory.productId,
     productName: products.name,
     partNumber: products.partNumber,
+    purchaseCost: products.purchaseCost,
+    basePrice: products.basePrice,
+    counterPrice: products.counterPrice,
     quantityInStock: inventory.quantityInStock,
     minimumOrderQuantity: inventory.minimumOrderQuantity,
     reorderLevel: inventory.reorderLevel,
