@@ -86,6 +86,9 @@ const updateReorderMutation =
   ) || [];
 
   const selectedProductData = inventory?.find((i: any) => i.productId === selectedProduct);
+  const totalStockPurchaseValue = inventory.reduce((total: number, item: any) => total + (Number(item.quantityInStock || 0) * Number(item.purchaseCost || 0)), 0);
+  const totalStockSellingValue = inventory.reduce((total: number, item: any) => total + (Number(item.quantityInStock || 0) * Number(item.counterPrice ?? item.basePrice ?? 0)), 0);
+  const money = (amount: number) => `₹${amount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
   return (
     <div className="min-h-screen bg-background">
@@ -96,7 +99,7 @@ const updateReorderMutation =
 
         {/* Low Stock Summary */}
         {lowStockSummary && (
-          <div className="grid gap-4 grid-cols-3 mb-8">
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-5 mb-8">
             <Card>
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Total Products</p>
@@ -113,6 +116,20 @@ const updateReorderMutation =
               <CardContent className="p-4">
                 <p className="text-sm text-amber-700 font-medium">Low Stock</p>
                 <p className="text-2xl font-bold text-amber-600">{lowStockSummary.low}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-blue-200 bg-blue-50">
+              <CardContent className="p-4">
+                <p className="text-sm text-blue-700 font-medium">Maal ki Kharid Value</p>
+                <p className="text-2xl font-bold text-blue-700">{money(totalStockPurchaseValue)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Purchase cost × stock</p>
+              </CardContent>
+            </Card>
+            <Card className="border-emerald-200 bg-emerald-50">
+              <CardContent className="p-4">
+                <p className="text-sm text-emerald-700 font-medium">Selling Value</p>
+                <p className="text-2xl font-bold text-emerald-700">{money(totalStockSellingValue)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Counter rate × stock</p>
               </CardContent>
             </Card>
           </div>
@@ -161,6 +178,7 @@ const updateReorderMutation =
                               {item.quantityInStock} units
                             </p>
                             <p className="text-xs text-muted-foreground">Reorder: {item.reorderLevel}</p>
+                            <p className="mt-1 text-xs text-blue-700">Maal ki value: {money(Number(item.quantityInStock || 0) * Number(item.purchaseCost || 0))}</p>
                           </div>
                         </div>
                       </div>
@@ -195,6 +213,14 @@ const updateReorderMutation =
                       }`}>
                         {selectedProductData.quantityInStock} units
                       </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Maal ki Kharid Value</p>
+                      <p className="text-lg font-bold text-blue-700">{money(Number(selectedProductData.quantityInStock || 0) * Number(selectedProductData.purchaseCost || 0))}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Selling Value</p>
+                      <p className="text-lg font-bold text-emerald-700">{money(Number(selectedProductData.quantityInStock || 0) * Number(selectedProductData.counterPrice ?? selectedProductData.basePrice ?? 0))}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Reorder Level</p>
