@@ -7,7 +7,7 @@ import * as db from "./db";
 import { TRPCError } from "@trpc/server";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
-import { sendOrderConfirmationWhatsApp, sendOrderTrackingWhatsApp, sendWhatsAppInvoice } from "./_core/whatsappNotification";
+import { sendOrderTrackingWhatsApp, sendWhatsAppInvoice } from "./_core/whatsappNotification";
 import { generateInvoicePDF } from "./_core/invoiceGenerator";
 import { generateShippingLabel } from "./_core/shippingLabelGenerator";
 import { getShiprocketShippingQuote } from "./_core/shiprocket";
@@ -658,6 +658,7 @@ export const appRouter = router({
         shippingAddress: z.string().min(10),
         shippingPincode: z.string().regex(/^\d{6}$/, "Enter a valid 6-digit pincode"),
         customerPhone: z.string().trim().min(8).max(20),
+        whatsappOptIn: z.boolean().default(false),
       }))
       .mutation(async ({ ctx, input }) => {
         const alreadyUsed = await db.getOrderByRazorpayPaymentId(input.razorpayPaymentId);
@@ -719,9 +720,9 @@ export const appRouter = router({
         await db.addOrderItems(orderId, prepared.orderItemsData);
         await db.clearCart(ctx.user.id);
 
-        // A prepaid website order can send one invoice PDF automatically. A
-        // missing or invalid WhatsApp setup must never affect a captured payment.
-        Promise.resolve().then(async () => {
+        // Only message customers who explicitly opted in at checkout. WhatsApp
+        // setup failures must never affect a payment that has already cleared.
+        if (input.whatsappOptIn) Promise.resolve().then(async () => {
           const user = await db.getUserById(ctx.user.id);
           const items = await db.getOrderItems(orderId);
           const invoiceItems = await Promise.all(items.map(async item => {
@@ -1232,6 +1233,7 @@ export const appRouter = router({
         shippingPincode: z.string().optional(),
         shippingCost: z.number().optional().default(0),
         customerPhone: z.string().optional(),
+        whatsappOptIn: z.boolean().default(false),
       }))
       .mutation(async ({ ctx, input }) => {
 
@@ -1310,23 +1312,34 @@ export const appRouter = router({
 
         await db.clearCart(ctx.user.id);
 
-        // Send WhatsApp order confirmation (fire and forget)
-        const user = await db.getUserById(ctx.user.id);
-        const phoneNumber = input.customerPhone || user?.businessPhone || "918780657095";
-        if (phoneNumber) {
-          sendOrderConfirmationWhatsApp({
-            customerPhone: phoneNumber,
-            customerName: user?.name || "Valued Customer",
-            orderId: String(orderId),
-            orderNumber,
-            totalAmount: finalTotal,
-            items: orderItemsData.map((item) => ({
-              name: `Product #${item.productId}`,
-              quantity: item.quantity,
-              price: Number(item.unitPrice),
-            })),
-            shippingAddress: input.shippingAddress,
-          }).catch((err) => console.error("Failed to send WhatsApp notification:", err));
+        // Send a PDF bill only when the customer opted in. Meta requires an
+        // approved template for business-initiated messages.
+        if (input.whatsappOptIn && input.customerPhone && orderId) {
+          Promise.resolve().then(async () => {
+            const user = await db.getUserById(ctx.user.id);
+            const items = await db.getOrderItems(orderId);
+            const invoiceItems = await Promise.all(items.map(async item => {
+              const product = await db.getProductById(item.productId);
+              return { name: product?.name || `Product #${item.productId}`, quantity: item.quantity, price: Number(item.unitPrice), total: Number(item.totalPrice) };
+            }));
+            const pdf = await generateInvoicePDF({
+              orderId,
+              orderNumber,
+              customerName: user?.name || "Valued Customer",
+              customerEmail: user?.email || "",
+              customerPhone: input.customerPhone!,
+              shippingAddress: input.shippingAddress,
+              items: invoiceItems,
+              subtotal: totalAmount,
+              tax: 0,
+              total: finalTotal,
+              orderDate: new Date(),
+              paymentMethod: "Cash on delivery",
+              orderStatus: "Order placed - payment due",
+            });
+            const result = await sendWhatsAppInvoice({ customerPhone: input.customerPhone!, customerName: user?.name || "Customer", invoiceNumber: orderNumber, totalAmount: finalTotal, pdf });
+            if (!result.sent) console.warn(`WhatsApp invoice for ${orderNumber} was not sent: ${result.reason}`);
+          }).catch(error => console.error("Failed to prepare COD WhatsApp invoice:", error));
         }
         return { orderNumber, totalAmount: finalTotal, orderId };
       }),
