@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   ArrowLeft,
   MapPin,
@@ -83,6 +84,7 @@ export default function Checkout() {
     "cod" | "razorpay" | "card" | "upi" | "bank_transfer" | "credit"
   >("cod");
   const [isOpeningPayment, setIsOpeningPayment] = useState(false);
+  const [whatsappOptIn, setWhatsappOptIn] = useState(false);
 
   const [address, setAddress] = useState({
     fullName: "",
@@ -117,7 +119,7 @@ export default function Checkout() {
   const finishOrder = async (data: {
     orderNumber: string;
     totalAmount: number;
-    orderId: number;
+    orderId?: number;
   }) => {
     await utils.customer.getMyData.invalidate();
     await utils.orders.list.invalidate();
@@ -202,6 +204,7 @@ export default function Checkout() {
         shippingPincode: address.pincode,
         shippingCost: Math.round(shippingCost),
         customerPhone: address.phone,
+        whatsappOptIn,
       });
       return;
     }
@@ -266,6 +269,7 @@ export default function Checkout() {
               shippingAddress: fullAddress,
               shippingPincode: address.pincode,
               customerPhone: address.phone,
+              whatsappOptIn,
             });
 
             await finishOrder(completedOrder);
@@ -634,7 +638,16 @@ export default function Checkout() {
                   ? `Pay Online - ₹${Math.round(total).toLocaleString()}`
                   : `Place Order - ₹${Math.round(total).toLocaleString()}`}
             </Button>
-            <p className="px-1 text-center text-xs text-muted-foreground">Order place karne par aap Patel Electricals se WhatsApp par order update aur paid-invoice paane ke liye sahmat hain.</p>
+            <label className="flex cursor-pointer items-start gap-2 px-1 text-xs text-muted-foreground">
+              <Checkbox
+                checked={whatsappOptIn}
+                onCheckedChange={(checked) => setWhatsappOptIn(checked === true)}
+                className="mt-0.5"
+              />
+              <span>
+                I agree to receive order updates and invoices on WhatsApp from Patel Electricals at this number. You can opt out at any time.
+              </span>
+            </label>
           </div>
 
           <div className="lg:col-span-1">
