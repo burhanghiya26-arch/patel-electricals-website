@@ -1,212 +1,241 @@
-const WHATSAPP_NUMBER = "918780657095";
+type WhatsAppApiError = {
+  error?: { message?: string; error_user_msg?: string };
+  id?: string;
+  messages?: Array<{ id?: string }>;
+};
 
-interface OrderNotificationData {
-  customerPhone: string;
-  customerName: string;
-  orderId: string;
-  orderNumber: string;
-  totalAmount: number;
-  items: Array<{
-    name: string;
-    quantity: number;
-    price: number;
-  }>;
-  shippingAddress?: string;
+type WhatsAppInvoiceResult =
+  | { sent: true; messageId?: string }
+  | { sent: false; reason: string };
+
+const GRAPH_API_VERSION =
+  process.env.WHATSAPP_GRAPH_API_VERSION || "v26.0";
+
+const INVOICE_TEMPLATE_LANGUAGE =
+  process.env.WHATSAPP_INVOICE_TEMPLATE_LANGUAGE || "en_US";
+
+function getWhatsAppConfig() {
+  return {
+    accessToken: process.env.WHATSAPP_ACCESS_TOKEN?.trim() || "",
+    phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID?.trim() || "",
+    invoiceTemplateName:
+      process.env.WHATSAPP_INVOICE_TEMPLATE_NAME?.trim() || "",
+  };
 }
 
-interface OrderTrackingNotificationData {
-  customerPhone: string;
-  customerName: string;
-  orderId: string;
-  orderNumber: string;
-  status: string;
-  estimatedDelivery?: string;
-  trackingNumber?: string;
+function normalizeRecipientPhone(phone: string): string {
+  let digits = phone.replace(/\D/g, "");
+
+  if (digits.startsWith("00")) {
+    digits = digits.slice(2);
+  }
+
+  // Indian 10-digit customer number → add country code.
+  if (digits.length === 10) {
+    digits = `91${digits}`;
+  }
+
+  if (digits.length < 8 || digits.length > 15) {
+    throw new Error(
+      "Customer phone number must include a valid country code.",
+    );
+  }
+
+  return digits;
 }
 
-/**
- * Send WhatsApp order confirmation notification to customer
- * Note: This uses a template-based approach. In production, integrate with WhatsApp Business API
- */
-export async function sendOrderConfirmationWhatsApp(data: OrderNotificationData): Promise<boolean> {
+async function readApiResponse(
+  response: Response,
+): Promise<WhatsAppApiError> {
+  const body = await response.text();
+
   try {
-    const itemsList = data.items
-      .map((item) => `• ${item.name} x${item.quantity} = ₹${(item.price * item.quantity).toFixed(2)}`)
-      .join("\n");
-
-    const message = `Hi ${data.customerName},
-
-Thank you for your order! 🎉
-
-Order Details:
-Order ID: ${data.orderId}
-Order Number: #${data.orderNumber}
-Total Amount: ₹${data.totalAmount.toFixed(2)}
-
-Items:
-${itemsList}
-
-${data.shippingAddress ? `Shipping Address:\n${data.shippingAddress}\n` : ""}
-We'll send you tracking updates soon!
-
-Patel Electricals
-Wholesale Spare Parts
-📞 8780657095`;
-
-    // Log the message for now - in production, integrate with WhatsApp Business API
-    console.log(`[WhatsApp Notification] Order confirmation sent to ${data.customerPhone}:\n${message}`);
-
-    // Notify owner about the order
-    // Disabled: Manus notification service
-    // await notifyOwner({
-    //   title: `New Order #${data.orderNumber}`,
-    //   content: `${data.customerName} placed an order for ₹${data.totalAmount.toFixed(2)}. Order ID: ${data.orderId}`,
-    // });
-
-    return true;
-  } catch (error) {
-    console.error("Error sending WhatsApp order confirmation:", error);
-    return false;
+    return JSON.parse(body) as WhatsAppApiError;
+  } catch {
+    return {};
   }
 }
 
-/**
- * Send WhatsApp order tracking update notification to customer
- */
-export async function sendOrderTrackingWhatsApp(data: OrderTrackingNotificationData): Promise<boolean> {
-  try {
-    const statusEmoji: Record<string, string> = {
-      pending: "⏳",
-      confirmed: "✅",
-      shipped: "📦",
-      delivered: "🎉",
-      cancelled: "❌",
-    };
+function explainApiFailure(
+  data: WhatsAppApiError,
+  fallback: string,
+): string {
+  return data.error?.error_user_msg || data.error?.message || fallback;
+}
 
-    const emoji = statusEmoji[data.status.toLowerCase()] || "📍";
+async function uploadInvoicePdf(
+  phoneNumberId: string,
+  accessToken: string,
+  pdf: Buffer,
+  filename: string,
+): Promise<string> {
+  const form = new FormData();
 
-    let message = `Hi ${data.customerName},
+  form.append("messaging_product", "whatsapp");
+  form.append("type", "application/pdf");
+  form.append(
+    "file",
+    new Blob([new Uint8Array(pdf)], { type: "application/pdf" }),
+    filename,
+  );
 
-Your order status has been updated! ${emoji}
+  const response = await fetch(
+    `https://graph.facebook.com/${GRAPH_API_VERSION}/${encodeURIComponent(
+      phoneNumberId,
+    )}/media`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: form,
+    },
+  );
 
-Order Number: #${data.orderNumber}
-Order ID: ${data.orderId}
-Status: ${data.status.toUpperCase()}`;
+  const result = await readApiResponse(response);
 
-    if (data.trackingNumber) {
-      message += `\nTracking Number: ${data.trackingNumber}`;
-    }
-
-    if (data.estimatedDelivery) {
-      message += `\nEstimated Delivery: ${data.estimatedDelivery}`;
-    }
-
-    message += `\n\nTrack your order: ${typeof window !== "undefined" ? window.location.origin : "https://patel-electricals.com"}/my-orders/${data.orderId}
-
-Thank you for shopping with us!
-Patel Electricals
-📞 8780657095`;
-
-    // Log the message for now - in production, integrate with WhatsApp Business API
-    console.log(`[WhatsApp Notification] Tracking update sent to ${data.customerPhone}:\n${message}`);
-
-    return true;
-  } catch (error) {
-    console.error("Error sending WhatsApp tracking update:", error);
-    return false;
+  if (!response.ok || !result.id) {
+    throw new Error(
+      explainApiFailure(result, "Meta could not upload the invoice PDF."),
+    );
   }
+
+  return result.id;
 }
 
-/**
- * Get WhatsApp link for manual messaging (fallback)
- */
-export function getWhatsAppLink(message: string, phoneNumber: string = WHATSAPP_NUMBER): string {
-  return `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
-}
-
-type WhatsAppInvoiceData = {
+export async function sendWhatsAppInvoice(data: {
   customerPhone: string;
   customerName: string;
   invoiceNumber: string;
   totalAmount: number;
   pdf: Buffer;
-};
+}): Promise<WhatsAppInvoiceResult> {
+  const { accessToken, phoneNumberId, invoiceTemplateName } =
+    getWhatsAppConfig();
 
-function getCloudApiConfig() {
-  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN?.trim();
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID?.trim();
-  return {
-    accessToken,
-    phoneNumberId,
-    graphVersion: process.env.WHATSAPP_GRAPH_VERSION?.trim() || "v23.0",
-    templateName: process.env.WHATSAPP_INVOICE_TEMPLATE_NAME?.trim() || "patel_invoice",
-    templateLanguage: process.env.WHATSAPP_TEMPLATE_LANGUAGE?.trim() || "en_US",
-  };
-}
-
-function normalizeWhatsAppPhone(phone: string) {
-  const digits = phone.replace(/\D/g, "");
-  if (digits.length === 10) return `91${digits}`;
-  return digits;
-}
-
-/**
- * Sends one approved Utility template containing the invoice PDF. It is
- * deliberately disabled until the Meta Cloud API variables are added in
- * Railway, so an incomplete setup can never block a paid order.
- */
-export async function sendWhatsAppInvoice(data: WhatsAppInvoiceData) {
-  const config = getCloudApiConfig();
-  if (!config.accessToken || !config.phoneNumberId) {
-    return { sent: false, reason: "WhatsApp API is not configured yet." };
+  if (!accessToken || !phoneNumberId || !invoiceTemplateName) {
+    return {
+      sent: false,
+      reason:
+        "WhatsApp setup is incomplete. Add the Meta access token, phone number ID, and approved invoice template name in Railway Variables.",
+    };
   }
-
-  const phone = normalizeWhatsAppPhone(data.customerPhone);
-  if (phone.length < 10) return { sent: false, reason: "Customer WhatsApp number is missing or invalid." };
-
-  const apiUrl = `https://graph.facebook.com/${config.graphVersion}/${config.phoneNumberId}`;
-  const headers = { Authorization: `Bearer ${config.accessToken}` };
-  const fileName = `${data.invoiceNumber}.pdf`;
 
   try {
-    const form = new FormData();
-    form.append("messaging_product", "whatsapp");
-    form.append("file", new Blob([new Uint8Array(data.pdf)], { type: "application/pdf" }), fileName);
+    const recipient = normalizeRecipientPhone(data.customerPhone);
 
-    const uploadResponse = await fetch(`${apiUrl}/media`, { method: "POST", headers, body: form });
-    const uploadJson = await uploadResponse.json() as { id?: string; error?: { message?: string } };
-    if (!uploadResponse.ok || !uploadJson.id) {
-      throw new Error(uploadJson.error?.message || "Invoice PDF could not be uploaded to WhatsApp.");
-    }
+    const filename = `${data.invoiceNumber.replace(
+      /[^a-zA-Z0-9_-]/g,
+      "_",
+    )}.pdf`;
 
-    const sendResponse = await fetch(`${apiUrl}/messages`, {
-      method: "POST",
-      headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to: phone,
-        type: "template",
-        template: {
-          name: config.templateName,
-          language: { code: config.templateLanguage },
-          components: [
-            { type: "header", parameters: [{ type: "document", document: { id: uploadJson.id, filename: fileName } }] },
-            { type: "body", parameters: [
-              { type: "text", text: data.customerName || "Customer" },
-              { type: "text", text: data.invoiceNumber },
-              { type: "text", text: `₹${Number(data.totalAmount || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}` },
-            ] },
-          ],
+    const mediaId = await uploadInvoicePdf(
+      phoneNumberId,
+      accessToken,
+      data.pdf,
+      filename,
+    );
+
+    const response = await fetch(
+      `https://graph.facebook.com/${GRAPH_API_VERSION}/${encodeURIComponent(
+        phoneNumberId,
+      )}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
         },
-      }),
-    });
-    const sendJson = await sendResponse.json() as { messages?: Array<{ id: string }>; error?: { message?: string } };
-    if (!sendResponse.ok || !sendJson.messages?.[0]?.id) {
-      throw new Error(sendJson.error?.message || "WhatsApp did not accept the invoice message.");
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: recipient,
+          type: "template",
+          template: {
+            name: invoiceTemplateName,
+            language: {
+              code: INVOICE_TEMPLATE_LANGUAGE,
+            },
+            components: [
+              {
+                type: "header",
+                parameters: [
+                  {
+                    type: "document",
+                    document: {
+                      id: mediaId,
+                      filename,
+                    },
+                  },
+                ],
+              },
+              {
+                type: "body",
+                parameters: [
+                  {
+                    type: "text",
+                    text: data.customerName || "Customer",
+                  },
+                  {
+                    type: "text",
+                    text: data.invoiceNumber,
+                  },
+                  {
+                    type: "text",
+                    text: `₹${Number(data.totalAmount).toLocaleString(
+                      "en-IN",
+                    )}`,
+                  },
+                ],
+              },
+            ],
+          },
+        }),
+      },
+    );
+
+    const result = await readApiResponse(response);
+
+    if (!response.ok) {
+      return {
+        sent: false,
+        reason: explainApiFailure(
+          result,
+          "Meta could not send the WhatsApp invoice.",
+        ),
+      };
     }
-    return { sent: true, messageId: sendJson.messages[0].id };
-  } catch (error: any) {
-    console.error("WhatsApp invoice send failed:", error);
-    return { sent: false, reason: error?.message || "WhatsApp invoice could not be sent." };
+
+    return {
+      sent: true,
+      messageId: result.messages?.[0]?.id || result.id,
+    };
+  } catch (error) {
+    return {
+      sent: false,
+      reason:
+        error instanceof Error
+          ? error.message
+          : "WhatsApp invoice could not be sent.",
+    };
   }
+}
+
+export async function sendOrderConfirmationWhatsApp(
+  _data: unknown,
+): Promise<boolean> {
+  return false;
+}
+
+export async function sendOrderTrackingWhatsApp(
+  _data: unknown,
+): Promise<boolean> {
+  return false;
+}
+
+export function getWhatsAppLink(
+  message: string,
+  phoneNumber = "918780657095",
+): string {
+  return `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
 }
