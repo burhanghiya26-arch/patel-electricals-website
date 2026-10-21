@@ -243,14 +243,26 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
   throw new Error(`No available port found starting from ${startPort}`);
 }
 
+async function prepareDatabaseForStartup(): Promise<void> {
+  try {
+    // These checks keep an existing database schema compatible with newer
+    // releases. A temporary database outage must not prevent Express from
+    // starting and serving the website's static pages.
+    await ensureProductContentColumns();
+    await ensureReturnRequestsTable();
+    await ensureSalesmanBookingColumns();
+    await ensureSalesmanShopsTable();
+    await ensureCounterBillingTables();
+  } catch (error) {
+    console.warn(
+      "[Database] Startup schema preparation could not finish. The web server will still start; retry the deployment after the database is available.",
+      error,
+    );
+  }
+}
+
 async function startServer() {
-  // Keep existing product data intact while adding the fields used by the
-  // Product Details and SEO feature.
-  await ensureProductContentColumns();
-  await ensureReturnRequestsTable();
-  await ensureSalesmanBookingColumns();
-  await ensureSalesmanShopsTable();
-  await ensureCounterBillingTables();
+  await prepareDatabaseForStartup();
 
   // Initialize default admin account if needed
   await initializeDefaultAdmin().catch(err => {
