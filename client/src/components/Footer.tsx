@@ -16,6 +16,7 @@ export default function Footer() {
               Your trusted wholesale partner for electrical spare parts since 2010.
             </p>
           </div>
+
           <div>
             <h4 className="font-semibold mb-4 text-[oklch(0.65_0.15_85)]">Quick Links</h4>
             <ul className="space-y-2 text-sm text-white/60">
@@ -25,15 +26,17 @@ export default function Footer() {
               <li><a href="/products" className="hover:text-white transition-colors">Bulk Orders</a></li>
             </ul>
           </div>
+
           <div>
             <h4 className="font-semibold mb-4 text-[oklch(0.65_0.15_85)]">Support</h4>
             <ul className="space-y-2 text-sm text-white/60">
               <li><a href="#" className="hover:text-white transition-colors">Shipping Policy</a></li>
               <li><a href="#" className="hover:text-white transition-colors">Return Policy</a></li>
-
+              <li><a href="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</a></li>
               <li><a href="#" className="hover:text-white transition-colors">FAQ</a></li>
             </ul>
           </div>
+
           <div>
             <h4 className="font-semibold mb-4 text-[oklch(0.65_0.15_85)]">Contact Us</h4>
             <ul className="space-y-3 text-sm text-white/60">
@@ -52,9 +55,9 @@ export default function Footer() {
             </ul>
           </div>
         </div>
+
         <div className="border-t border-white/10 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-xs text-white/40">&copy; 2026 Patel Electricals. All rights reserved.</p>
-
         </div>
       </div>
     </footer>
