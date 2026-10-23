@@ -36,6 +36,7 @@ import SalesmanOrderBooking from "./pages/SalesmanOrderBooking";
 import AdminSalesmen from "./pages/AdminSalesmen";
 import ProfitDashboard from "./pages/ProfitDashboard";
 import CounterBilling from "./pages/CounterBilling";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 function Router() {
   return (
@@ -46,6 +47,7 @@ function Router() {
       <Route path="/products/:id" component={ProductDetail} />
       <Route path="/cart" component={ShoppingCart} />
       <Route path="/checkout" component={Checkout} />
+      <Route path="/privacy-policy" component={PrivacyPolicy} />
       <Route path="/orders/:id" component={OrderTracking} />
       <Route path="/shipment-tracking" component={ShipmentTracking} />
       <Route path="/search" component={AdvancedSearch} />
@@ -79,12 +81,12 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
-          <TooltipProvider>
-            <Toaster />
-            <GoogleAnalytics />
-            <Router />
-            <DeliveryOtpNotice />
-          </TooltipProvider>
+        <TooltipProvider>
+          <Toaster />
+          <GoogleAnalytics />
+          <Router />
+          <DeliveryOtpNotice />
+        </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );
