@@ -10,31 +10,25 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }).unique(),
   loginMethod: varchar("loginMethod", { length: 64 }),
-passwordHash: text("passwordHash"),
+  passwordHash: text("passwordHash"),
   role: mysqlEnum("role", ["user", "dealer", "sales_rep", "admin"]).default("user").notNull(),
-  // Used only for salesman_portal staff. This is the commission percentage
-  // for new orders; the order itself stores a permanent snapshot of it.
   commissionRate: decimal("commissionRate", { precision: 5, scale: 2 }).default("0").notNull(),
-  
-  // Dealer-specific fields
+
   businessName: text("businessName"),
   gstNumber: varchar("gstNumber", { length: 20 }),
   businessAddress: text("businessAddress"),
   businessPhone: varchar("businessPhone", { length: 20 }),
   businessEmail: varchar("businessEmail", { length: 320 }),
-  
-  // Credit management
+
   creditLimit: decimal("creditLimit", { precision: 12, scale: 2 }).default("0"),
   usedCredit: decimal("usedCredit", { precision: 12, scale: 2 }).default("0"),
   creditApproved: boolean("creditApproved").default(false),
-  
-  // Sales rep assignment
+
   assignedSalesRepId: int("assignedSalesRepId"),
-  
-  // Verification
+
   isVerified: boolean("isVerified").default(false),
   verificationDocuments: json("verificationDocuments"),
-  
+
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -46,13 +40,10 @@ passwordHash: text("passwordHash"),
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-/**
- * Admin Credentials (Email/Password Authentication)
- */
 export const adminCredentials = mysqlTable("admin_credentials", {
   id: int("id").autoincrement().primaryKey(),
   email: varchar("email", { length: 320 }).notNull().unique(),
-  passwordHash: text("passwordHash").notNull(), // bcrypt hashed password
+  passwordHash: text("passwordHash").notNull(),
   isActive: boolean("isActive").default(true).notNull(),
   lastLoginAt: timestamp("lastLoginAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -64,9 +55,6 @@ export const adminCredentials = mysqlTable("admin_credentials", {
 export type AdminCredential = typeof adminCredentials.$inferSelect;
 export type InsertAdminCredential = typeof adminCredentials.$inferInsert;
 
-/**
- * Product Categories
- */
 export const categories = mysqlTable("categories", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
@@ -81,9 +69,6 @@ export const categories = mysqlTable("categories", {
 export type Category = typeof categories.$inferSelect;
 export type InsertCategory = typeof categories.$inferInsert;
 
-/**
- * Products/Spare Parts
- */
 export const products = mysqlTable("products", {
   id: int("id").autoincrement().primaryKey(),
   partNumber: varchar("partNumber", { length: 100 }).notNull().unique(),
@@ -91,56 +76,42 @@ export const products = mysqlTable("products", {
   description: text("description"),
   categoryId: int("categoryId").notNull(),
 
-  // Product-page content
-  keyFeatures: json("keyFeatures"), // Array of short customer-facing benefits
-  specifications: json("specifications"), // Array of { name, value } entries
+  keyFeatures: json("keyFeatures"),
+  specifications: json("specifications"),
 
-  // Search engine information
   seoMetaDescription: text("seoMetaDescription"),
   seoKeywords: text("seoKeywords"),
-  
-  // Pricing
-  // basePrice remains the retail/customer price. Wholesale price is visible
-  // only in the salesman booking panel. purchaseCost is the per-unit buying
-  // cost and is used by the admin profit dashboard.
+
   basePrice: decimal("basePrice", { precision: 12, scale: 2 }).notNull(),
-  // Default price for a walk-in/counter customer. It can differ from the
-  // website price, while a bill may still use a one-time negotiated rate.
   counterPrice: decimal("counterPrice", { precision: 12, scale: 2 }),
-  // This becomes the preselected unit whenever this product is added to a
-  // counter bill. Each individual bill can still change it if required.
   defaultUnit: varchar("defaultUnit", { length: 20 }).notNull().default("piece"),
   wholesalePrice: decimal("wholesalePrice", { precision: 12, scale: 2 }),
+
+  // Har product ke ek unit par salesman ko milne wala fixed commission.
+  salesmanCommissionPerUnit: decimal("salesmanCommissionPerUnit", { precision: 12, scale: 2 }).notNull().default("0"),
+
   purchaseCost: decimal("purchaseCost", { precision: 12, scale: 2 }),
   wholesaleMinQty: int("wholesaleMinQty").default(1).notNull(),
   wholesaleOnly: boolean("wholesaleOnly").default(false).notNull(),
-  // Packed product weight in kg. This is only used for Shiprocket quotes
-  // outside the local Surat delivery zone.
   shippingWeightKg: decimal("shippingWeightKg", { precision: 8, scale: 3 }),
-  
-  // Compatibility
-  compatibleModels: json("compatibleModels"), // Array of model names/numbers
-  compatibleBrands: json("compatibleBrands"), // Array of brand names
-  
-  // Cross-reference
-  alternatePartNumbers: json("alternatePartNumbers"), // Array of alternate part numbers
-  
-  // Images and diagrams
-  imageUrl: text("imageUrl"), // Deprecated: use productImages instead
-  productImages: json("productImages"), // Array of image URLs for gallery
+
+  compatibleModels: json("compatibleModels"),
+  compatibleBrands: json("compatibleBrands"),
+
+  alternatePartNumbers: json("alternatePartNumbers"),
+
+  imageUrl: text("imageUrl"),
+  productImages: json("productImages"),
   explodedViewUrl: text("explodedViewUrl"),
-  
-  // Variations
-  colorOptions: json("colorOptions"), // Array of available colors: ["Red", "Blue", "Green"]
-  sizeOptions: json("sizeOptions"), // Array of available sizes: ["S", "M", "L", "XL"]
-  
-  // Stock management
+
+  colorOptions: json("colorOptions"),
+  sizeOptions: json("sizeOptions"),
+
   stockQty: int("stockQty").default(0).notNull(),
   minOrderQty: int("minOrderQty").default(1).notNull(),
-  
-  // Status
+
   isActive: boolean("isActive").default(true),
-  
+
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
@@ -152,9 +123,6 @@ export const products = mysqlTable("products", {
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = typeof products.$inferInsert;
 
-/**
- * Inventory/Stock Management
- */
 export const inventory = mysqlTable("inventory", {
   id: int("id").autoincrement().primaryKey(),
   productId: int("productId").notNull(),
@@ -172,9 +140,6 @@ export const inventory = mysqlTable("inventory", {
 export type Inventory = typeof inventory.$inferSelect;
 export type InsertInventory = typeof inventory.$inferInsert;
 
-/**
- * Inventory Movement History
- */
 export const inventoryMovement = mysqlTable("inventory_movement", {
   id: int("id").autoincrement().primaryKey(),
   productId: int("productId").notNull(),
@@ -196,15 +161,12 @@ export const inventoryMovement = mysqlTable("inventory_movement", {
 export type InventoryMovement = typeof inventoryMovement.$inferSelect;
 export type InsertInventoryMovement = typeof inventoryMovement.$inferInsert;
 
-/**
- * Shopping Cart
- */
 export const cartItems = mysqlTable("cart_items", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
   productId: int("productId").notNull(),
   quantity: int("quantity").notNull().default(1),
-  addedPrice: decimal("addedPrice", { precision: 12, scale: 2 }), // Price at time of adding
+  addedPrice: decimal("addedPrice", { precision: 12, scale: 2 }),
   selectedColor: varchar("selectedColor", { length: 100 }),
   selectedSize: varchar("selectedSize", { length: 100 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -217,68 +179,49 @@ export const cartItems = mysqlTable("cart_items", {
 export type CartItem = typeof cartItems.$inferSelect;
 export type InsertCartItem = typeof cartItems.$inferInsert;
 
-/**
- * Orders
- */
 export const orders = mysqlTable("orders", {
   id: int("id").autoincrement().primaryKey(),
   orderNumber: varchar("orderNumber", { length: 50 }).notNull().unique(),
   userId: int("userId").notNull(),
-  
-  // Order details
+
   totalAmount: decimal("totalAmount", { precision: 12, scale: 2 }).notNull(),
   gstAmount: decimal("gstAmount", { precision: 12, scale: 2 }).notNull().default("0"),
   shippingCost: decimal("shippingCost", { precision: 12, scale: 2 }).notNull().default("0"),
   manualShippingCharge: decimal("manualShippingCharge", { precision: 12, scale: 2 }),
   discountAmount: decimal("discountAmount", { precision: 12, scale: 2 }).default("0"),
-  
-  // Shipping
+
   shippingAddress: text("shippingAddress").notNull(),
   shippingMethod: varchar("shippingMethod", { length: 50 }),
-  // Filled only when a salesman books an order at a shop. The shop never
-  // needs a website account or password.
   shopName: varchar("shopName", { length: 255 }),
   customerName: varchar("customerName", { length: 255 }),
   customerPhone: varchar("customerPhone", { length: 20 }),
-  // The saved shop profile used for this salesman order. It makes repeat
-  // orders and shop-wise order history reliable without creating an account
-  // for the shop owner.
   salesmanShopId: int("salesmanShopId"),
   createdBySalesRepId: int("createdBySalesRepId"),
-  // Commission snapshot for a salesman-booked order. It is paid/countable
-  // only after this order is delivered.
   salesmanCommissionRate: decimal("salesmanCommissionRate", { precision: 5, scale: 2 }),
   salesmanCommissionAmount: decimal("salesmanCommissionAmount", { precision: 12, scale: 2 }),
-  
-  // Payment
+
   paymentMethod: mysqlEnum("paymentMethod", ["upi", "bank_transfer", "card", "cod", "razorpay", "credit"]).notNull(),
   paymentStatus: mysqlEnum("paymentStatus", ["pending", "completed", "failed", "refunded"]).default("pending").notNull(),
   razorpayOrderId: varchar("razorpayOrderId", { length: 100 }),
   razorpayPaymentId: varchar("razorpayPaymentId", { length: 100 }),
-  // Actual Razorpay processing fee, saved after the payment is captured.
   razorpayFee: decimal("razorpayFee", { precision: 12, scale: 2 }),
-  
-  // Order status
+
   orderStatus: mysqlEnum("orderStatus", ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"]).default("pending").notNull(),
   inventoryDeducted: boolean("inventoryDeducted").default(false).notNull(),
-  
-  // Tracking
+
   trackingNumber: varchar("trackingNumber", { length: 100 }),
   estimatedDeliveryDate: timestamp("estimatedDeliveryDate"),
-  
-  // Status timestamps
+
   confirmedAt: timestamp("confirmedAt"),
   processingAt: timestamp("processingAt"),
   shippedAt: timestamp("shippedAt"),
   deliveredAt: timestamp("deliveredAt"),
-  
-  // GST Invoice
+
   invoiceNumber: varchar("invoiceNumber", { length: 50 }),
   invoiceUrl: text("invoiceUrl"),
-  
-  // Notes
+
   notes: text("notes"),
-  
+
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
@@ -291,11 +234,6 @@ export const orders = mysqlTable("orders", {
 export type Order = typeof orders.$inferSelect;
 export type InsertOrder = typeof orders.$inferInsert;
 
-/**
- * Shops visited by the sales team. These are business contacts, not website
- * customer accounts. A shop can be selected again to fill its details, view
- * its past orders, or open its saved address in Maps.
- */
 export const salesmanShops = mysqlTable("salesman_shops", {
   id: int("id").autoincrement().primaryKey(),
   shopName: varchar("shopName", { length: 255 }).notNull(),
@@ -317,9 +255,6 @@ export const salesmanShops = mysqlTable("salesman_shops", {
 export type SalesmanShop = typeof salesmanShops.$inferSelect;
 export type InsertSalesmanShop = typeof salesmanShops.$inferInsert;
 
-/**
- * Order Items (Line items in an order)
- */
 export const orderItems = mysqlTable("order_items", {
   id: int("id").autoincrement().primaryKey(),
   orderId: int("orderId").notNull(),
@@ -327,9 +262,12 @@ export const orderItems = mysqlTable("order_items", {
   quantity: int("quantity").notNull(),
   unitPrice: decimal("unitPrice", { precision: 12, scale: 2 }).notNull(),
   totalPrice: decimal("totalPrice", { precision: 12, scale: 2 }).notNull(),
-  // The buying cost at order time. This preserves correct historical profit
-  // even if the product purchase cost changes later.
   purchaseCost: decimal("purchaseCost", { precision: 12, scale: 2 }),
+
+  // Order book hote samay product ki commission save hogi.
+  salesmanCommissionPerUnit: decimal("salesmanCommissionPerUnit", { precision: 12, scale: 2 }),
+  salesmanCommissionAmount: decimal("salesmanCommissionAmount", { precision: 12, scale: 2 }),
+
   selectedColor: varchar("selectedColor", { length: 100 }),
   selectedSize: varchar("selectedSize", { length: 100 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -341,11 +279,6 @@ export const orderItems = mysqlTable("order_items", {
 export type OrderItem = typeof orderItems.$inferSelect;
 export type InsertOrderItem = typeof orderItems.$inferInsert;
 
-/**
- * Counter, repair and site-work bills. The customer's invoice uses only the
- * item description and final rate. Source type and buying cost stay private
- * for the owner so outside material can be included without exposing it.
- */
 export const counterSales = mysqlTable("counter_sales", {
   id: int("id").autoincrement().primaryKey(),
   billNumber: varchar("billNumber", { length: 50 }).notNull().unique(),
@@ -353,7 +286,7 @@ export const counterSales = mysqlTable("counter_sales", {
   customerName: varchar("customerName", { length: 255 }),
   customerPhone: varchar("customerPhone", { length: 20 }),
   customerAddress: text("customerAddress"),
-  customerEmail: varchar("customerEmail", { length: 255 }),
+  customerEmail: varchar("customerEmail", { length: 320 }),
   workDescription: text("workDescription"),
   deliveryDate: varchar("deliveryDate", { length: 10 }),
   quotationNumber: varchar("quotationNumber", { length: 100 }),
@@ -381,7 +314,6 @@ export const counterSaleItems = mysqlTable("counter_sale_items", {
   id: int("id").autoincrement().primaryKey(),
   counterSaleId: int("counterSaleId").notNull(),
   productId: int("productId"),
-  // Internal-only classification; never printed on the customer bill.
   sourceType: mysqlEnum("sourceType", ["shop_stock", "outside_material", "repair_labour", "fitting_charge"]).notNull(),
   description: varchar("description", { length: 500 }).notNull(),
   unit: varchar("unit", { length: 20 }).notNull().default("piece"),
@@ -403,10 +335,6 @@ export type InsertCounterSale = typeof counterSales.$inferInsert;
 export type CounterSaleItem = typeof counterSaleItems.$inferSelect;
 export type InsertCounterSaleItem = typeof counterSaleItems.$inferInsert;
 
-/**
- * Customer return requests. A request is reviewed by an admin before any
- * refund or stock adjustment is made.
- */
 export const returnRequests = mysqlTable("return_requests", {
   id: int("id").autoincrement().primaryKey(),
   orderId: int("orderId").notNull(),
@@ -425,28 +353,16 @@ export const returnRequests = mysqlTable("return_requests", {
 export type ReturnRequest = typeof returnRequests.$inferSelect;
 export type InsertReturnRequest = typeof returnRequests.$inferInsert;
 
-/**
- * Quotations
- */
 export const quotations = mysqlTable("quotations", {
   id: int("id").autoincrement().primaryKey(),
   quotationNumber: varchar("quotationNumber", { length: 50 }).notNull().unique(),
   userId: int("userId").notNull(),
-  
-  // Quotation details
-  items: json("items"), // Array of {productId, quantity, requestedPrice}
+  items: json("items"),
   totalAmount: decimal("totalAmount", { precision: 12, scale: 2 }),
-  
-  // Status
   status: mysqlEnum("status", ["pending", "quoted", "accepted", "rejected", "expired"]).default("pending").notNull(),
-  
-  // Admin notes
   adminNotes: text("adminNotes"),
   quotedPrice: decimal("quotedPrice", { precision: 12, scale: 2 }),
-  
-  // Expiry
   expiryDate: timestamp("expiryDate"),
-  
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
@@ -457,22 +373,14 @@ export const quotations = mysqlTable("quotations", {
 export type Quotation = typeof quotations.$inferSelect;
 export type InsertQuotation = typeof quotations.$inferInsert;
 
-/**
- * WhatsApp Messages/Support
- */
 export const whatsappMessages = mysqlTable("whatsapp_messages", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
   orderId: int("orderId"),
-  
-  // Message details
   messageType: mysqlEnum("messageType", ["support", "order_update", "quotation_update", "promotional"]).notNull(),
   messageContent: text("messageContent").notNull(),
   phoneNumber: varchar("phoneNumber", { length: 20 }).notNull(),
-  
-  // Status
   sentStatus: mysqlEnum("sentStatus", ["pending", "sent", "delivered", "failed"]).default("pending").notNull(),
-  
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
@@ -483,14 +391,11 @@ export const whatsappMessages = mysqlTable("whatsapp_messages", {
 export type WhatsappMessage = typeof whatsappMessages.$inferSelect;
 export type InsertWhatsappMessage = typeof whatsappMessages.$inferInsert;
 
-/**
- * Shipping Calculator Configuration
- */
 export const shippingRates = mysqlTable("shipping_rates", {
   id: int("id").autoincrement().primaryKey(),
   minWeight: decimal("minWeight", { precision: 8, scale: 2 }),
   maxWeight: decimal("maxWeight", { precision: 8, scale: 2 }),
-  minDistance: int("minDistance"), // in km
+  minDistance: int("minDistance"),
   maxDistance: int("maxDistance"),
   baseCost: decimal("baseCost", { precision: 12, scale: 2 }).notNull(),
   costPerKm: decimal("costPerKm", { precision: 8, scale: 2 }),
@@ -502,9 +407,6 @@ export const shippingRates = mysqlTable("shipping_rates", {
 export type ShippingRate = typeof shippingRates.$inferSelect;
 export type InsertShippingRate = typeof shippingRates.$inferInsert;
 
-/**
- * GST Configuration
- */
 export const gstConfiguration = mysqlTable("gst_configuration", {
   id: int("id").autoincrement().primaryKey(),
   businessName: varchar("businessName", { length: 255 }).notNull(),
@@ -521,9 +423,6 @@ export const gstConfiguration = mysqlTable("gst_configuration", {
 export type GstConfiguration = typeof gstConfiguration.$inferSelect;
 export type InsertGstConfiguration = typeof gstConfiguration.$inferInsert;
 
-/**
- * PIN Code Shipping Zones
- */
 export const pinCodeZones = mysqlTable("pin_code_zones", {
   id: int("id").autoincrement().primaryKey(),
   pinCodeStart: varchar("pinCodeStart", { length: 6 }).notNull(),
@@ -541,9 +440,6 @@ export const pinCodeZones = mysqlTable("pin_code_zones", {
 export type PinCodeZone = typeof pinCodeZones.$inferSelect;
 export type InsertPinCodeZone = typeof pinCodeZones.$inferInsert;
 
-/**
- * Customer Notes - Track admin communication and interactions with customers
- */
 export const customerNotes = mysqlTable("customer_notes", {
   id: int("id").autoincrement().primaryKey(),
   customerId: int("customerId").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -551,7 +447,7 @@ export const customerNotes = mysqlTable("customer_notes", {
   noteType: mysqlEnum("noteType", ["call", "email", "meeting", "follow_up", "issue", "feedback", "other"]).notNull(),
   subject: varchar("subject", { length: 255 }),
   content: text("content").notNull(),
-  isInternal: boolean("isInternal").default(true), // Only visible to admin
+  isInternal: boolean("isInternal").default(true),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
@@ -563,14 +459,11 @@ export const customerNotes = mysqlTable("customer_notes", {
 export type CustomerNote = typeof customerNotes.$inferSelect;
 export type InsertCustomerNote = typeof customerNotes.$inferInsert;
 
-/**
- * Customer Segments - Categorize customers for targeting and analysis
- */
 export const customerSegments = mysqlTable("customer_segments", {
   id: int("id").autoincrement().primaryKey(),
   customerId: int("customerId").notNull().references(() => users.id, { onDelete: "cascade" }),
   segment: mysqlEnum("segment", ["vip", "regular", "inactive", "new", "at_risk", "high_value"]).notNull(),
-  reason: text("reason"), // Why they're in this segment
+  reason: text("reason"),
   totalSpent: decimal("totalSpent", { precision: 12, scale: 2 }).default("0"),
   orderCount: int("orderCount").default(0),
   lastOrderDate: timestamp("lastOrderDate"),
@@ -586,19 +479,15 @@ export const customerSegments = mysqlTable("customer_segments", {
 export type CustomerSegment = typeof customerSegments.$inferSelect;
 export type InsertCustomerSegment = typeof customerSegments.$inferInsert;
 
-
-/**
- * Product Reviews - Customer reviews and ratings for products
- */
 export const reviews = mysqlTable("reviews", {
   id: int("id").autoincrement().primaryKey(),
   productId: int("productId").notNull().references(() => products.id, { onDelete: "cascade" }),
   customerId: int("customerId").notNull().references(() => users.id, { onDelete: "cascade" }),
   orderId: int("orderId").notNull().references(() => orders.id, { onDelete: "cascade" }),
-  rating: int("rating").notNull(), // 1-5 stars
+  rating: int("rating").notNull(),
   title: varchar("title", { length: 255 }).notNull(),
   content: text("content").notNull(),
-  isApproved: boolean("isApproved").default(false), // Admin moderation
+  isApproved: boolean("isApproved").default(false),
   helpfulCount: int("helpfulCount").default(0),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -609,25 +498,24 @@ export const reviews = mysqlTable("reviews", {
   approvedIdx: index("reviews_approved_idx").on(table.isApproved),
   ratingIdx: index("reviews_rating_idx").on(table.rating),
 }));
+
 export type Review = typeof reviews.$inferSelect;
 export type InsertReview = typeof reviews.$inferInsert;
 
-/**
- * Order Tracking - Track order status changes with timestamps
- */
 export const orderTracking = mysqlTable("order_tracking", {
   id: int("id").autoincrement().primaryKey(),
   orderId: int("orderId").notNull().references(() => orders.id, { onDelete: "cascade" }),
   status: mysqlEnum("status", ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled", "returned"]).notNull(),
-  statusChangedBy: int("statusChangedBy").references(() => users.id, { onDelete: "set null" }), // Admin who changed status
-  notes: text("notes"), // Additional notes for this status change
+  statusChangedBy: int("statusChangedBy").references(() => users.id, { onDelete: "set null" }),
+  notes: text("notes"),
   estimatedDeliveryDate: timestamp("estimatedDeliveryDate"),
-  trackingNumber: varchar("trackingNumber", { length: 100 }), // Courier tracking number
+  trackingNumber: varchar("trackingNumber", { length: 100 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (table) => ({
   orderIdIdx: index("order_tracking_order_idx").on(table.orderId),
   statusIdx: index("order_tracking_status_idx").on(table.status),
   createdAtIdx: index("order_tracking_created_idx").on(table.createdAt),
 }));
+
 export type OrderTracking = typeof orderTracking.$inferSelect;
 export type InsertOrderTracking = typeof orderTracking.$inferInsert;
