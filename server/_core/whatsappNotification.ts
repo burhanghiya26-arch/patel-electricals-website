@@ -1,5 +1,11 @@
 type WhatsAppApiError = {
-  error?: { message?: string; error_user_msg?: string };
+  error?: {
+    message?: string;
+    error_user_msg?: string;
+    code?: number;
+    error_subcode?: number;
+    fbtrace_id?: string;
+  };
   id?: string;
   messages?: Array<{ id?: string }>;
 };
@@ -8,9 +14,7 @@ type WhatsAppInvoiceResult =
   | { sent: true; messageId?: string }
   | { sent: false; reason: string };
 
-const GRAPH_API_VERSION =
-  process.env.WHATSAPP_GRAPH_API_VERSION || "v26.0";
-
+const GRAPH_API_VERSION = process.env.WHATSAPP_GRAPH_API_VERSION || "v26.0";
 const INVOICE_TEMPLATE_LANGUAGE =
   process.env.WHATSAPP_INVOICE_TEMPLATE_LANGUAGE || "en_US";
 
@@ -30,15 +34,12 @@ function normalizeRecipientPhone(phone: string): string {
     digits = digits.slice(2);
   }
 
-  // Indian 10-digit customer number → add country code.
   if (digits.length === 10) {
     digits = `91${digits}`;
   }
 
   if (digits.length < 8 || digits.length > 15) {
-    throw new Error(
-      "Customer phone number must include a valid country code.",
-    );
+    throw new Error("Customer phone number must include a valid country code.");
   }
 
   return digits;
@@ -59,8 +60,28 @@ async function readApiResponse(
 function explainApiFailure(
   data: WhatsAppApiError,
   fallback: string,
+  stage: "PDF upload" | "invoice message send",
+  httpStatus: number,
 ): string {
-  return data.error?.error_user_msg || data.error?.message || fallback;
+  const metaError = data.error;
+  const message =
+    metaError?.error_user_msg || metaError?.message || fallback;
+
+  const details = [
+    `stage=${stage}`,
+    `http=${httpStatus}`,
+    metaError?.code !== undefined
+      ? `meta_code=${metaError.code}`
+      : null,
+    metaError?.error_subcode !== undefined
+      ? `meta_subcode=${metaError.error_subcode}`
+      : null,
+    metaError?.fbtrace_id
+      ? `meta_trace=${metaError.fbtrace_id}`
+      : null,
+  ].filter(Boolean);
+
+  return `${message} [${details.join(", ")}]`;
 }
 
 async function uploadInvoicePdf(
@@ -96,7 +117,12 @@ async function uploadInvoicePdf(
 
   if (!response.ok || !result.id) {
     throw new Error(
-      explainApiFailure(result, "Meta could not upload the invoice PDF."),
+      explainApiFailure(
+        result,
+        "Meta could not upload the invoice PDF.",
+        "PDF upload",
+        response.status,
+      ),
     );
   }
 
@@ -123,7 +149,6 @@ export async function sendWhatsAppInvoice(data: {
 
   try {
     const recipient = normalizeRecipientPhone(data.customerPhone);
-
     const filename = `${data.invoiceNumber.replace(
       /[^a-zA-Z0-9_-]/g,
       "_",
@@ -202,6 +227,8 @@ export async function sendWhatsAppInvoice(data: {
         reason: explainApiFailure(
           result,
           "Meta could not send the WhatsApp invoice.",
+          "invoice message send",
+          response.status,
         ),
       };
     }
