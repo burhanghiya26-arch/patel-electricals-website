@@ -33,7 +33,6 @@ async function ensureProductContentColumns(): Promise<void> {
         await connection.execute(`ALTER TABLE \`products\` ADD COLUMN \`${column.name}\` ${column.definition}`);
         console.log(`[Database] Added products.${column.name}`);
       } catch (error: any) {
-        // MySQL/MariaDB error 1060 means the column was already added.
         if (error?.code !== "ER_DUP_FIELDNAME" && error?.errno !== 1060) throw error;
       }
     }
@@ -66,9 +65,14 @@ async function ensureReturnRequestsTable(): Promise<void> {
 
 async function ensureSalesmanBookingColumns(): Promise<void> {
   if (!process.env.DATABASE_URL) return;
+
   const connection = await mysql.createConnection(process.env.DATABASE_URL);
   const changes = [
     { table: "products", name: "wholesalePrice", definition: "DECIMAL(12,2) NULL" },
+
+    // Product-wise fixed salesman commission.
+    { table: "products", name: "salesmanCommissionPerUnit", definition: "DECIMAL(12,2) NOT NULL DEFAULT 0" },
+
     { table: "products", name: "counterPrice", definition: "DECIMAL(12,2) NULL" },
     { table: "products", name: "defaultUnit", definition: "VARCHAR(20) NOT NULL DEFAULT 'piece'" },
     { table: "products", name: "purchaseCost", definition: "DECIMAL(12,2) NULL" },
@@ -84,7 +88,12 @@ async function ensureSalesmanBookingColumns(): Promise<void> {
     { table: "orders", name: "salesmanCommissionRate", definition: "DECIMAL(5,2) NULL" },
     { table: "orders", name: "salesmanCommissionAmount", definition: "DECIMAL(12,2) NULL" },
     { table: "order_items", name: "purchaseCost", definition: "DECIMAL(12,2) NULL" },
+
+    // Commission snapshot for each product line in an order.
+    { table: "order_items", name: "salesmanCommissionPerUnit", definition: "DECIMAL(12,2) NULL" },
+    { table: "order_items", name: "salesmanCommissionAmount", definition: "DECIMAL(12,2) NULL" },
   ];
+
   try {
     for (const change of changes) {
       try {
@@ -101,6 +110,7 @@ async function ensureSalesmanBookingColumns(): Promise<void> {
 async function ensureCounterBillingTables(): Promise<void> {
   if (!process.env.DATABASE_URL) return;
   const connection = await mysql.createConnection(process.env.DATABASE_URL);
+
   try {
     await connection.execute(`CREATE TABLE IF NOT EXISTS \`counter_sales\` (
       \`id\` INT AUTO_INCREMENT PRIMARY KEY,
@@ -130,6 +140,7 @@ async function ensureCounterBillingTables(): Promise<void> {
       INDEX \`counter_sales_created_at_idx\` (\`createdAt\`),
       INDEX \`counter_sales_customer_phone_idx\` (\`customerPhone\`)
     )`);
+
     await connection.execute(`CREATE TABLE IF NOT EXISTS \`counter_sale_items\` (
       \`id\` INT AUTO_INCREMENT PRIMARY KEY,
       \`counterSaleId\` INT NOT NULL,
@@ -148,12 +159,14 @@ async function ensureCounterBillingTables(): Promise<void> {
       INDEX \`counter_sale_items_sale_idx\` (\`counterSaleId\`),
       INDEX \`counter_sale_items_product_idx\` (\`productId\`)
     )`);
+
     const counterBillingColumns = [
       { table: "counter_sales", name: "customerEmail", definition: "VARCHAR(255) NULL" },
       { table: "counter_sales", name: "deliveryDate", definition: "VARCHAR(10) NULL" },
       { table: "counter_sales", name: "quotationNumber", definition: "VARCHAR(100) NULL" },
       { table: "counter_sale_items", name: "unit", definition: "VARCHAR(20) NOT NULL DEFAULT 'piece'" },
     ];
+
     for (const column of counterBillingColumns) {
       try {
         await connection.execute(`ALTER TABLE \`${column.table}\` ADD COLUMN \`${column.name}\` ${column.definition}`);
@@ -162,8 +175,7 @@ async function ensureCounterBillingTables(): Promise<void> {
         if (error?.code !== "ER_DUP_FIELDNAME" && error?.errno !== 1060) throw error;
       }
     }
-    // Older internal quick-sales used CNT numbers, which made customer invoice
-    // numbers appear to jump. Move only those internal records to QCK numbers.
+
     await connection.execute(`UPDATE \`counter_sales\`
       SET \`billNumber\` = CONCAT('QCK-', LPAD(\`id\`, 4, '0'))
       WHERE \`billNumber\` LIKE 'CNT-%'
@@ -176,6 +188,7 @@ async function ensureCounterBillingTables(): Promise<void> {
 async function ensureSalesmanShopsTable(): Promise<void> {
   if (!process.env.DATABASE_URL) return;
   const connection = await mysql.createConnection(process.env.DATABASE_URL);
+
   try {
     await connection.execute(`CREATE TABLE IF NOT EXISTS \`salesman_shops\` (
       \`id\` INT AUTO_INCREMENT PRIMARY KEY,
@@ -236,18 +249,13 @@ function isPortAvailable(port: number): Promise<boolean> {
 
 async function findAvailablePort(startPort: number = 3000): Promise<number> {
   for (let port = startPort; port < startPort + 20; port++) {
-    if (await isPortAvailable(port)) {
-      return port;
-    }
+    if (await isPortAvailable(port)) return port;
   }
   throw new Error(`No available port found starting from ${startPort}`);
 }
 
 async function prepareDatabaseForStartup(): Promise<void> {
   try {
-    // These checks keep an existing database schema compatible with newer
-    // releases. A temporary database outage must not prevent Express from
-    // starting and serving the website's static pages.
     await ensureProductContentColumns();
     await ensureReturnRequestsTable();
     await ensureSalesmanBookingColumns();
@@ -264,23 +272,20 @@ async function prepareDatabaseForStartup(): Promise<void> {
 async function startServer() {
   await prepareDatabaseForStartup();
 
-  // Initialize default admin account if needed
   await initializeDefaultAdmin().catch(err => {
-    console.warn('[Server] Failed to initialize admin:', err.message);
+    console.warn("[Server] Failed to initialize admin:", err.message);
   });
 
   const app = express();
   const server = createServer(app);
-  // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-  // Public Meta Commerce product feed. Meta refreshes this URL to keep the
-  // Instagram catalog aligned with the active products on patelspares.com.
   app.get("/catalog-feed.csv", async (_req, res) => {
     try {
       const db = await import("../db");
       const products = await db.getAllProducts(1000, 0);
+
       const headers = [
         "id",
         "title",
@@ -299,6 +304,7 @@ async function startServer() {
         .map((product: any) => {
           const quantity = Number(product.quantityInStock ?? product.stockQty ?? 0);
           const price = Number(product.basePrice ?? 0);
+
           return [
             product.id,
             product.name,
@@ -310,9 +316,7 @@ async function startServer() {
             getCatalogImageUrl(product),
             "Patel Electricals",
             product.partNumber || product.id,
-          ]
-            .map(escapeCatalogCsv)
-            .join(",");
+          ].map(escapeCatalogCsv).join(",");
         });
 
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
@@ -324,49 +328,44 @@ async function startServer() {
     }
   });
 
-  // Chat API with streaming and tool calling
   registerChatRoutes(app);
-  // Invoice download endpoint with proper headers for mobile
-  app.get('/api/download-invoice/:orderId', async (req, res) => {
+
+  app.get("/api/download-invoice/:orderId", async (req, res) => {
     try {
       const orderId = Number(req.params.orderId);
       if (isNaN(orderId)) {
-        return res.status(400).json({ error: 'Invalid order ID' });
+        return res.status(400).json({ error: "Invalid order ID" });
       }
-      
-      // Get order from database
-      const db = await import('../db');
+
+      const db = await import("../db");
       const order = await db.getOrderById(orderId);
       if (!order) {
-        return res.status(404).json({ error: 'Order not found' });
+        return res.status(404).json({ error: "Order not found" });
       }
-      
-      // Get order items
+
       const items = await db.getOrderItems(orderId);
       const itemsWithProduct = await Promise.all(items.map(async (item) => {
         const product = await db.getProductById(item.productId);
         return {
-          name: product?.name || 'Unknown Product',
+          name: product?.name || "Unknown Product",
           quantity: item.quantity,
           price: Number(item.unitPrice),
           total: Number(item.totalPrice),
         };
       }));
-      
-      // Get user
+
       const user = await db.getUserById(order.userId);
       const subtotal = itemsWithProduct.reduce((sum, item) => sum + item.total, 0);
       const tax = 0;
       const total = subtotal + tax + Number(order.shippingCost);
-      
-      // Generate invoice
-      const { generateInvoicePDF } = await import('./invoiceGenerator');
+
+      const { generateInvoicePDF } = await import("./invoiceGenerator");
       const invoiceData = {
         orderId,
         orderNumber: order.orderNumber,
-        customerName: user?.name || 'Customer',
-        customerEmail: user?.email || 'N/A',
-        customerPhone: user?.businessPhone || 'N/A',
+        customerName: user?.name || "Customer",
+        customerEmail: user?.email || "N/A",
+        customerPhone: user?.businessPhone || "N/A",
         shippingAddress: order.shippingAddress,
         items: itemsWithProduct,
         subtotal,
@@ -376,32 +375,31 @@ async function startServer() {
         paymentMethod: order.paymentMethod,
         orderStatus: order.orderStatus,
       };
-      
+
       const pdfBuffer = await generateInvoicePDF(invoiceData);
-      
-      // Set proper headers for download
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="Invoice-${order.orderNumber}.pdf"`);
-      res.setHeader('Content-Length', pdfBuffer.length);
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-      
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="Invoice-${order.orderNumber}.pdf"`);
+      res.setHeader("Content-Length", pdfBuffer.length);
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+
       res.send(pdfBuffer);
     } catch (error) {
-      console.error('Invoice download error:', error);
-      res.status(500).json({ error: 'Failed to generate invoice' });
+      console.error("Invoice download error:", error);
+      res.status(500).json({ error: "Failed to generate invoice" });
     }
   });
-  // tRPC API
+
   app.use(
     "/api/trpc",
     createExpressMiddleware({
       router: appRouter,
       createContext,
-    })
+    }),
   );
-  // development mode uses Vite, production mode uses static files
+
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
   } else {
