@@ -838,6 +838,7 @@ export const appRouter = router({
         imageUrl: product.imageUrl,
         categoryName: category?.name || "General",
         wholesalePrice: product.wholesalePrice,
+       salesmanCommissionPerUnit: product.salesmanCommissionPerUnit || "0",   
         wholesaleMinQty: product.wholesaleMinQty || 1,
         quantityInStock: inventory.find(item => item.productId === product.id)?.quantityInStock || 0,
         };
@@ -858,7 +859,8 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         let totalAmount = 0;
-        const orderItemsData: Array<{ productId: number; quantity: number; unitPrice: string; totalPrice: string; purchaseCost?: string }> = [];
+       let commissionAmount = 0;
+const orderItemsData: Array<{ productId: number; quantity: number; unitPrice: string; totalPrice: string; purchaseCost?: string; salesmanCommissionPerUnit: string; salesmanCommissionAmount: string }> = []; 
         for (const line of input.items) {
           const product = await db.getProductById(line.productId);
           const inventory = await db.getInventoryByProductId(line.productId);
@@ -873,14 +875,19 @@ export const appRouter = router({
           if ((inventory?.quantityInStock || 0) < line.quantity) {
             throw new TRPCError({ code: "BAD_REQUEST", message: `${product.name} does not have enough stock.` });
           }
-          const lineTotal = wholesalePrice * line.quantity;
-          totalAmount += lineTotal;
+         const lineTotal = wholesalePrice * line.quantity;
+const commissionPerUnit = Math.max(0, Number(product.salesmanCommissionPerUnit || 0));
+const lineCommission = commissionPerUnit * line.quantity;
+totalAmount += lineTotal;
+commissionAmount += lineCommission; 
           orderItemsData.push({
             productId: product.id,
             quantity: line.quantity,
             unitPrice: String(wholesalePrice),
             totalPrice: String(lineTotal),
             purchaseCost: product.purchaseCost !== null && product.purchaseCost !== undefined ? String(Number(product.purchaseCost)) : undefined,
+            salesmanCommissionPerUnit: String(commissionPerUnit),
+salesmanCommissionAmount: String(lineCommission),
           });
         }
         const orderNumber = `SLS-${Date.now()}`;
