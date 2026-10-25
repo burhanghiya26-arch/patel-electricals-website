@@ -250,6 +250,7 @@ export async function createProduct(data: any) {
     counterPrice: data.counterPrice ? String(data.counterPrice) : null,
     defaultUnit: ["piece", "meter", "roll", "box"].includes(data.defaultUnit) ? data.defaultUnit : "piece",
     wholesalePrice: data.wholesalePrice ? String(data.wholesalePrice) : null,
+    salesmanCommissionPerUnit: String(Math.max(0, Number(data.salesmanCommissionPerUnit || 0))),
     purchaseCost: data.purchaseCost ? String(data.purchaseCost) : null,
     wholesaleMinQty: Number(data.wholesaleMinQty || 1),
     wholesaleOnly: Boolean(data.wholesaleOnly),
