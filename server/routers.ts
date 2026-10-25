@@ -891,9 +891,6 @@ salesmanCommissionAmount: String(lineCommission),
           });
         }
         const orderNumber = `SLS-${Date.now()}`;
-        const salesman = await db.getUserById(ctx.user.id);
-        const commissionRate = Math.min(100, Math.max(0, Number(salesman?.commissionRate || 0)));
-        const commissionAmount = totalAmount * (commissionRate / 100);
         const savedShop = input.shopId
           ? await db.getSalesmanShopById(input.shopId)
           : await db.saveSalesmanShop({ ...input, salesmanId: ctx.user.id });
@@ -908,7 +905,7 @@ salesmanCommissionAmount: String(lineCommission),
           customerPhone: savedShop.customerPhone,
           salesmanShopId: savedShop.id,
           createdBySalesRepId: ctx.user.id,
-          salesmanCommissionRate: String(commissionRate),
+          salesmanCommissionRate: null,
           salesmanCommissionAmount: String(commissionAmount),
           totalAmount: String(totalAmount), gstAmount: "0", shippingCost: "0",
           shippingAddress: savedShop.shippingAddress, shippingMethod: "salesman_booking",
