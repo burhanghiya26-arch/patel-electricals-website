@@ -492,7 +492,7 @@ export const appRouter = router({
           specifications: z.array(z.object({ name: z.string(), value: z.string() })).optional(),
           seoMetaDescription: z.string().max(320).optional(),
           seoKeywords: z.string().max(1000).optional(),
-          basePrice: z.number().optional(), counterPrice: z.number().positive().nullable().optional(), defaultUnit: z.enum(["piece", "meter", "roll", "box"]).optional(), wholesalePrice: z.number().positive().nullable().optional(), purchaseCost: z.number().nonnegative().nullable().optional(), wholesaleMinQty: z.number().int().positive().optional(), wholesaleOnly: z.boolean().optional(), shippingWeightKg: z.number().positive().optional(), isActive: z.boolean().optional(),
+          basePrice: z.number().optional(), counterPrice: z.number().positive().nullable().optional(), defaultUnit: z.enum(["piece", "meter", "roll", "box"]).optional(), wholesalePrice: z.number().positive().nullable().optional(), salesmanCommissionPerUnit: z.number().nonnegative().optional(), purchaseCost: z.number().nonnegative().nullable().optional(), wholesaleMinQty: z.number().int().positive().optional(), wholesaleOnly: z.boolean().optional(), shippingWeightKg: z.number().positive().optional(), isActive: z.boolean().optional(),
           partNumber: z.string().optional(), categoryName: z.string().optional(),
           imageUrl: z.string().optional(), productImages: z.array(z.string()).optional(),
           colorOptions: z.array(z.string()).optional(),
