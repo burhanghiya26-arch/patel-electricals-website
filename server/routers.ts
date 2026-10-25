@@ -506,6 +506,7 @@ export const appRouter = router({
         if (updateData.basePrice) updateData.basePrice = String(updateData.basePrice);
         if (updateData.counterPrice !== undefined && updateData.counterPrice !== null) updateData.counterPrice = String(updateData.counterPrice);
         if (updateData.wholesalePrice !== undefined && updateData.wholesalePrice !== null) updateData.wholesalePrice = String(updateData.wholesalePrice);
+     if (updateData.salesmanCommissionPerUnit !== undefined) updateData.salesmanCommissionPerUnit = String(updateData.salesmanCommissionPerUnit);
         if (updateData.purchaseCost !== undefined && updateData.purchaseCost !== null) updateData.purchaseCost = String(updateData.purchaseCost);
         if (productImages) updateData.productImages = productImages;
         if (colorOptions) updateData.colorOptions = colorOptions;
