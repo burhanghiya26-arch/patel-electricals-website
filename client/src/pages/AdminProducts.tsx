@@ -30,7 +30,7 @@ export default function AdminProducts() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [form, setForm] = useState({
     partNumber: '', name: '', description: '', categoryName: 'General',
-    basePrice: '', counterPrice: '', purchaseCost: '', defaultUnit: 'piece', wholesalePrice: '', wholesaleMinQty: '1', wholesaleOnly: false, shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [] as string[],
+    basePrice: '', counterPrice: '', purchaseCost: '', defaultUnit: 'piece', wholesalePrice: '', salesmanCommissionPerUnit: '0', wholesaleMinQty: '1', wholesaleOnly: false, shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [] as string[],
     colorOptions: '', sizeOptions: '',
     keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '',
   });
@@ -101,7 +101,7 @@ const uploadImage = trpc.upload.image.useMutation({
   });
 
   const resetForm = () => {
-    setForm({ partNumber: '', name: '', description: '', categoryName: 'General', basePrice: '', counterPrice: '', purchaseCost: '', defaultUnit: 'piece', wholesalePrice: '', wholesaleMinQty: '1', wholesaleOnly: false, shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [], colorOptions: '', sizeOptions: '', keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '' });
+    setForm({ partNumber: '', name: '', description: '', categoryName: 'General', basePrice: '', counterPrice: '', purchaseCost: '', defaultUnit: 'piece', wholesalePrice: '', salesmanCommissionPerUnit: '0', wholesaleMinQty: '1', wholesaleOnly: false, shippingWeightKg: '', stock: '', moq: '1', imageUrl: '', productImages: [], colorOptions: '', sizeOptions: '', keyFeatures: '', specifications: '', seoMetaDescription: '', seoKeywords: '' });
     setImagePreview(null);
     setProductImageGallery([]);
     setShowForm(false);
@@ -141,6 +141,7 @@ const uploadImage = trpc.upload.image.useMutation({
     const counterPrice = form.counterPrice === '' ? null : parseFloat(form.counterPrice);
     const purchaseCost = form.purchaseCost === '' ? null : parseFloat(form.purchaseCost);
     const wholesalePrice = parseFloat(form.wholesalePrice);
+    const salesmanCommissionPerUnit = parseFloat(form.salesmanCommissionPerUnit || '0');
     const shippingWeightKg = parseFloat(form.shippingWeightKg);
     if (isNaN(price) || price <= 0) {
       toast.error("Valid price daalo!");
@@ -156,6 +157,10 @@ const uploadImage = trpc.upload.image.useMutation({
     }
     if (form.wholesalePrice && (isNaN(wholesalePrice) || wholesalePrice <= 0 || wholesalePrice >= price)) {
       toast.error("Wholesale price retail price se kam aur valid hona chahiye!");
+      return;
+    }
+    if (isNaN(salesmanCommissionPerUnit) || salesmanCommissionPerUnit < 0) {
+      toast.error("Salesman commission 0 ya usse zyada rakho!");
       return;
     }
     if (isNaN(shippingWeightKg) || shippingWeightKg <= 0) {
@@ -189,6 +194,7 @@ const uploadImage = trpc.upload.image.useMutation({
           purchaseCost,
           defaultUnit: form.defaultUnit as "piece" | "meter" | "roll" | "box",
           wholesalePrice: form.wholesalePrice ? wholesalePrice : null,
+          salesmanCommissionPerUnit,
           wholesaleMinQty: parseInt(form.wholesaleMinQty) || 1,
           wholesaleOnly: form.wholesaleOnly,
           shippingWeightKg,
@@ -216,6 +222,7 @@ const uploadImage = trpc.upload.image.useMutation({
         purchaseCost: purchaseCost === null ? undefined : purchaseCost,
         defaultUnit: form.defaultUnit as "piece" | "meter" | "roll" | "box",
         wholesalePrice: form.wholesalePrice ? wholesalePrice : undefined,
+        salesmanCommissionPerUnit,
         wholesaleMinQty: parseInt(form.wholesaleMinQty) || 1,
         wholesaleOnly: form.wholesaleOnly,
         shippingWeightKg,
@@ -250,6 +257,7 @@ const uploadImage = trpc.upload.image.useMutation({
       purchaseCost: product.purchaseCost !== null && product.purchaseCost !== undefined ? String(Number(product.purchaseCost)) : '',
       defaultUnit: product.defaultUnit || 'piece',
       wholesalePrice: product.wholesalePrice ? String(Number(product.wholesalePrice)) : '',
+      salesmanCommissionPerUnit: product.salesmanCommissionPerUnit !== null && product.salesmanCommissionPerUnit !== undefined ? String(Number(product.salesmanCommissionPerUnit)) : '0',
       wholesaleMinQty: String(product.wholesaleMinQty || 1),
       wholesaleOnly: Boolean(product.wholesaleOnly),
       shippingWeightKg: product.shippingWeightKg ? String(Number(product.shippingWeightKg)) : '',
@@ -476,6 +484,11 @@ const uploadImage = trpc.upload.image.useMutation({
                 <div>
                   <Label>Wholesale Price (₹)</Label>
                   <Input type="number" min="0" step="0.01" placeholder="Dealer / salesman rate" value={form.wholesalePrice} onChange={(e) => setForm(prev => ({ ...prev, wholesalePrice: e.target.value }))} className="mt-1" />
+                </div>
+                <div>
+                  <Label>Salesman Commission (₹ per unit)</Label>
+                  <Input type="number" min="0" step="0.01" placeholder="e.g. 20" value={form.salesmanCommissionPerUnit} onChange={(e) => setForm(prev => ({ ...prev, salesmanCommissionPerUnit: e.target.value }))} className="mt-1" />
+                  <p className="mt-1 text-xs text-muted-foreground">Har sold unit par salesman ko ye fixed commission dikhega.</p>
                 </div>
                 <div>
                   <Label>Wholesale Min Qty</Label>
