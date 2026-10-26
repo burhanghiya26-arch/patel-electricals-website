@@ -2003,6 +2003,8 @@ export async function getSalesmanCommissionOrders(input: { salesmanId?: number; 
       productName: products.name,
       partNumber: products.partNumber,
       quantity: orderItems.quantity,
+      unitPrice: orderItems.unitPrice,
+      salesmanCommissionPercent: orderItems.salesmanCommissionPercent,
       salesmanCommissionPerUnit: orderItems.salesmanCommissionPerUnit,
       salesmanCommissionAmount: orderItems.salesmanCommissionAmount,
     }).from(orderItems)
