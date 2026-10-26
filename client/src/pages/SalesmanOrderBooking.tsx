@@ -124,6 +124,10 @@ export default function SalesmanOrderBooking() {
     .filter(order => order.commissionStatus === "payable")
     .reduce((sum, order) => sum + Number(order.commissionAmount || 0), 0);
 
+  const paidCommission = (myCommissionOrders.data || [])
+    .filter(order => order.commissionStatus === "paid")
+    .reduce((sum, order) => sum + Number(order.commissionAmount || 0), 0);
+
   const routeUrl = shop.shippingAddress
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${shop.shopName}, ${shop.shippingAddress}`)}`
     : "";
@@ -409,6 +413,11 @@ export default function SalesmanOrderBooking() {
                   <p className="text-sm font-semibold text-indigo-700">
                     Aapka commission: ₹{Number(product.salesmanCommissionPerUnit || 0).toLocaleString("en-IN")} / unit
                   </p>
+                  {qty > 0 && (
+                    <p className="text-xs font-medium text-indigo-700">
+                      {qty} unit × ₹{Number(product.salesmanCommissionPerUnit || 0).toLocaleString("en-IN")} = ₹{(Number(product.salesmanCommissionPerUnit || 0) * qty).toLocaleString("en-IN", { maximumFractionDigits: 2 })} commission
+                    </p>
+                  )}
 
                   <div className="mt-2 flex items-center gap-2">
                     <Button size="icon" variant="outline" disabled={!qty} onClick={() => setQuantity(product.id, qty - 1)}>
@@ -445,7 +454,7 @@ export default function SalesmanOrderBooking() {
                 <span>
                   {line.product!.name} × {line.quantity}
                   <span className="block text-xs text-indigo-700">
-                    Commission: ₹{(Number(line.product!.salesmanCommissionPerUnit || 0) * line.quantity).toLocaleString("en-IN")}
+                    Commission: ₹{Number(line.product!.salesmanCommissionPerUnit || 0).toLocaleString("en-IN")} × {line.quantity} = ₹{(Number(line.product!.salesmanCommissionPerUnit || 0) * line.quantity).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                   </span>
                 </span>
                 <span>
@@ -488,11 +497,19 @@ export default function SalesmanOrderBooking() {
         </CardHeader>
 
         <CardContent className="space-y-3">
-          <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-900">
-            <span className="font-medium">Delivered orders ka payable commission: </span>
-            <span className="text-base font-bold">
-              ₹{payableCommission.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
-            </span>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <span className="font-medium">Milna baki commission: </span>
+              <span className="text-base font-bold">
+                ₹{payableCommission.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+              </span>
+            </div>
+            <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-900">
+              <span className="font-medium">Admin ne paid mark kiya: </span>
+              <span className="text-base font-bold">
+                ₹{paidCommission.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+              </span>
+            </div>
           </div>
 
           {myCommissionOrders.isLoading && <p className="py-5 text-center text-sm text-muted-foreground">Orders load ho rahe hain...</p>}
@@ -501,6 +518,7 @@ export default function SalesmanOrderBooking() {
           <div className="grid gap-3">
             {myCommissionOrders.data?.map(order => {
               const isPayable = order.commissionStatus === "payable";
+              const isPaid = order.commissionStatus === "paid";
               const isCancelled = order.commissionStatus === "cancelled";
               const commission = order.commissionAmount === null || order.commissionAmount === undefined
                 ? null
@@ -524,14 +542,26 @@ export default function SalesmanOrderBooking() {
                   <p className="text-xs text-muted-foreground">
                     Order: ₹{Number(order.orderAmount || 0).toLocaleString("en-IN")} · {commissionText} · {new Date(order.createdAt).toLocaleDateString("en-IN")}
                   </p>
+                  {order.items?.some(item => item.salesmanCommissionAmount !== null && item.salesmanCommissionAmount !== undefined) && (
+                    <div className="mt-2 space-y-1 rounded-md bg-indigo-50 p-2 text-xs text-indigo-900">
+                      <p className="font-semibold">Product-wise commission</p>
+                      {order.items.map(item => {
+                        const perUnit = Number(item.salesmanCommissionPerUnit || 0);
+                        const amount = Number(item.salesmanCommissionAmount || 0);
+                        return <p key={item.productId}>
+                          {item.productName || item.partNumber || "Product"}: ₹{perUnit.toLocaleString("en-IN")} × {item.quantity} = ₹{amount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                        </p>;
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <div className="shrink-0 sm:text-right">
                   <p className="text-lg font-bold">
                     {commission === null ? "Commission not set" : `₹${commission.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}
                   </p>
-                  <p className={`text-xs font-medium ${isPayable ? "text-green-700" : isCancelled ? "text-red-600" : "text-amber-700"}`}>
-                    {isPayable ? "Payable — Delivered" : isCancelled ? "Cancelled — not payable" : "Pending — delivery ke baad payable"}
+                  <p className={`text-xs font-medium ${isPayable ? "text-amber-700" : isPaid ? "text-green-700" : isCancelled ? "text-red-600" : "text-slate-600"}`}>
+                    {isPayable ? "Payable — admin se commission lena baki" : isPaid ? "Paid — admin ne paid mark kiya" : isCancelled ? "Cancelled — commission nahi milega" : "Pending — delivery ke baad payable"}
                   </p>
                 </div>
               </div>;
