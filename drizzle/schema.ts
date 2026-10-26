@@ -199,6 +199,9 @@ export const orders = mysqlTable("orders", {
   createdBySalesRepId: int("createdBySalesRepId"),
   salesmanCommissionRate: decimal("salesmanCommissionRate", { precision: 5, scale: 2 }),
   salesmanCommissionAmount: decimal("salesmanCommissionAmount", { precision: 12, scale: 2 }),
+  // This only records that the admin has settled the commission. It does not
+  // initiate any bank/UPI payment.
+  salesmanCommissionPaidAt: timestamp("salesmanCommissionPaidAt"),
 
   paymentMethod: mysqlEnum("paymentMethod", ["upi", "bank_transfer", "card", "cod", "razorpay", "credit"]).notNull(),
   paymentStatus: mysqlEnum("paymentStatus", ["pending", "completed", "failed", "refunded"]).default("pending").notNull(),
