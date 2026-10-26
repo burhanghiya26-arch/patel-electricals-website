@@ -159,8 +159,8 @@ const uploadImage = trpc.upload.image.useMutation({
       toast.error("Wholesale price retail price se kam aur valid hona chahiye!");
       return;
     }
-    if (isNaN(salesmanCommissionPerUnit) || salesmanCommissionPerUnit < 0) {
-      toast.error("Salesman commission 0 ya usse zyada rakho!");
+    if (isNaN(salesmanCommissionPerUnit) || salesmanCommissionPerUnit < 0 || salesmanCommissionPerUnit > 100) {
+      toast.error("Salesman commission 0% se 100% ke beech rakho!");
       return;
     }
     if (isNaN(shippingWeightKg) || shippingWeightKg <= 0) {
@@ -486,9 +486,9 @@ const uploadImage = trpc.upload.image.useMutation({
                   <Input type="number" min="0" step="0.01" placeholder="Dealer / salesman rate" value={form.wholesalePrice} onChange={(e) => setForm(prev => ({ ...prev, wholesalePrice: e.target.value }))} className="mt-1" />
                 </div>
                 <div>
-                  <Label>Salesman Commission (₹ per unit)</Label>
-                  <Input type="number" min="0" step="0.01" placeholder="e.g. 20" value={form.salesmanCommissionPerUnit} onChange={(e) => setForm(prev => ({ ...prev, salesmanCommissionPerUnit: e.target.value }))} className="mt-1" />
-                  <p className="mt-1 text-xs text-muted-foreground">Har sold unit par salesman ko ye fixed commission dikhega.</p>
+                  <Label>Salesman Commission (%)</Label>
+                  <Input type="number" min="0" max="100" step="0.01" placeholder="e.g. 5" value={form.salesmanCommissionPerUnit} onChange={(e) => setForm(prev => ({ ...prev, salesmanCommissionPerUnit: e.target.value }))} className="mt-1" />
+                  <p className="mt-1 text-xs text-muted-foreground">Wholesale price ka percentage. Salesman ko % aur uske hisaab se ₹ dono dikhenge.</p>
                 </div>
                 <div>
                   <Label>Wholesale Min Qty</Label>
