@@ -436,7 +436,7 @@ export const appRouter = router({
         counterPrice: z.number().positive().optional(),
         defaultUnit: z.enum(["piece", "meter", "roll", "box"]).default("piece"),
         wholesalePrice: z.number().positive().optional(),
-        salesmanCommissionPerUnit: z.number().nonnegative().optional(),
+        salesmanCommissionPerUnit: z.number().min(0).max(100).optional(),
         purchaseCost: z.number().nonnegative().optional(),
         wholesaleMinQty: z.number().int().positive().optional(),
         wholesaleOnly: z.boolean().optional(),
@@ -492,7 +492,7 @@ export const appRouter = router({
           specifications: z.array(z.object({ name: z.string(), value: z.string() })).optional(),
           seoMetaDescription: z.string().max(320).optional(),
           seoKeywords: z.string().max(1000).optional(),
-          basePrice: z.number().optional(), counterPrice: z.number().positive().nullable().optional(), defaultUnit: z.enum(["piece", "meter", "roll", "box"]).optional(), wholesalePrice: z.number().positive().nullable().optional(), salesmanCommissionPerUnit: z.number().nonnegative().optional(), purchaseCost: z.number().nonnegative().nullable().optional(), wholesaleMinQty: z.number().int().positive().optional(), wholesaleOnly: z.boolean().optional(), shippingWeightKg: z.number().positive().optional(), isActive: z.boolean().optional(),
+          basePrice: z.number().optional(), counterPrice: z.number().positive().nullable().optional(), defaultUnit: z.enum(["piece", "meter", "roll", "box"]).optional(), wholesalePrice: z.number().positive().nullable().optional(), salesmanCommissionPerUnit: z.number().min(0).max(100).optional(), purchaseCost: z.number().nonnegative().nullable().optional(), wholesaleMinQty: z.number().int().positive().optional(), wholesaleOnly: z.boolean().optional(), shippingWeightKg: z.number().positive().optional(), isActive: z.boolean().optional(),
           partNumber: z.string().optional(), categoryName: z.string().optional(),
           imageUrl: z.string().optional(), productImages: z.array(z.string()).optional(),
           colorOptions: z.array(z.string()).optional(),
@@ -838,7 +838,7 @@ export const appRouter = router({
         imageUrl: product.imageUrl,
         categoryName: category?.name || "General",
         wholesalePrice: product.wholesalePrice,
-       salesmanCommissionPerUnit: product.salesmanCommissionPerUnit || "0",   
+       salesmanCommissionPercent: product.salesmanCommissionPerUnit || "0",
         wholesaleMinQty: product.wholesaleMinQty || 1,
         quantityInStock: inventory.find(item => item.productId === product.id)?.quantityInStock || 0,
         };
@@ -860,7 +860,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         let totalAmount = 0;
        let commissionAmount = 0;
-const orderItemsData: Array<{ productId: number; quantity: number; unitPrice: string; totalPrice: string; purchaseCost?: string; salesmanCommissionPerUnit: string; salesmanCommissionAmount: string }> = []; 
+const orderItemsData: Array<{ productId: number; quantity: number; unitPrice: string; totalPrice: string; purchaseCost?: string; salesmanCommissionPercent: string; salesmanCommissionPerUnit: string; salesmanCommissionAmount: string }> = [];
         for (const line of input.items) {
           const product = await db.getProductById(line.productId);
           const inventory = await db.getInventoryByProductId(line.productId);
@@ -876,7 +876,9 @@ const orderItemsData: Array<{ productId: number; quantity: number; unitPrice: st
             throw new TRPCError({ code: "BAD_REQUEST", message: `${product.name} does not have enough stock.` });
           }
          const lineTotal = wholesalePrice * line.quantity;
-const commissionPerUnit = Math.max(0, Number(product.salesmanCommissionPerUnit || 0));
+const rawCommissionPercent = Number(product.salesmanCommissionPerUnit || 0);
+const commissionPercent = Number.isFinite(rawCommissionPercent) ? Math.min(100, Math.max(0, rawCommissionPercent)) : 0;
+const commissionPerUnit = wholesalePrice * (commissionPercent / 100);
 const lineCommission = commissionPerUnit * line.quantity;
 totalAmount += lineTotal;
 commissionAmount += lineCommission; 
@@ -886,8 +888,9 @@ commissionAmount += lineCommission;
             unitPrice: String(wholesalePrice),
             totalPrice: String(lineTotal),
             purchaseCost: product.purchaseCost !== null && product.purchaseCost !== undefined ? String(Number(product.purchaseCost)) : undefined,
+            salesmanCommissionPercent: String(commissionPercent),
             salesmanCommissionPerUnit: String(commissionPerUnit),
-salesmanCommissionAmount: String(lineCommission),
+            salesmanCommissionAmount: String(lineCommission),
           });
         }
         const orderNumber = `SLS-${Date.now()}`;
