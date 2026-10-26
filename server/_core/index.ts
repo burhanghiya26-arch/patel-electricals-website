@@ -91,6 +91,7 @@ async function ensureSalesmanBookingColumns(): Promise<void> {
     { table: "order_items", name: "purchaseCost", definition: "DECIMAL(12,2) NULL" },
 
     // Commission snapshot for each product line in an order.
+    { table: "order_items", name: "salesmanCommissionPercent", definition: "DECIMAL(5,2) NULL" },
     { table: "order_items", name: "salesmanCommissionPerUnit", definition: "DECIMAL(12,2) NULL" },
     { table: "order_items", name: "salesmanCommissionAmount", definition: "DECIMAL(12,2) NULL" },
   ];
