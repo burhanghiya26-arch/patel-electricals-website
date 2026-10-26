@@ -1908,17 +1908,28 @@ export async function getSalesmanCommissionReport(days: number | null = 30) {
   const startDate = days === null ? null : new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   const conditions = [eq(orders.orderStatus, "delivered")];
   if (startDate) conditions.push(gte(orders.deliveredAt, startDate));
+
   const rows = await db.select({
     salesmanId: orders.createdBySalesRepId,
     salesmanName: users.name,
     salesmanEmail: users.email,
-    orderNumber: orders.orderNumber,
     orderAmount: orders.totalAmount,
-    commissionRate: orders.salesmanCommissionRate,
     commissionAmount: orders.salesmanCommissionAmount,
-  }).from(orders).leftJoin(users, eq(orders.createdBySalesRepId, users.id)).where(and(...conditions));
+    commissionPaidAt: orders.salesmanCommissionPaidAt,
+  }).from(orders)
+    .leftJoin(users, eq(orders.createdBySalesRepId, users.id))
+    .where(and(...conditions));
 
-  const report = new Map<number, { salesmanId: number; name: string; email: string | null; deliveredOrders: number; salesAmount: number; commissionAmount: number; rates: Set<string> }>();
+  const report = new Map<number, {
+    salesmanId: number;
+    name: string;
+    email: string | null;
+    deliveredOrders: number;
+    salesAmount: number;
+    payableCommission: number;
+    paidCommission: number;
+  }>();
+
   for (const row of rows) {
     if (!row.salesmanId || row.commissionAmount === null || row.commissionAmount === undefined) continue;
     const existing = report.get(row.salesmanId) || {
@@ -1927,39 +1938,41 @@ export async function getSalesmanCommissionReport(days: number | null = 30) {
       email: row.salesmanEmail || null,
       deliveredOrders: 0,
       salesAmount: 0,
-      commissionAmount: 0,
-      rates: new Set<string>(),
+      payableCommission: 0,
+      paidCommission: 0,
     };
+
     existing.deliveredOrders += 1;
     existing.salesAmount += Number(row.orderAmount || 0);
-    existing.commissionAmount += Number(row.commissionAmount || 0);
-    if (row.commissionRate !== null && row.commissionRate !== undefined) existing.rates.add(String(row.commissionRate));
+    if (row.commissionPaidAt) existing.paidCommission += Number(row.commissionAmount || 0);
+    else existing.payableCommission += Number(row.commissionAmount || 0);
     report.set(row.salesmanId, existing);
   }
 
-  const salesmen = Array.from(report.values()).map(person => ({
-    ...person,
-    commissionRates: Array.from(person.rates).join(", "),
-  })).map(({ rates, ...person }) => person).sort((a, b) => b.commissionAmount - a.commissionAmount);
+  const salesmen = Array.from(report.values())
+    .map(person => ({
+      ...person,
+      totalCommission: person.payableCommission + person.paidCommission,
+    }))
+    .sort((a, b) => b.payableCommission - a.payableCommission);
+
   return {
     periodDays: days,
-    totalCommission: salesmen.reduce((sum, person) => sum + person.commissionAmount, 0),
+    totalPayableCommission: salesmen.reduce((sum, person) => sum + person.payableCommission, 0),
+    totalPaidCommission: salesmen.reduce((sum, person) => sum + person.paidCommission, 0),
+    totalCommission: salesmen.reduce((sum, person) => sum + person.totalCommission, 0),
     salesmen,
   };
 }
 
-/**
- * Returns every salesman-booked order with its commission snapshot.  This is
- * deliberately separate from the summary report: the salesman can only ask
- * for their own rows through the router, while an admin can view all rows.
- */
+// This returns every salesman order with its product-wise commission snapshot.
 export async function getSalesmanCommissionOrders(input: { salesmanId?: number; days?: number | null } = {}) {
   const db = await getDb();
   if (!db) throw new Error("Database is unavailable");
 
   const days = input.days === undefined ? null : input.days;
   const startDate = days === null ? null : new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-  const conditions = [sql`${orders.createdBySalesRepId} IS NOT NULL`];
+  const conditions = [sql`createdBySalesRepId IS NOT NULL`];
   if (input.salesmanId) conditions.push(eq(orders.createdBySalesRepId, input.salesmanId));
   if (startDate) conditions.push(gte(orders.createdAt, startDate));
 
@@ -1978,20 +1991,62 @@ export async function getSalesmanCommissionOrders(input: { salesmanId?: number; 
     salesmanEmail: users.email,
     commissionRate: orders.salesmanCommissionRate,
     commissionAmount: orders.salesmanCommissionAmount,
+    commissionPaidAt: orders.salesmanCommissionPaidAt,
   }).from(orders)
     .leftJoin(users, eq(orders.createdBySalesRepId, users.id))
     .where(and(...conditions))
     .orderBy(desc(orders.createdAt));
 
-  return rows.map((order) => ({
-    ...order,
-    commissionStatus: order.orderStatus === "delivered"
-      ? "payable"
-      : order.orderStatus === "cancelled"
-        ? "cancelled"
-        : "pending",
+  return Promise.all(rows.map(async order => {
+    const items = await db.select({
+      productId: orderItems.productId,
+      productName: products.name,
+      partNumber: products.partNumber,
+      quantity: orderItems.quantity,
+      salesmanCommissionPerUnit: orderItems.salesmanCommissionPerUnit,
+      salesmanCommissionAmount: orderItems.salesmanCommissionAmount,
+    }).from(orderItems)
+      .leftJoin(products, eq(orderItems.productId, products.id))
+      .where(eq(orderItems.orderId, order.id));
+
+    const commissionStatus = order.orderStatus === "cancelled"
+      ? "cancelled"
+      : order.orderStatus !== "delivered"
+        ? "pending"
+        : order.commissionPaidAt
+          ? "paid"
+          : "payable";
+
+    return { ...order, items, commissionStatus };
   }));
 }
+
+// This only records a manual settlement already made by the admin.
+// It never initiates a bank, UPI, or other financial transfer.
+export async function markSalesmanCommissionPaid(orderId: number) {
+  const database = await getDb();
+  if (!database) throw new Error("Database is unavailable");
+
+  const result = await database.select({
+    id: orders.id,
+    orderStatus: orders.orderStatus,
+    createdBySalesRepId: orders.createdBySalesRepId,
+    commissionAmount: orders.salesmanCommissionAmount,
+    commissionPaidAt: orders.salesmanCommissionPaidAt,
+  }).from(orders).where(eq(orders.id, orderId)).limit(1);
+  const order = result[0];
+
+  if (!order || !order.createdBySalesRepId) throw new Error("Salesman order not found");
+  if (order.orderStatus !== "delivered") throw new Error("Commission can be marked paid only after delivery");
+  if (order.commissionAmount === null || Number(order.commissionAmount) <= 0) throw new Error("This order has no commission to settle");
+  if (order.commissionPaidAt) return { success: true, alreadyPaid: true };
+
+  await database.update(orders)
+    .set({ salesmanCommissionPaidAt: new Date(), updatedAt: new Date() } as any)
+    .where(eq(orders.id, orderId));
+  return { success: true, alreadyPaid: false };
+}
+
 
 export async function getOrderStatusBreakdown() {
   const db = await getDb();
