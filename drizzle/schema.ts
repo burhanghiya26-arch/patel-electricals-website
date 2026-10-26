@@ -268,6 +268,9 @@ export const orderItems = mysqlTable("order_items", {
   purchaseCost: decimal("purchaseCost", { precision: 12, scale: 2 }),
 
   // Order book hote samay product ki commission save hogi.
+  // Percentage configured on the product, saved at order-booking time.
+  salesmanCommissionPercent: decimal("salesmanCommissionPercent", { precision: 5, scale: 2 }),
+  // Calculated rupees for one unit and for this full order line.
   salesmanCommissionPerUnit: decimal("salesmanCommissionPerUnit", { precision: 12, scale: 2 }),
   salesmanCommissionAmount: decimal("salesmanCommissionAmount", { precision: 12, scale: 2 }),
 
