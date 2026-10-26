@@ -87,6 +87,7 @@ async function ensureSalesmanBookingColumns(): Promise<void> {
     { table: "orders", name: "razorpayFee", definition: "DECIMAL(12,2) NULL" },
     { table: "orders", name: "salesmanCommissionRate", definition: "DECIMAL(5,2) NULL" },
     { table: "orders", name: "salesmanCommissionAmount", definition: "DECIMAL(12,2) NULL" },
+    { table: "orders", name: "salesmanCommissionPaidAt", definition: "TIMESTAMP NULL" },
     { table: "order_items", name: "purchaseCost", definition: "DECIMAL(12,2) NULL" },
 
     // Commission snapshot for each product line in an order.
