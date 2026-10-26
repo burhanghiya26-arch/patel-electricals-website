@@ -116,7 +116,7 @@ export default function SalesmanOrderBooking() {
   );
 
   const orderCommission = lines.reduce(
-    (sum, line) => sum + Number(line.product!.salesmanCommissionPerUnit || 0) * line.quantity,
+    (sum, line) => sum + (Number(line.product!.wholesalePrice) * Number(line.product!.salesmanCommissionPercent || 0) / 100) * line.quantity,
     0,
   );
 
@@ -383,6 +383,8 @@ export default function SalesmanOrderBooking() {
             {visibleProducts.map(product => {
               const line = cart.find(item => item.productId === product.id);
               const qty = line?.quantity || 0;
+              const commissionPercent = Number(product.salesmanCommissionPercent || 0);
+              const commissionPerUnit = Number(product.wholesalePrice) * commissionPercent / 100;
 
               return <div key={product.id} className="flex gap-3 rounded-lg border p-3">
                 {product.imageUrl ? (
@@ -411,11 +413,11 @@ export default function SalesmanOrderBooking() {
                   </p>
 
                   <p className="text-sm font-semibold text-indigo-700">
-                    Aapka commission: ₹{Number(product.salesmanCommissionPerUnit || 0).toLocaleString("en-IN")} / unit
+                    Aapka commission: {commissionPercent.toLocaleString("en-IN")}% = ₹{commissionPerUnit.toLocaleString("en-IN", { maximumFractionDigits: 2 })} / unit
                   </p>
                   {qty > 0 && (
                     <p className="text-xs font-medium text-indigo-700">
-                      {qty} unit × ₹{Number(product.salesmanCommissionPerUnit || 0).toLocaleString("en-IN")} = ₹{(Number(product.salesmanCommissionPerUnit || 0) * qty).toLocaleString("en-IN", { maximumFractionDigits: 2 })} commission
+                      {commissionPercent.toLocaleString("en-IN")}% par {qty} unit ka commission: ₹{(commissionPerUnit * qty).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                     </p>
                   )}
 
@@ -449,19 +451,22 @@ export default function SalesmanOrderBooking() {
             <CardTitle className="flex gap-2"><ShoppingBag /> Order Summary</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {lines.map(line => (
-              <div key={line.productId} className="flex justify-between gap-3 text-sm">
+            {lines.map(line => {
+              const commissionPercent = Number(line.product!.salesmanCommissionPercent || 0);
+              const commissionPerUnit = Number(line.product!.wholesalePrice) * commissionPercent / 100;
+              const lineCommission = commissionPerUnit * line.quantity;
+              return <div key={line.productId} className="flex justify-between gap-3 text-sm">
                 <span>
                   {line.product!.name} × {line.quantity}
                   <span className="block text-xs text-indigo-700">
-                    Commission: ₹{Number(line.product!.salesmanCommissionPerUnit || 0).toLocaleString("en-IN")} × {line.quantity} = ₹{(Number(line.product!.salesmanCommissionPerUnit || 0) * line.quantity).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                    Commission: {commissionPercent.toLocaleString("en-IN")}% = ₹{commissionPerUnit.toLocaleString("en-IN", { maximumFractionDigits: 2 })} / unit × {line.quantity} = ₹{lineCommission.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                   </span>
                 </span>
                 <span>
                   ₹{(Number(line.product!.wholesalePrice) * line.quantity).toLocaleString("en-IN")}
                 </span>
-              </div>
-            ))}
+              </div>;
+            })}
 
             <div className="flex justify-between border-t pt-3 text-lg font-bold">
               <span>Total</span>
@@ -546,10 +551,11 @@ export default function SalesmanOrderBooking() {
                     <div className="mt-2 space-y-1 rounded-md bg-indigo-50 p-2 text-xs text-indigo-900">
                       <p className="font-semibold">Product-wise commission</p>
                       {order.items.map(item => {
+                        const percent = Number(item.salesmanCommissionPercent || 0);
                         const perUnit = Number(item.salesmanCommissionPerUnit || 0);
                         const amount = Number(item.salesmanCommissionAmount || 0);
                         return <p key={item.productId}>
-                          {item.productName || item.partNumber || "Product"}: ₹{perUnit.toLocaleString("en-IN")} × {item.quantity} = ₹{amount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                          {item.productName || item.partNumber || "Product"}: {percent.toLocaleString("en-IN")}% = ₹{perUnit.toLocaleString("en-IN", { maximumFractionDigits: 2 })} / unit × {item.quantity} = ₹{amount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                         </p>;
                       })}
                     </div>
