@@ -579,5 +579,9 @@ function ReportValue({ label, value }: { label: string; value: string }) {
 }
 
 function SummaryRow({ label, value, tone = "", bold = false }: { label: string; value: string; tone?: string; bold?: boolean }) {
+  const invoiceStat = ["Received", "Balance", "Private Profit"].includes(label);
+  if (invoiceStat) {
+    return <div className={`rounded-md border bg-muted/30 p-3 text-sm ${bold ? "font-bold" : ""} ${tone}`}><span className="block text-xs text-muted-foreground">{label}</span><span className="mt-1 block text-lg font-bold">{value}</span></div>;
+  }
   return <div className={`flex items-center justify-between text-sm ${bold ? "font-bold" : ""} ${tone}`}><span>{label}</span><span>{value}</span></div>;
 }
