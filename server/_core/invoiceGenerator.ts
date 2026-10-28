@@ -1,13 +1,12 @@
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface InvoiceItem {
   name: string;
   quantity: number;
   price: number;
   total: number;
-  sku?: string;
-  imageUrl?: string;
+  unit?: string;
 }
 
 interface InvoiceData {
@@ -21,234 +20,193 @@ interface InvoiceData {
   subtotal: number;
   tax: number;
   total: number;
+  amountPaid?: number;
+  balanceDue?: number;
   orderDate: Date;
   paymentMethod: string;
   orderStatus: string;
 }
 
-export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4',
-  });
+const SHOP_UPI_ID = "burhanghiya26-1@oksbi";
+const SHOP_UPI_NAME = "Patel Electricals";
+const BANK_NAME = "Bank of Baroda";
+const BANK_ACCOUNT_HOLDER = "Burhanuddin Fakharuddin Ghiya";
+const BANK_ACCOUNT_NUMBER = "70120100018589";
+const BANK_IFSC = "BARB0DBBGOL";
 
+const money = (amount: number) => `Rs. ${Number(amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+function paymentLink(data: InvoiceData, balanceDue: number) {
+  const params = new URLSearchParams({
+    pa: SHOP_UPI_ID,
+    pn: SHOP_UPI_NAME,
+    cu: "INR",
+    tn: `Bill ${data.orderNumber}`,
+    am: balanceDue.toFixed(2),
+  });
+  return `upi://pay?${params.toString()}`;
+}
+
+async function loadPaymentQr(data: InvoiceData, balanceDue: number): Promise<Uint8Array | null> {
+  try {
+    const url = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&format=png&data=${encodeURIComponent(paymentLink(data, balanceDue))}`;
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    return new Uint8Array(await response.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
+export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 15;
-  const contentWidth = pageWidth - 2 * margin;
+  const margin = 14;
+  const contentWidth = pageWidth - margin * 2;
+  const total = Number(data.total || 0);
+  const isCod = data.paymentMethod.toLowerCase().includes("cash on delivery");
+  const amountPaid = Math.max(0, Number(data.amountPaid ?? (isCod ? 0 : total)));
+  const balanceDue = Math.max(0, Number(data.balanceDue ?? Math.max(0, total - amountPaid)));
+  const hasBalanceDue = balanceDue > 0.009;
+  let y = margin;
 
-  let yPosition = margin;
+  doc.setTextColor(20, 62, 105);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(19);
+  doc.text("PATEL ELECTRICALS", margin, y);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(80, 88, 105);
+  doc.text("Electricals | Spare Parts | Repairing | Fitting Service", margin, y + 5.5);
+  doc.text("Udhana Meera Nagar, Surat, Gujarat - 394210", margin, y + 10);
+  doc.text("Phone / WhatsApp: +91 8780657095 | www.patelspares.com", margin, y + 14.5);
 
-  // Header - Company Info
-  doc.setFontSize(20);
-  doc.setTextColor(25, 42, 86); // Dark blue
-  doc.text('Patel Electricals', margin, yPosition);
-  yPosition += 8;
-
+  doc.setTextColor(20, 32, 51);
+  doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.setTextColor(100, 100, 100);
-  doc.text('Wholesale Spare Parts', margin, yPosition);
-  yPosition += 5;
-  doc.text('Surat, Gujarat - 394210', margin, yPosition);
-  yPosition += 5;
-  doc.text('Phone: 8780657095 | Email: burhanghiya26@gmail.com', margin, yPosition);
-  yPosition += 10;
+  doc.text("INVOICE", pageWidth - margin, y, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text(`Bill No: ${data.orderNumber}`, pageWidth - margin, y + 5.5, { align: "right" });
+  doc.text(`Date: ${data.orderDate.toLocaleDateString("en-IN")}`, pageWidth - margin, y + 10, { align: "right" });
+  doc.text(`Status: ${data.orderStatus}`, pageWidth - margin, y + 14.5, { align: "right" });
+  y += 22;
 
-  // Divider line
-  doc.setDrawColor(200, 200, 200);
-  doc.line(margin, yPosition, pageWidth - margin, yPosition);
-  yPosition += 8;
+  doc.setDrawColor(210, 220, 230);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 8;
 
-  // Invoice Title and Details
-  doc.setFontSize(14);
-  doc.setTextColor(25, 42, 86);
-  doc.text('INVOICE', margin, yPosition);
-  yPosition += 8;
+  const customerLines = [
+    `Customer: ${data.customerName || "Walk-in Customer"}`,
+    ...(data.customerPhone ? [`Mobile: ${data.customerPhone}`] : []),
+    ...(data.customerEmail ? [`Email: ${data.customerEmail}`] : []),
+    ...(data.shippingAddress ? doc.splitTextToSize(`Address: ${data.shippingAddress}`, contentWidth - 12) : []),
+  ];
+  const customerHeight = Math.max(26, customerLines.length * 4.7 + 12);
+  doc.roundedRect(margin, y, contentWidth, customerHeight, 2, 2, "S");
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(20, 32, 51);
+  doc.setFontSize(8);
+  customerLines.forEach((line: string, index: number) => doc.text(line, margin + 5, y + 7 + index * 4.7));
+  y += customerHeight + 8;
 
-  doc.setFontSize(9);
-  doc.setTextColor(0, 0, 0);
-  doc.text(`Invoice #: ${data.orderNumber}`, margin, yPosition);
-  yPosition += 5;
-  doc.text(`Order ID: ${data.orderId}`, margin, yPosition);
-  yPosition += 5;
-  doc.text(`Date: ${data.orderDate.toLocaleDateString('en-IN')}`, margin, yPosition);
-  yPosition += 5;
-  doc.text(`Status: ${data.orderStatus}`, margin, yPosition);
-  yPosition += 10;
+  const tableRows = data.items.map((item, index) => [
+    String(index + 1),
+    item.name || "Item",
+    item.unit || "piece",
+    String(item.quantity),
+    money(item.price),
+    money(item.total),
+  ]);
 
-  // Customer and Shipping Info
-  doc.setFontSize(10);
-  doc.setTextColor(25, 42, 86);
-  doc.text('Bill To:', margin, yPosition);
-  yPosition += 5;
-
-  doc.setFontSize(9);
-  doc.setTextColor(0, 0, 0);
-  doc.text(data.customerName, margin, yPosition);
-  yPosition += 5;
-  doc.text(data.customerPhone, margin, yPosition);
-  yPosition += 5;
-  doc.text(data.customerEmail, margin, yPosition);
-  yPosition += 8;
-
-  // Shipping Address
-  doc.setFontSize(10);
-  doc.setTextColor(25, 42, 86);
-  doc.text('Ship To:', margin + contentWidth / 2, yPosition - 8);
-
-  doc.setFontSize(9);
-  doc.setTextColor(0, 0, 0);
-  const addressLines = doc.splitTextToSize(data.shippingAddress, contentWidth / 2 - 5);
-  doc.text(addressLines, margin + contentWidth / 2, yPosition - 3);
-  yPosition += Math.max(20, addressLines.length * 4);
-
-  // Items Table with Product Details
-  const tableData = data.items.map((item) => [
-  item.name,
-  item.quantity.toString(),
-  `Rs. ${item.price.toFixed(2)}`,
-  `Rs. ${item.total.toFixed(2)}`,
-]);
-
-  // Create items table
   autoTable(doc, {
-    startY: yPosition,
-    margin: { left: margin, right: margin, top: 5, bottom: 5 },
-    head: [['Product', 'Qty', 'Unit Price', 'Total']],
-    body: tableData,
-    theme: 'grid',
-    headStyles: {
-      fillColor: [25, 42, 86],
-      textColor: [255, 255, 255],
-      fontSize: 10,
-      fontStyle: 'bold',
-      halign: 'center',
-      valign: 'middle',
-    },
-    bodyStyles: {
-      fontSize: 9,
-      textColor: [0, 0, 0],
-      valign: 'middle',
-    },
+    startY: y,
+    margin: { left: margin, right: margin, top: 12, bottom: 16 },
+    head: [["#", "Description", "Unit", "Qty", "Rate", "Amount"]],
+    body: tableRows,
+    theme: "grid",
+    headStyles: { fillColor: [20, 62, 105], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8, halign: "center" },
+    bodyStyles: { fontSize: 7.5, textColor: [20, 32, 51], valign: "middle" },
     columnStyles: {
-      0: { halign: 'left', cellWidth: contentWidth * 0.45 },
-      1: { halign: 'center', cellWidth: contentWidth * 0.15 },
-      2: { halign: 'right', cellWidth: contentWidth * 0.2 },
-      3: { halign: 'right', cellWidth: contentWidth * 0.2 },
-    },
-    didDrawPage: (data: any) => {
-      // Footer
-      const pageCount = (doc as any).internal.getNumberOfPages();
-      const pageSize = doc.internal.pageSize;
-      const pageHeight = pageSize.getHeight();
-      const pageWidth = pageSize.getWidth();
-
-      doc.setFontSize(8);
-      doc.setTextColor(150, 150, 150);
-      doc.text(
-        `Page ${data.pageNumber} of ${pageCount}`,
-        pageWidth / 2,
-        pageHeight - 10,
-        { align: 'center' } as any
-      );
+      0: { cellWidth: 10, halign: "center" },
+      1: { cellWidth: 63, halign: "left" },
+      2: { cellWidth: 20, halign: "center" },
+      3: { cellWidth: 16, halign: "right" },
+      4: { cellWidth: 34, halign: "right" },
+      5: { cellWidth: 34, halign: "right" },
     },
   });
 
-  // Add product details section with labels
-  const tableEndY = (doc as any).lastAutoTable?.finalY || yPosition;
-  yPosition = tableEndY + 15;
-  
-  if (data.items.length > 0) {
-    doc.setFontSize(11);
-    doc.setTextColor(25, 42, 86);
-    doc.setFont(undefined as any, 'bold');
-    doc.text('Product Details:', margin, yPosition);
-    yPosition += 8;
-
-    // Add each product with labels
-    data.items.forEach((item, index) => {
-      doc.setFontSize(9);
-      doc.setTextColor(0, 0, 0);
-      doc.setFont(undefined as any, 'normal');
-      
-      // Product name
-      doc.text(`${index + 1}. ${item.name}`, margin, yPosition);
-      yPosition += 5;
-      
-      // Product details with labels
-      doc.setFontSize(8);
-      doc.setTextColor(80, 80, 80);
-      doc.text(`   Quantity: ${item.quantity} unit(s)`, margin + 2, yPosition);
-      yPosition += 4;
-      
-      doc.text(`   Unit Price: Rs. ${item.price.toFixed(2)}`, margin + 2, yPosition);
-      yPosition += 4;
-      
-      doc.text(`   Total: Rs. ${item.total.toFixed(2)}`, margin + 2, yPosition);
-      yPosition += 4;
-      
-      if (item.sku) {
-        doc.text(`   SKU: ${item.sku}`, margin + 2, yPosition);
-        yPosition += 4;
-      }
-      
-      yPosition += 3;
-    });
+  y = ((doc as any).lastAutoTable?.finalY || y) + 10;
+  const summaryHeight = hasBalanceDue ? 74 : 36;
+  if (y + summaryHeight > pageHeight - 18) {
+    doc.addPage();
+    y = margin + 8;
   }
 
-  // Add some space before summary
-  yPosition += 8;
+  const summaryX = pageWidth - margin - 67;
+  const valueX = pageWidth - margin;
+  doc.setTextColor(20, 32, 51);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.text("Amount Received", summaryX, y, { align: "right" });
+  doc.text(money(amountPaid), valueX, y, { align: "right" });
+  y += 6;
+  doc.text("Balance Due", summaryX, y, { align: "right" });
+  doc.text(money(balanceDue), valueX, y, { align: "right" });
+  y += 8;
+  doc.setFillColor(239, 246, 255);
+  doc.rect(summaryX - 64, y - 5.5, valueX - summaryX + 64, 12, "F");
+  doc.setTextColor(20, 62, 105);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Total", summaryX, y + 2.5, { align: "right" });
+  doc.text(money(total), valueX, y + 2.5, { align: "right" });
+  y += 20;
 
-  // Summary Section - Manual drawing (NOT using autoTable)
-  const summaryStartX = margin + contentWidth * 0.55;
-  const summaryValueX = pageWidth - margin - 5;
+  if (hasBalanceDue) {
+    const qr = await loadPaymentQr(data, balanceDue);
+    if (qr) doc.addImage(qr as any, "PNG", margin, y, 31, 31);
+    doc.setTextColor(20, 32, 51);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("Scan & Pay by UPI", margin + 38, y + 7);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.text(`UPI ID: ${SHOP_UPI_ID}`, margin + 38, y + 12);
+    doc.text(`Payable: ${money(balanceDue)}`, margin + 38, y + 17);
+    doc.setDrawColor(210, 220, 230);
+    doc.roundedRect(pageWidth - margin - 82, y - 1, 82, 40, 2, 2, "S");
+    doc.setFont("helvetica", "bold");
+    doc.text("Bank Details", pageWidth - margin - 78, y + 6);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.8);
+    doc.text(`Bank: ${BANK_NAME}`, pageWidth - margin - 78, y + 11);
+    doc.text(`A/c Holder: ${BANK_ACCOUNT_HOLDER}`, pageWidth - margin - 78, y + 16);
+    doc.text(`A/c No: ${BANK_ACCOUNT_NUMBER}`, pageWidth - margin - 78, y + 21);
+    doc.text(`IFSC: ${BANK_IFSC}`, pageWidth - margin - 78, y + 26);
+    y += 47;
+  }
 
-  doc.setFontSize(9);
-  doc.setTextColor(0, 0, 0);
+  const footerY = Math.min(y + 3, pageHeight - 23);
+  doc.setDrawColor(226, 232, 240);
+  doc.line(margin, footerY, pageWidth - margin, footerY);
+  doc.setTextColor(100, 116, 139);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.text("Thank you for choosing Patel Electricals.", pageWidth / 2, footerY + 8, { align: "center" });
+  doc.text("WhatsApp: +91 8780657095 | www.patelspares.com", pageWidth / 2, footerY + 12, { align: "center" });
 
-  // Subtotal
-  doc.text('Subtotal:', summaryStartX, yPosition);
-  doc.text(`Rs. ${data.subtotal.toFixed(2)}`, summaryValueX, yPosition, { align: 'right' } as any);
-  yPosition += 6;
+  const pageCount = doc.getNumberOfPages();
+  for (let page = 1; page <= pageCount; page += 1) {
+    doc.setPage(page);
+    doc.setFontSize(7);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`Page ${page} of ${pageCount}`, pageWidth / 2, pageHeight - 7, { align: "center" });
+  }
 
-  // Tax
-  doc.text('Tax (GST):', summaryStartX, yPosition);
- doc.text(`Rs. ${data.tax.toFixed(2)}`, summaryValueX, yPosition, { align: 'right' } as any); 
-  yPosition += 8;
-
-  // Total with background box
-  doc.setDrawColor(25, 42, 86);
-  doc.setFillColor(240, 240, 240);
-  const boxWidth = summaryValueX - summaryStartX + 5;
-  doc.rect(summaryStartX - 3, yPosition - 5, boxWidth, 10, 'F');
-
-  doc.setFontSize(11);
-  doc.setTextColor(25, 42, 86);
-  doc.setFont(undefined as any, 'bold');
-  doc.text('Total Amount:', summaryStartX, yPosition + 1);
- doc.text(`Rs. ${data.total.toFixed(2)}`, summaryValueX, yPosition + 1, { align: 'right' } as any); 
-
-  yPosition += 15;
-
-  // Payment Info
-  doc.setFontSize(9);
-  doc.setTextColor(0, 0, 0);
-  doc.setFont(undefined as any, 'normal');
-  doc.text(`Payment Method: ${data.paymentMethod}`, margin, yPosition);
-  yPosition += 8;
-
-  // Terms and Conditions
-  doc.setFontSize(8);
-  doc.setTextColor(100, 100, 100);
-  const termsText =
-    'Thank you for your business! This is a computer-generated invoice and does not require a signature. For any queries, please contact us at 8780657095 or burhanghiya26@gmail.com';
-  const termsLines = doc.splitTextToSize(termsText, contentWidth);
-  doc.text(termsLines, margin, yPosition);
-
-  // Convert to buffer
-  const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
-  return pdfBuffer;
+  return Buffer.from(doc.output("arraybuffer"));
 }
 
 export async function generateInvoiceFileName(orderNumber: string): Promise<string> {
